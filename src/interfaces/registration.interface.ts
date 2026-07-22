@@ -1,0 +1,55 @@
+export interface ILoginInfo {
+  id: number;
+  email: string;
+  password: string;
+  userName: string;
+  isBlocked: boolean;
+  attemptedCount: number;
+  blockedTime: Date;
+  isActive: boolean;
+  isVerified: boolean;
+  uAuthId: number | null;
+  masterLoginTypeId: number | null;
+  updatedOn: Date;
+  profileImageKey?: string;
+  isTwoFactorAuthenticationEnabled: boolean;
+}
+export interface ICreateUser {
+  userName: string;
+  email: string;
+  password?: string;
+  googleSubId?: string;
+  isVerified?: boolean;
+}
+
+export interface IUserAuthData {
+  attemptedCount: number;
+  userId: number;
+  id?: number;
+  isBlocked: boolean;
+  blockedTime: Date;
+  masterLoginTypeId: number;
+  updatedOn?: Date;
+}
+
+export interface IQRGnerateResponse {
+  secretKey: string;
+  qrcode: string;
+}
+
+export interface IUserStatus {
+  id: number;
+  isActive: boolean;
+}
+
+export interface IUserInfo {
+  id: number;
+  secret: string;
+  code: string;
+}
+
+export interface IUserEmailVerificaiton {
+  email: string;
+  otp: string;
+  createdBy: number;
+}
