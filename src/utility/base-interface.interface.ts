@@ -1,4 +1,4 @@
-import { RoleActions, RoleFeatures } from 'src/enums/casl.enum';
+import { Action } from 'src/enums/casl.enum';
 
 export interface ICommonListPayload {
   offSet?: number;
@@ -25,23 +25,31 @@ export interface IMailDetails {
   };
 }
 
+/**
+ * Shape of the decoded JWT payload.
+ *
+ * roleKey is the immutable string used for all authorization checks
+ * (e.g. 'SUPER_ADMIN', 'ADMIN', 'MEMBER').
+ * permissionsVersion is bumped whenever a role's permissions change,
+ * invalidating the in-memory / Redis cache entry for that role.
+ */
 export interface IDecodeUserDetails {
   readonly iat: number;
   readonly exp: number;
-  roleId: number;
   userId: number;
-  email?: string;
-  currentRoleId?: number;
-  serviceDetails?: {
-    masterServiceTypeId?: number;
-    servicePartnerId?: number;
-  };
-  roleIds?: number[];
+  email: string;
+  roleKey: string;
+  roleIds: number[];
+  currentRoleId: number;
+  tenantId?: number;
+  permissionsVersion: number;
 }
 
 export interface IUserPermissions {
-  action: RoleActions;
-  subject: RoleFeatures;
+  action: Action;
+  subject: string;
+  /** Optional CASL condition — used for ownership-based rules (scope: 'own') */
+  conditions?: Record<string, unknown>;
 }
 
 export interface ILoggerMethods {

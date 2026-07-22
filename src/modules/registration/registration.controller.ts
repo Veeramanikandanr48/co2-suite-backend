@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
   Param,
+  ParseIntPipe,
   Post,
   Req,
   Res,
@@ -29,13 +32,16 @@ import {
   IUserAuthData,
   IUserInfo,
 } from 'src/interfaces/registration.interface';
-import { addHours, isAfter } from 'date-fns';
+import { addHours, addDays, isAfter } from 'date-fns';
 import { AuthGuard } from '@nestjs/passport';
 import { EmailService } from 'src/utility/email/email.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { MultiFactorAuthenticationService } from 'src/utility/multi-factor-authentication/multi-factor-authentication.service';
 import { UserId } from 'src/utility/decorators/userid.decorator';
 import { EmailTemplate } from 'src/enums/base.enum';
+import { AuthService } from 'src/auth/auth/auth.service';
+import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
+import * as crypto from 'crypto';
 
 @Controller('registration')
 export class RegistrationController {
@@ -46,6 +52,7 @@ export class RegistrationController {
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
     private readonly mfa: MultiFactorAuthenticationService,
+    private readonly authService: AuthService,
   ) {}
 
   @Post('register')
@@ -195,25 +202,58 @@ export class RegistrationController {
 
       await this.updateUserAuth(userAuthPayload, loginData.id);
 
-      const payload = {
+      // Fetch user roles from user_roles table
+      const userRoles = await this.authService.getUserRoles(loginData.id);
+      const primaryRole = userRoles.find((r) => r.isPrimary) ?? userRoles[0];
+      const roleIds = userRoles.map((r) => r.roleId);
+
+      // Build JWT payload — use roleKey for authorization, not integer IDs
+      const jwtPayload: Omit<IDecodeUserDetails, 'iat' | 'exp'> = {
+        userId: loginData.id,
         email: loginData.email,
-        id: loginData.id,
-        userName: loginData.userName,
+        roleKey: primaryRole?.roleKey ?? 'MEMBER',
+        roleIds,
+        currentRoleId: primaryRole?.roleId ?? null,
+        permissionsVersion: 1,
       };
 
-      const accessToken = this.jwtService.sign(payload, { expiresIn: '5h' });
+      const accessToken = this.jwtService.sign(jwtPayload, { expiresIn: '15m' });
+
+      // Generate opaque refresh token and persist as a session
+      const rawRefreshToken = crypto.randomBytes(64).toString('hex');
+      const refreshExpiresAt = addDays(new Date(), 7);
+      await this.authService.saveSession(
+        loginData.id,
+        rawRefreshToken,
+        refreshExpiresAt,
+        req.ip,
+        req.headers['user-agent'],
+      );
+
+      // Fetch permissions for the primary role to include in the response
+      const permissions = await this.authService.getAllUserPermission(
+        primaryRole?.roleId,
+      );
+
       logger.info('Method end :: login');
 
       const responseData = {
-        isTwoFactorAuthenticationEnabled:
-          loginData.isTwoFactorAuthenticationEnabled,
-        token: accessToken,
+        isTwoFactorAuthenticationEnabled: loginData.isTwoFactorAuthenticationEnabled,
+        accessToken,
+        refreshToken: rawRefreshToken,
+        user: {
+          id: loginData.id,
+          userName: loginData.userName,
+          email: loginData.email,
+          roleKey: primaryRole?.roleKey ?? 'MEMBER',
+          roleName: primaryRole?.roleName ?? '',
+          roleIds,
+          currentRoleId: primaryRole?.roleId ?? null,
+        },
+        roles: userRoles,
+        permissions,
       };
-      this.utilService.sendSuccessResponse(
-        res,
-        'Login successfull',
-        responseData,
-      );
+      this.utilService.sendSuccessResponse(res, 'Login successful', responseData);
     } catch (error) {
       logger.error(`Error in login: ${error.message}`, error);
       this.utilService.sendErrorResponse(res, error.message);
@@ -692,6 +732,169 @@ export class RegistrationController {
       this.utilService.sendErrorResponse(res, 'Error while resetting password');
     }
   }
+
+  // ─── IAM / Session Endpoints ───────────────────────────────────────────────
+
+  @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  async getMe(@Req() req: Request, @Res() res: Response) {
+    const logger = this.utilService.createLogger(RegistrationController.name, req);
+    logger.info('Method start :: getMe');
+    try {
+      const jwtUser = req['user'] as IDecodeUserDetails;
+      const userDetails = await this.registrationService.getUserDetailsId(
+        jwtUser.userId.toString(),
+      );
+      const userRoles = await this.authService.getUserRoles(jwtUser.userId);
+      const activeRole =
+        userRoles.find((r) => r.roleId === jwtUser.currentRoleId) ??
+        userRoles.find((r) => r.isPrimary) ??
+        userRoles[0];
+
+      const permissions = await this.authService.getAllUserPermission(
+        activeRole?.roleId,
+      );
+
+      const responseData = {
+        user: {
+          id: userDetails.id,
+          userName: userDetails.userName,
+          email: userDetails.email,
+          roleKey: activeRole?.roleKey ?? 'MEMBER',
+          roleName: activeRole?.roleName ?? '',
+          roleIds: userRoles.map((r) => r.roleId),
+          currentRoleId: activeRole?.roleId ?? null,
+        },
+        roles: userRoles,
+        permissions,
+      };
+
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Profile and permissions fetched successfully',
+        responseData,
+      );
+    } catch (error) {
+      logger.error(`Error in getMe: ${error.message}`, error);
+      return this.utilService.sendErrorResponse(res, error.message);
+    }
+  }
+
+  @Post('refresh')
+  async refreshToken(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body: { refreshToken: string; roleId?: number },
+  ) {
+    const logger = this.utilService.createLogger(RegistrationController.name, req);
+    logger.info('Method start :: refreshToken');
+    try {
+      if (!body.refreshToken) {
+        return this.utilService.sendErrorResponse(res, 'Refresh token is required');
+      }
+
+      const session = await this.authService.findValidSession(body.refreshToken);
+      if (!session || isAfter(new Date(), session.expiresAt)) {
+        return this.utilService.sendErrorResponse(res, 'Invalid or expired refresh token');
+      }
+
+      // Rotate refresh token
+      await this.authService.revokeSession(body.refreshToken, 'rotation');
+      const newRefreshToken = crypto.randomBytes(64).toString('hex');
+      const refreshExpiresAt = addDays(new Date(), 7);
+
+      await this.authService.saveSession(
+        session.userId,
+        newRefreshToken,
+        refreshExpiresAt,
+        req.ip,
+        req.headers['user-agent'],
+      );
+
+      const userRoles = await this.authService.getUserRoles(session.userId);
+      const selectedRoleId = body.roleId ?? userRoles.find((r) => r.isPrimary)?.roleId ?? userRoles[0]?.roleId;
+      const selectedRole = userRoles.find((r) => r.roleId === selectedRoleId) ?? userRoles[0];
+
+      const userDetails = await this.registrationService.getUserDetailsId(
+        session.userId.toString(),
+      );
+
+      const jwtPayload: Omit<IDecodeUserDetails, 'iat' | 'exp'> = {
+        userId: session.userId,
+        email: userDetails.email,
+        roleKey: selectedRole?.roleKey ?? 'MEMBER',
+        roleIds: userRoles.map((r) => r.roleId),
+        currentRoleId: selectedRoleId,
+        permissionsVersion: 1,
+      };
+
+      const accessToken = this.jwtService.sign(jwtPayload, { expiresIn: '15m' });
+      const permissions = await this.authService.getAllUserPermission(selectedRoleId);
+
+      return this.utilService.sendSuccessResponse(res, 'Token refreshed successfully', {
+        accessToken,
+        refreshToken: newRefreshToken,
+        currentRoleId: selectedRoleId,
+        permissions,
+      });
+    } catch (error) {
+      logger.error(`Error in refreshToken: ${error.message}`, error);
+      return this.utilService.sendErrorResponse(res, error.message);
+    }
+  }
+
+  @Post('logout')
+  @UseGuards(AuthGuard('jwt'))
+  async logout(@Req() req: Request, @Res() res: Response, @Body() body?: { refreshToken?: string }) {
+    const logger = this.utilService.createLogger(RegistrationController.name, req);
+    logger.info('Method start :: logout');
+    try {
+      const jwtUser = req['user'] as IDecodeUserDetails;
+      if (body?.refreshToken) {
+        await this.authService.revokeSession(body.refreshToken, 'logout');
+      } else {
+        await this.authService.revokeAllUserSessions(jwtUser.userId);
+      }
+      return this.utilService.sendSuccessResponse(res, 'Logged out successfully');
+    } catch (error) {
+      logger.error(`Error in logout: ${error.message}`, error);
+      return this.utilService.sendErrorResponse(res, error.message);
+    }
+  }
+
+  @Get('sessions')
+  @UseGuards(AuthGuard('jwt'))
+  async getSessions(@Req() req: Request, @Res() res: Response) {
+    const logger = this.utilService.createLogger(RegistrationController.name, req);
+    logger.info('Method start :: getSessions');
+    try {
+      const jwtUser = req['user'] as IDecodeUserDetails;
+      const sessions = await this.authService.getUserSessions(jwtUser.userId);
+      return this.utilService.sendSuccessResponse(res, 'Active sessions fetched', sessions);
+    } catch (error) {
+      logger.error(`Error in getSessions: ${error.message}`, error);
+      return this.utilService.sendErrorResponse(res, error.message);
+    }
+  }
+
+  @Delete('sessions/:id')
+  @UseGuards(AuthGuard('jwt'))
+  async revokeSession(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('id', ParseIntPipe) sessionId: number,
+  ) {
+    const logger = this.utilService.createLogger(RegistrationController.name, req);
+    logger.info(`Method start :: revokeSession #${sessionId}`);
+    try {
+      await this.authService.revokeSessionById(sessionId, 'admin');
+      return this.utilService.sendSuccessResponse(res, 'Session revoked successfully');
+    } catch (error) {
+      logger.error(`Error in revokeSession: ${error.message}`, error);
+      return this.utilService.sendErrorResponse(res, error.message);
+    }
+  }
+
 
   private async generateUserResponseData(
     userId: number,

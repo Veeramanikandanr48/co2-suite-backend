@@ -13,8 +13,17 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.ad
 import { ThrottlerModule } from '@nestjs/throttler';
 import { NotificationsModule } from './modules/common/notifications/notifications.module';
 import { RegistrationModule } from './modules/registration/registration.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
+import { CaslPermissionModule } from './casl-permission/casl-permission.module';
 import { MultiFactorAuthenticationService } from './utility/multi-factor-authentication/multi-factor-authentication.service';
 import { UserDetails } from './entities/user.entity';
+import { MasterRoles, MasterModule } from './entities/master.entity';
+import { Permission } from './entities/permission.entity';
+import { RolePermission } from './entities/role-permission.entity';
+import { UserRole } from './entities/user-role.entity';
+import { UserSession } from './entities/user-session.entity';
+import { AuditLog } from './entities/audit-log.entity';
 import { MastersModule } from './modules/common/masters/masters.module';
 import { join } from 'path';
 import { LogUploadCronService } from './utility/log-upload-cron/log-upload-cron.service';
@@ -28,7 +37,17 @@ import { ScheduleModule } from '@nestjs/schedule';
       isGlobal: true,
     }),
     ScheduleModule.forRoot(),
-    TypeOrmModule.forFeature([UserDetails]),
+    TypeOrmModule.forFeature([
+      UserDetails,
+      MasterRoles,
+      MasterModule,
+      Permission,
+      RolePermission,
+      UserRole,
+      UserSession,
+      AuditLog,
+    ]),
+
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) =>
@@ -89,6 +108,9 @@ import { ScheduleModule } from '@nestjs/schedule';
     ]),
     NotificationsModule,
     RegistrationModule,
+    RolesModule,
+    PermissionsModule,
+    CaslPermissionModule,
     MastersModule,
   ],
   controllers: [AppController],
