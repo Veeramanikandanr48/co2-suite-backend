@@ -6,7 +6,7 @@ import * as zlib from 'zlib';
 
 @Injectable()
 export class LogUploadCronService {
-  constructor() {}
+  constructor() { }
 
   private readonly logger = new Logger(LogUploadCronService.name);
 
@@ -18,7 +18,7 @@ export class LogUploadCronService {
     }
     const files = fs
       .readdirSync(logDirPath)
-      .filter((file) => file.startsWith('MES-') && file.endsWith('.log'))
+      .filter((file) => file.startsWith('CO2-') && file.endsWith('.log'))
       .sort();
 
     if (files.length === 0) {

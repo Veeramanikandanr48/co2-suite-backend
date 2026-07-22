@@ -26,6 +26,7 @@ import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
 import { CheckPermissions } from 'src/casl-permission/casl-ability-factory/casl-ability.factory';
 import { PermissionGuard } from 'src/casl-permission/permission/permission.guard';
 import { Action } from 'src/enums/casl.enum';
+import { PermissionCacheService } from 'src/casl-permission/permission-cache.service';
 
 @ApiTags('permissions')
 @ApiBearerAuth()
@@ -35,6 +36,7 @@ export class PermissionsController {
   constructor(
     private readonly permissionsService: PermissionsService,
     private readonly utilService: UtilService,
+    private readonly permissionCache: PermissionCacheService,
   ) {}
 
   @Get()
@@ -189,6 +191,47 @@ export class PermissionsController {
       return this.utilService.sendSuccessResponse(res, 'Permission checked', { allowed });
     } catch (error) {
       logger.error(`Error checking permission: ${error.message}`, error);
+      return this.utilService.sendErrorResponse(res, error.message);
+    }
+  }
+
+  /**
+   * GET /permissions/effective
+   * Returns the full structured permission list for the calling user's active role.
+   * Includes role metadata and per-permission details (module, resource, action, scope).
+   * Useful for admin UIs, debugging, and developer tooling.
+   */
+  @Get('effective')
+  async getEffectivePermissions(@Req() req: Request, @Res() res: Response) {
+    const logger = this.utilService.createLogger(PermissionsController.name, req);
+    logger.info('Method start: getEffectivePermissions');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      const data = await this.permissionsService.getEffectivePermissions(user);
+      return this.utilService.sendSuccessResponse(res, 'Effective permissions fetched', data);
+    } catch (error) {
+      logger.error(`Error fetching effective permissions: ${error.message}`, error);
+      return this.utilService.sendErrorResponse(res, error.message);
+    }
+  }
+
+  /**
+   * GET /permissions/cache/metrics
+   * Returns permission cache statistics: hits, misses, invalidations, hitRate.
+   * Restricted to users with permission management access.
+   * Invaluable for diagnosing authorization performance in production.
+   */
+  @Get('cache/metrics')
+  @UseGuards(PermissionGuard)
+  @CheckPermissions([Action.READ, 'permissions:permissions'])
+  async getCacheMetrics(@Req() req: Request, @Res() res: Response) {
+    const logger = this.utilService.createLogger(PermissionsController.name, req);
+    logger.info('Method start: getCacheMetrics');
+    try {
+      const metrics = this.permissionCache.getMetrics();
+      return this.utilService.sendSuccessResponse(res, 'Cache metrics fetched', metrics);
+    } catch (error) {
+      logger.error(`Error fetching cache metrics: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
     }
   }

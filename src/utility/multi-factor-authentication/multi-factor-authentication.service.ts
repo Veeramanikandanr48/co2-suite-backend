@@ -18,12 +18,12 @@ export interface MfaResponse<T = unknown> {
 
 @Injectable()
 export class MultiFactorAuthenticationService {
-  private issuer: string = 'kaynes-mes';
+  private issuer: string = 'CO2_SUITE';
   private numberOfBytes: number = 20;
   constructor(
     @InjectRepository(UserDetails)
     private readonly userDetailsRepository: Repository<UserDetails>,
-  ) {}
+  ) { }
 
   public async getOtpSecretById(id: number): Promise<MfaResponse<string>> {
     try {

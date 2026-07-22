@@ -57,6 +57,17 @@ export class MasterRoles extends BaseColumns {
 
   @Column({ nullable: true })
   description: string;
+
+  /**
+   * Monotonically-increasing version counter.
+   * Bumped atomically (inside a transaction) every time this role's
+   * role_permissions rows are mutated via PermissionsService.assignToRole().
+   * The value is embedded in the JWT so PermissionCacheService can build
+   * version-keyed cache entries that automatically become stale after a
+   * permission change without any manual eviction.
+   */
+  @Column({ default: 1 })
+  permissionsVersion: number;
 }
 
 @Entity({ name: 'master_approval_status' })

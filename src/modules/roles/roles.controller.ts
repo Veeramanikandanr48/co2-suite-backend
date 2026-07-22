@@ -14,6 +14,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
+import { JwtService } from '@nestjs/jwt';
 import { RolesService } from './roles.service';
 import { AssignRoleDto, CreateRoleDto, SwitchRoleDto, UpdateRoleDto } from './dto/role.dto';
 import { UtilService } from 'src/utility/util/util.service';
@@ -22,6 +23,7 @@ import { CheckPermissions } from 'src/casl-permission/casl-ability-factory/casl-
 import { PermissionGuard } from 'src/casl-permission/permission/permission.guard';
 import { Action } from 'src/enums/casl.enum';
 import { PermissionsService } from '../permissions/permissions.service';
+import { AuthService } from 'src/auth/auth/auth.service';
 
 @ApiTags('roles')
 @ApiBearerAuth()
@@ -32,6 +34,8 @@ export class RolesController {
     private readonly rolesService: RolesService,
     private readonly utilService: UtilService,
     private readonly permissionsService: PermissionsService,
+    private readonly jwtService: JwtService,
+    private readonly authService: AuthService,
   ) {}
 
   @Get()
@@ -151,6 +155,18 @@ export class RolesController {
     }
   }
 
+  /**
+   * POST /roles/switch
+   *
+   * Validates the requested roleId is in the user's JWT roleIds,
+   * then issues a new short-lived access token with:
+   *   - currentRoleId  updated to the switched role
+   *   - roleKey        updated to the switched role's key
+   *   - permissionsVersion from the DB (ensures fresh cache key)
+   *
+   * Returns { accessToken, currentRole, permissions } so the frontend
+   * can update its state atomically without a separate refreshPermissions() call.
+   */
   @Post('switch')
   async switchRole(
     @Req() req: Request,
@@ -161,12 +177,47 @@ export class RolesController {
     logger.info(`Method start: switch role to #${dto.roleId}`);
     try {
       const user = req['user'] as IDecodeUserDetails;
-      const hasRole = user.roleIds?.includes(dto.roleId);
-      if (!hasRole) {
-        return this.utilService.sendErrorResponse(res, 'You are not assigned to this role');
+
+      // 1. Validate the user is actually assigned to the requested role
+      if (!user.roleIds?.includes(dto.roleId)) {
+        return this.utilService.sendErrorResponse(
+          res,
+          'You are not assigned to this role',
+        );
       }
-      return this.utilService.sendSuccessResponse(res, 'Role switch acknowledged', {
-        currentRoleId: dto.roleId,
+
+      // 2. Fetch all role details (including fresh permissionsVersion from DB)
+      const userRoles = await this.authService.getUserRoles(user.userId);
+      const switchedRole = userRoles.find((r) => r.roleId === dto.roleId);
+      if (!switchedRole) {
+        return this.utilService.sendErrorResponse(res, 'Role not found for this user');
+      }
+
+      // 3. Issue a new JWT with updated role context
+      const newPayload: Omit<IDecodeUserDetails, 'iat' | 'exp'> = {
+        userId: user.userId,
+        email: user.email,
+        roleKey: switchedRole.roleKey,
+        roleIds: user.roleIds,
+        currentRoleId: switchedRole.roleId,
+        tenantId: user.tenantId,
+        permissionsVersion: switchedRole.permissionsVersion ?? 1,
+      };
+      const accessToken = this.jwtService.sign(newPayload, { expiresIn: '15m' });
+
+      // 4. Fetch fresh permissions for the switched role
+      const permissions = await this.authService.getAllUserPermission(switchedRole.roleId);
+
+      logger.info(`rbac.role.switched userId=${user.userId} from=${user.currentRoleId} to=${dto.roleId}`);
+
+      return this.utilService.sendSuccessResponse(res, 'Role switched successfully', {
+        accessToken,
+        currentRole: {
+          id: switchedRole.roleId,
+          key: switchedRole.roleKey,
+          name: switchedRole.roleName,
+        },
+        permissions,
       });
     } catch (error) {
       logger.error(`Error switching role: ${error.message}`, error);

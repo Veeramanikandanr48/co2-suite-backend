@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -28,6 +28,8 @@ import { MastersModule } from './modules/common/masters/masters.module';
 import { join } from 'path';
 import { LogUploadCronService } from './utility/log-upload-cron/log-upload-cron.service';
 import { ScheduleModule } from '@nestjs/schedule';
+import { RequestSignatureModule } from './utility/request-signature/request-signature.module';
+import { RequestSignatureMiddleware } from './utility/request-signature/request-signature.middleware';
 
 @Module({
   imports: [
@@ -67,9 +69,9 @@ import { ScheduleModule } from '@nestjs/schedule';
           format: winston.format.simple(),
         }),
         new winston.transports.DailyRotateFile({
-          filename: 'MES-%DATE%.log',
+          filename: 'CO2-%DATE%.log',
           level: 'info',
-          dirname: process.env.LOG_PATH,
+          dirname: process.env.LOG_PATH || 'logs',
           handleExceptions: true,
           json: false,
           zippedArchive: true,
@@ -101,10 +103,9 @@ import { ScheduleModule } from '@nestjs/schedule';
       },
     }),
     ThrottlerModule.forRoot([
-      {
-        ttl: 60, // 1 minute
-        limit: 10, // 10 requests
-      },
+      { name: 'short', ttl: 1000, limit: 10 },
+      { name: 'medium', ttl: 10000, limit: 50 },
+      { name: 'long', ttl: 60000, limit: 200 },
     ]),
     NotificationsModule,
     RegistrationModule,
@@ -112,6 +113,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     PermissionsModule,
     CaslPermissionModule,
     MastersModule,
+    RequestSignatureModule,
   ],
   controllers: [AppController],
   providers: [
@@ -120,4 +122,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     LogUploadCronService,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestSignatureMiddleware).forRoutes('*');
+  }
+}

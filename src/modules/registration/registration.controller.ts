@@ -43,6 +43,8 @@ import { AuthService } from 'src/auth/auth/auth.service';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
 import * as crypto from 'crypto';
 
+import { SessionSigningKeyService } from 'src/utility/request-signature/session-signing-key.service';
+
 @Controller('registration')
 export class RegistrationController {
   constructor(
@@ -53,6 +55,7 @@ export class RegistrationController {
     private readonly emailService: EmailService,
     private readonly mfa: MultiFactorAuthenticationService,
     private readonly authService: AuthService,
+    private readonly sessionKeyService: SessionSigningKeyService,
   ) {}
 
   @Post('register')
@@ -214,10 +217,19 @@ export class RegistrationController {
         roleKey: primaryRole?.roleKey ?? 'MEMBER',
         roleIds,
         currentRoleId: primaryRole?.roleId ?? null,
-        permissionsVersion: 1,
+        permissionsVersion: primaryRole?.permissionsVersion ?? 1,
       };
 
       const accessToken = this.jwtService.sign(jwtPayload, { expiresIn: '15m' });
+
+      // Set HttpOnly access_token cookie
+      res.cookie('access_token', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 15 * 60 * 1000,
+        path: '/',
+      });
 
       // Generate opaque refresh token and persist as a session
       const rawRefreshToken = crypto.randomBytes(64).toString('hex');
@@ -229,6 +241,9 @@ export class RegistrationController {
         req.ip,
         req.headers['user-agent'],
       );
+
+      // Create session signing key for HMAC request signing (7 days TTL matching session)
+      await this.sessionKeyService.createSigningKey(loginData.id, 7 * 24 * 3600);
 
       // Fetch permissions for the primary role to include in the response
       const permissions = await this.authService.getAllUserPermission(
@@ -825,20 +840,50 @@ export class RegistrationController {
         roleKey: selectedRole?.roleKey ?? 'MEMBER',
         roleIds: userRoles.map((r) => r.roleId),
         currentRoleId: selectedRoleId,
-        permissionsVersion: 1,
+        permissionsVersion: selectedRole?.permissionsVersion ?? 1,
       };
 
       const accessToken = this.jwtService.sign(jwtPayload, { expiresIn: '15m' });
       const permissions = await this.authService.getAllUserPermission(selectedRoleId);
 
+      // Set updated HttpOnly access_token cookie
+      res.cookie('access_token', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 15 * 60 * 1000,
+        path: '/',
+      });
+
+      // Issue rotated session signing key
+      const newSigningKey = await this.sessionKeyService.createSigningKey(session.userId, 7 * 24 * 3600);
+
       return this.utilService.sendSuccessResponse(res, 'Token refreshed successfully', {
         accessToken,
         refreshToken: newRefreshToken,
+        signingKey: newSigningKey,
         currentRoleId: selectedRoleId,
         permissions,
       });
     } catch (error) {
       logger.error(`Error in refreshToken: ${error.message}`, error);
+      return this.utilService.sendErrorResponse(res, error.message);
+    }
+  }
+
+  @Get('session-key')
+  @UseGuards(AuthGuard('jwt'))
+  async getSessionKey(@Req() req: Request, @Res() res: Response) {
+    const logger = this.utilService.createLogger(RegistrationController.name, req);
+    try {
+      const jwtUser = req['user'] as IDecodeUserDetails;
+      let signingKey = await this.sessionKeyService.getSigningKey(jwtUser.userId);
+      if (!signingKey) {
+        signingKey = await this.sessionKeyService.createSigningKey(jwtUser.userId, 7 * 24 * 3600);
+      }
+      return this.utilService.sendSuccessResponse(res, 'Session key retrieved', { signingKey });
+    } catch (error) {
+      logger.error(`Error in getSessionKey: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
     }
   }
@@ -855,6 +900,8 @@ export class RegistrationController {
       } else {
         await this.authService.revokeAllUserSessions(jwtUser.userId);
       }
+      await this.sessionKeyService.revokeSigningKey(jwtUser.userId);
+      res.clearCookie('access_token', { path: '/' });
       return this.utilService.sendSuccessResponse(res, 'Logged out successfully');
     } catch (error) {
       logger.error(`Error in logout: ${error.message}`, error);

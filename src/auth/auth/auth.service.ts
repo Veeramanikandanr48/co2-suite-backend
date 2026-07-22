@@ -56,18 +56,22 @@ export class AuthService {
   /**
    * Returns all active roles for a user, ordered so isPrimary is first.
    * Used during login to build the JWT roleIds/currentRoleId/roleKey fields.
+   * permissionsVersion is included so callers can embed the current DB version
+   * into the JWT — enabling version-keyed cache invalidation without
+   * a separate query.
    */
   async getUserRoles(
     userId: number,
-  ): Promise<Array<{ roleId: number; roleKey: string; roleName: string; isPrimary: boolean }>> {
+  ): Promise<Array<{ roleId: number; roleKey: string; roleName: string; isPrimary: boolean; permissionsVersion: number }>> {
     return this.userRoleRepo
       .createQueryBuilder('ur')
       .innerJoin('ur.role', 'r')
       .select([
-        'ur.roleId    AS "roleId"',
-        'r.roleKey    AS "roleKey"',
-        'r.roleName   AS "roleName"',
-        'ur.isPrimary AS "isPrimary"',
+        'ur.roleId            AS "roleId"',
+        'r.roleKey            AS "roleKey"',
+        'r.roleName           AS "roleName"',
+        'ur.isPrimary         AS "isPrimary"',
+        'r.permissionsVersion AS "permissionsVersion"',
       ])
       .where('ur.userId = :userId AND ur.isActive = true', { userId })
       .orderBy('ur.isPrimary', 'DESC')
