@@ -1,11 +1,15 @@
 import { MasterRoles, MasterModule } from 'src/entities/master.entity';
 import { Permission } from 'src/entities/permission.entity';
 import { RolePermission } from 'src/entities/role-permission.entity';
+import { UserDetails, UserAuthenticationDetails } from 'src/entities/user.entity';
+import { UserRole } from 'src/entities/user-role.entity';
 import { DataSource } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
 
 /**
- * RBAC Seed Script
+ * RBAC & Initial User Seed Script
  * Run via: npx ts-node -r tsconfig-paths/register src/database/seeds/rbac.seed.ts
+ * Or: npm run seed
  *
  * Idempotent — checks for existing records before inserting.
  * Safe to run multiple times without duplicating data.
@@ -176,5 +180,75 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
     getPermId('users',     'profile',  'read', 'own'),
   ]);
 
-  console.log('✅ RBAC seed completed successfully');
+  // ── 5. Seed Super Admin User ────────────────────────────────────────────────
+  const userRepo     = dataSource.getRepository(UserDetails);
+  const userAuthRepo = dataSource.getRepository(UserAuthenticationDetails);
+  const userRoleRepo = dataSource.getRepository(UserRole);
+
+  const superAdminEmail = 'superadmin@co2suite.com';
+  let superAdminUser = await userRepo.findOne({ where: { email: superAdminEmail } });
+
+  if (!superAdminUser) {
+    const hashedPassword = await bcrypt.hash('SuperAdmin@12345', 10);
+    superAdminUser = await userRepo.save(
+      userRepo.create({
+        email: superAdminEmail,
+        userName: 'superadmin',
+        password: hashedPassword,
+        isActive: true,
+        isVerified: true,
+        isTwoFactorAuthenticationEnabled: false,
+      }),
+    );
+    console.log(`👤 Super Admin user created: ${superAdminEmail}`);
+  } else {
+    const hashedPassword = await bcrypt.hash('SuperAdmin@12345', 10);
+    await userRepo.update(superAdminUser.id, {
+      password: hashedPassword,
+      isActive: true,
+      isVerified: true,
+    });
+    console.log(`👤 Super Admin user updated: ${superAdminEmail}`);
+  }
+
+  // Ensure UserAuthenticationDetails record exists
+  let superAdminAuth = await userAuthRepo.findOne({
+    where: { userId: superAdminUser.id, masterLoginTypeId: 1 },
+  });
+  if (!superAdminAuth) {
+    await userAuthRepo.save(
+      userAuthRepo.create({
+        userId: superAdminUser.id,
+        masterLoginTypeId: 1,
+        attemptedCount: 0,
+        isBlocked: false,
+      }),
+    );
+  } else if (superAdminAuth.isBlocked) {
+    await userAuthRepo.update(superAdminAuth.id, {
+      isBlocked: false,
+      attemptedCount: 0,
+      blockedTime: null,
+    });
+  }
+
+  // Assign SUPER_ADMIN role if not already assigned
+  const superAdminRole = savedRoles['SUPER_ADMIN'];
+  if (superAdminRole) {
+    let superAdminUserRole = await userRoleRepo.findOne({
+      where: { userId: superAdminUser.id, roleId: superAdminRole.id },
+    });
+    if (!superAdminUserRole) {
+      await userRoleRepo.save(
+        userRoleRepo.create({
+          userId: superAdminUser.id,
+          roleId: superAdminRole.id,
+          isPrimary: true,
+          isActive: true,
+        }),
+      );
+    }
+  }
+
+  console.log('✅ RBAC & Super Admin seed completed successfully');
 }

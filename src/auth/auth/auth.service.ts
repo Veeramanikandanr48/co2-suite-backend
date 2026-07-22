@@ -34,20 +34,23 @@ export class AuthService {
       .innerJoin(Permission, 'p', 'p.id = rp.permissionId AND p.isActive = true')
       .innerJoin(MasterModule, 'mm', 'mm.id = p.moduleId AND mm.isActive = true')
       .select([
-        'p.action    AS action',
-        'p.resource  AS resource',
-        'mm.moduleKey AS moduleKey',
-        'p.scope     AS scope',
+        'p.action AS "action"',
+        'p.resource AS "resource"',
+        'mm.moduleKey AS "moduleKey"',
+        'p.scope AS "scope"',
       ])
       .where('rp.roleId = :roleId AND rp.isActive = true', { roleId })
-      .getRawMany<{ action: string; resource: string; moduleKey: string; scope: string }>();
+      .getRawMany();
 
-    return rows.map((row) => ({
-      action: row.action as IUserPermissions['action'],
-      // CASL subject = 'moduleKey:resource' enables per-module checks
-      subject: `${row.moduleKey}:${row.resource}`,
-      ...(row.scope === 'own' && { conditions: { scope: 'own' } }),
-    }));
+    return rows.map((row: any) => {
+      const moduleKey = row.moduleKey || row.modulekey || row.module_key || '';
+      const resource = row.resource || '';
+      return {
+        action: row.action as IUserPermissions['action'],
+        subject: moduleKey ? `${moduleKey}:${resource}` : resource,
+        ...(row.scope === 'own' && { conditions: { scope: 'own' } }),
+      };
+    });
   }
 
   /**
