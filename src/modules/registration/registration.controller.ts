@@ -795,6 +795,28 @@ export class RegistrationController {
     }
   }
 
+  @Get('users')
+  @UseGuards(AuthGuard('jwt'))
+  async findAllUsers(@Req() req: Request, @Res() res: Response) {
+    const logger = this.utilService.createLogger(RegistrationController.name, req);
+    logger.info('Method start :: findAllUsers');
+    try {
+      const users = await this.registrationService.findAllUsers();
+      const mapped = users.map((u) => ({
+        userId: u.id,
+        userName: u.userName,
+        emailId: u.email,
+        createdOn: u.createdOn,
+      }));
+      return this.utilService.sendSuccessResponse(res, 'Users fetched successfully', mapped);
+    } catch (error) {
+      logger.error(`Error in findAllUsers: ${error.message}`, error);
+      return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end :: findAllUsers');
+    }
+  }
+
   @Post('refresh')
   async refreshToken(
     @Req() req: Request,

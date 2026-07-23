@@ -33,6 +33,12 @@ export class CaslAbilityFactory {
    * are never used after a role's permissions are updated.
    */
   async createForUser(user: IDecodeUserDetails): Promise<AppAbility> {
+    if (user.roleKey === 'SUPER_ADMIN') {
+      return createMongoAbility([
+        { action: Action.MANAGE, subject: 'all' },
+      ]) as AppAbility;
+    }
+
     const roleId = user.currentRoleId ?? user.roleIds?.[0];
     const version = user.permissionsVersion ?? 1;
 

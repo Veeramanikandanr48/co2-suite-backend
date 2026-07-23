@@ -19,14 +19,15 @@ export class RolesService {
     private readonly auditRepo: Repository<AuditLog>,
   ) {}
 
-  async findAll(): Promise<MasterRoles[]> {
-    return this.rolesRepo.find({ where: { isActive: true } });
+  async findAll(): Promise<any[]> {
+    const roles = await this.rolesRepo.find({ where: { isActive: true } });
+    return roles.map((r) => ({ ...r, roleId: r.id }));
   }
 
-  async findOne(id: number): Promise<MasterRoles> {
+  async findOne(id: number): Promise<any> {
     const role = await this.rolesRepo.findOne({ where: { id, isActive: true } });
     if (!role) throw new NotFoundException(`Role #${id} not found`);
-    return role;
+    return { ...role, roleId: role.id };
   }
 
   async create(dto: CreateRoleDto, changedBy: number): Promise<MasterRoles> {
@@ -94,6 +95,24 @@ export class RolesService {
     return this.userRoleRepo.find({
       where: { userId, isActive: true },
       relations: { role: true },
+    });
+  }
+
+  async getRoleUsers(roleId: number): Promise<any[]> {
+    const userRoles = await this.userRoleRepo.find({
+      where: { roleId, isActive: true },
+      relations: { user: true },
+    });
+
+    return userRoles.map((ur) => {
+      const u = ur.user;
+      return {
+        userId: u?.id || ur.userId,
+        emailId: u?.email || '',
+        userName: u?.userName || '',
+        userRoleId: ur.id,
+        isPrimary: ur.isPrimary,
+      };
     });
   }
 

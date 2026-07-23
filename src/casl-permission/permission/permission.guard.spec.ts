@@ -13,6 +13,7 @@ describe('PermissionGuard', () => {
           {} as unknown as AuthService,
           {} as unknown as PermissionCacheService,
         ),
+        {} as unknown as import('@nestjs/core').ModuleRef,
       ),
     ).toBeDefined();
   });

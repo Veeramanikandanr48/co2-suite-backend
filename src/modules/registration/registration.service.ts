@@ -37,6 +37,13 @@ export class RegistrationService {
     return await this.userRepository.findOne({ where: { email: email } });
   }
 
+  async findAllUsers(): Promise<UserDetails[]> {
+    return await this.userRepository.find({
+      where: { isActive: true },
+      select: { id: true, userName: true, email: true, createdOn: true },
+    });
+  }
+
   async updateUser(id: number, user: Partial<UserDetails>) {
     return await this.userRepository.update(id, user);
   }

@@ -46,10 +46,13 @@ export class RolesController {
     logger.info('Method start: findAll roles');
     try {
       const roles = await this.rolesService.findAll();
+      logger.info(`Successfully fetched ${roles.length} roles`);
       return this.utilService.sendSuccessResponse(res, 'Roles fetched successfully', roles);
     } catch (error) {
       logger.error(`Error fetching roles: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: findAll roles');
     }
   }
 
@@ -62,14 +65,17 @@ export class RolesController {
     @Body() dto: CreateRoleDto,
   ) {
     const logger = this.utilService.createLogger(RolesController.name, req);
-    logger.info('Method start: create role');
+    logger.info(`Method start: create role key=${dto.roleKey}`);
     try {
       const user = req['user'] as IDecodeUserDetails;
       const role = await this.rolesService.create(dto, user.userId);
+      logger.info(`Successfully created role #${role.id} (${role.roleKey})`);
       return this.utilService.sendSuccessResponse(res, 'Role created successfully', role);
     } catch (error) {
       logger.error(`Error creating role: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: create role');
     }
   }
 
@@ -87,10 +93,13 @@ export class RolesController {
     try {
       const user = req['user'] as IDecodeUserDetails;
       const role = await this.rolesService.update(id, dto, user.userId);
+      logger.info(`Successfully updated role #${id}`);
       return this.utilService.sendSuccessResponse(res, 'Role updated successfully', role);
     } catch (error) {
       logger.error(`Error updating role: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info(`Method end: update role #${id}`);
     }
   }
 
@@ -107,10 +116,13 @@ export class RolesController {
     try {
       const user = req['user'] as IDecodeUserDetails;
       await this.rolesService.remove(id, user.userId);
+      logger.info(`Successfully soft-deleted role #${id}`);
       return this.utilService.sendSuccessResponse(res, 'Role deleted successfully');
     } catch (error) {
       logger.error(`Error deleting role: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info(`Method end: remove role #${id}`);
     }
   }
 
@@ -123,14 +135,17 @@ export class RolesController {
     @Body() dto: AssignRoleDto,
   ) {
     const logger = this.utilService.createLogger(RolesController.name, req);
-    logger.info(`Method start: assign role`);
+    logger.info(`Method start: assign role #${dto.roleId} to user #${dto.userId}`);
     try {
       const user = req['user'] as IDecodeUserDetails;
       const userRole = await this.rolesService.assignRole(dto, user.userId);
+      logger.info(`Successfully assigned role #${dto.roleId} to user #${dto.userId}`);
       return this.utilService.sendSuccessResponse(res, 'Role assigned successfully', userRole);
     } catch (error) {
       logger.error(`Error assigning role: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info(`Method end: assign role`);
     }
   }
 
@@ -144,29 +159,20 @@ export class RolesController {
     @Param('roleId', ParseIntPipe) roleId: number,
   ) {
     const logger = this.utilService.createLogger(RolesController.name, req);
-    logger.info(`Method start: remove user role`);
+    logger.info(`Method start: remove user role #${roleId} from user #${userId}`);
     try {
       const user = req['user'] as IDecodeUserDetails;
       await this.rolesService.removeRole(userId, roleId, user.userId);
+      logger.info(`Successfully removed role #${roleId} from user #${userId}`);
       return this.utilService.sendSuccessResponse(res, 'Role removed from user');
     } catch (error) {
       logger.error(`Error removing user role: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info(`Method end: remove user role`);
     }
   }
 
-  /**
-   * POST /roles/switch
-   *
-   * Validates the requested roleId is in the user's JWT roleIds,
-   * then issues a new short-lived access token with:
-   *   - currentRoleId  updated to the switched role
-   *   - roleKey        updated to the switched role's key
-   *   - permissionsVersion from the DB (ensures fresh cache key)
-   *
-   * Returns { accessToken, currentRole, permissions } so the frontend
-   * can update its state atomically without a separate refreshPermissions() call.
-   */
   @Post('switch')
   async switchRole(
     @Req() req: Request,
@@ -178,22 +184,21 @@ export class RolesController {
     try {
       const user = req['user'] as IDecodeUserDetails;
 
-      // 1. Validate the user is actually assigned to the requested role
       if (!user.roleIds?.includes(dto.roleId)) {
+        logger.error(`User #${user.userId} attempted unauthorized switch to role #${dto.roleId}`);
         return this.utilService.sendErrorResponse(
           res,
           'You are not assigned to this role',
         );
       }
 
-      // 2. Fetch all role details (including fresh permissionsVersion from DB)
       const userRoles = await this.authService.getUserRoles(user.userId);
       const switchedRole = userRoles.find((r) => r.roleId === dto.roleId);
       if (!switchedRole) {
+        logger.error(`Role #${dto.roleId} not found for user #${user.userId}`);
         return this.utilService.sendErrorResponse(res, 'Role not found for this user');
       }
 
-      // 3. Issue a new JWT with updated role context
       const newPayload: Omit<IDecodeUserDetails, 'iat' | 'exp'> = {
         userId: user.userId,
         email: user.email,
@@ -204,8 +209,6 @@ export class RolesController {
         permissionsVersion: switchedRole.permissionsVersion ?? 1,
       };
       const accessToken = this.jwtService.sign(newPayload, { expiresIn: '15m' });
-
-      // 4. Fetch fresh permissions for the switched role
       const permissions = await this.authService.getAllUserPermission(switchedRole.roleId);
 
       logger.info(`rbac.role.switched userId=${user.userId} from=${user.currentRoleId} to=${dto.roleId}`);
@@ -222,10 +225,10 @@ export class RolesController {
     } catch (error) {
       logger.error(`Error switching role: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info(`Method end: switch role`);
     }
   }
-
-  // ─── Additional Endpoints ─────────────────────────────────────────────────
 
   @Get(':id/permissions')
   @UseGuards(PermissionGuard)
@@ -239,10 +242,35 @@ export class RolesController {
     logger.info(`Method start: getRolePermissions for role #${id}`);
     try {
       const permissions = await this.permissionsService.findByRole(id);
+      logger.info(`Successfully fetched ${permissions.length} permissions for role #${id}`);
       return this.utilService.sendSuccessResponse(res, 'Role permissions fetched', permissions);
     } catch (error) {
       logger.error(`Error fetching role permissions: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info(`Method end: getRolePermissions for role #${id}`);
+    }
+  }
+
+  @Get(':id/users')
+  @UseGuards(PermissionGuard)
+  @CheckPermissions([Action.READ, 'roles:roles'])
+  async getRoleUsers(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const logger = this.utilService.createLogger(RolesController.name, req);
+    logger.info(`Method start: getRoleUsers for role #${id}`);
+    try {
+      const users = await this.rolesService.getRoleUsers(id);
+      logger.info(`Successfully fetched ${users.length} users for role #${id}`);
+      return this.utilService.sendSuccessResponse(res, 'Role users fetched', users);
+    } catch (error) {
+      logger.error(`Error fetching role users: ${error.message}`, error);
+      return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info(`Method end: getRoleUsers for role #${id}`);
     }
   }
 
@@ -258,10 +286,13 @@ export class RolesController {
     logger.info(`Method start: getUserRoles for user #${userId}`);
     try {
       const roles = await this.rolesService.getUserRoles(userId);
+      logger.info(`Successfully fetched ${roles.length} roles for user #${userId}`);
       return this.utilService.sendSuccessResponse(res, 'User roles fetched', roles);
     } catch (error) {
       logger.error(`Error fetching user roles: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info(`Method end: getUserRoles for user #${userId}`);
     }
   }
 
@@ -279,10 +310,13 @@ export class RolesController {
     try {
       const changedBy = (req['user'] as IDecodeUserDetails).userId;
       await this.rolesService.removeRole(userId, roleId, changedBy);
+      logger.info(`Successfully removed user #${userId} from role #${roleId}`);
       return this.utilService.sendSuccessResponse(res, 'User removed from role');
     } catch (error) {
       logger.error(`Error removing user from role: ${error.message}`, error);
       return this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info(`Method end: removeUserFromRole role #${roleId} user #${userId}`);
     }
   }
 }

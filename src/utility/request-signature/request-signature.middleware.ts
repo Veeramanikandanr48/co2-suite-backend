@@ -27,7 +27,8 @@ export class RequestSignatureMiddleware implements NestMiddleware {
     req.headers['x-request-id'] = requestId;
     res.setHeader('X-Request-ID', requestId);
 
-    const path = req.path;
+    const rawUrlPath = req.originalUrl ? req.originalUrl.split('?')[0] : req.path;
+    const path = rawUrlPath;
     const method = req.method.toUpperCase();
 
     // Skip verification for OPTIONS preflight requests & public excluded routes
@@ -130,8 +131,9 @@ export class RequestSignatureMiddleware implements NestMiddleware {
       bodyHash,
     ].join('\n');
 
+    const keyBuffer = Buffer.from(signingKey, 'hex');
     const expectedSignature = crypto
-      .createHmac('sha256', signingKey)
+      .createHmac('sha256', keyBuffer)
       .update(message)
       .digest('hex');
 
