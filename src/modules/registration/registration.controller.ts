@@ -481,8 +481,9 @@ export class RegistrationController {
     try {
       logger.info('Method start :: validateMFA');
       const user = req['user'];
-      const secret = await this.mfa.getOtpSecretById(user.id.toString());
-      logger.info(`Successfully fetched secret for user: ${user.id}`);
+      const userId = user.userId ?? user.id;
+      const secret = await this.mfa.getOtpSecretById(Number(userId));
+      logger.info(`Successfully fetched secret for user: ${userId}`);
 
       const isValid = await this.mfa.verifyTOTP(secret?.data, data.code);
       logger.info(`isValid:: ${isValid}`);
@@ -493,7 +494,7 @@ export class RegistrationController {
       }
 
       const responseData = await this.generateUserResponseData(
-        user.id,
+        Number(userId),
         isValid,
         logger,
       );

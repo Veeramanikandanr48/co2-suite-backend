@@ -15,6 +15,7 @@ import { NotificationsModule } from './modules/common/notifications/notification
 import { RegistrationModule } from './modules/registration/registration.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
+import { UsersModule } from './modules/users/users.module';
 import { CaslPermissionModule } from './casl-permission/casl-permission.module';
 import { MultiFactorAuthenticationService } from './utility/multi-factor-authentication/multi-factor-authentication.service';
 import { UserDetails } from './entities/user.entity';
@@ -111,6 +112,7 @@ import { RequestSignatureMiddleware } from './utility/request-signature/request-
     RegistrationModule,
     RolesModule,
     PermissionsModule,
+    UsersModule,
     CaslPermissionModule,
     MastersModule,
     RequestSignatureModule,

@@ -35,7 +35,7 @@ export class UtilService {
   createLogger(context: string, req?: Request) {
     const correlationId =
       (req?.headers?.['x-correlation-id'] as string) || uuidv4();
-    const userId = req?.['user']?.id || 'ANONYMOUS';
+    const userId = req?.['user']?.userId || req?.['user']?.id || 'ANONYMOUS';
 
     return {
       info: (message: string, meta: Record<string, unknown> = {}) => {

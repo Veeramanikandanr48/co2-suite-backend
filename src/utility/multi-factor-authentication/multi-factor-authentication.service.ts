@@ -89,6 +89,7 @@ export class MultiFactorAuthenticationService {
       info: (msg: string) => void;
       error: (msg: string, ...args: unknown[]) => void;
     },
+    isEnabled: boolean = true,
   ): Promise<UserDetails | undefined> {
     try {
       logger.info('Method start :: saveMfaRecord');
@@ -101,7 +102,7 @@ export class MultiFactorAuthenticationService {
         id,
         twoFactorAuthenticationSecret: encryptedSecret.toString(),
         hashBackupCode, // no column in the entity
-        isTwoFactorAuthenticationEnabled: true,
+        isTwoFactorAuthenticationEnabled: isEnabled,
       };
       const userData = await this.userDetailsRepository.save(payload);
       logger.info('Method end :: saveMfaRecord');
@@ -114,8 +115,8 @@ export class MultiFactorAuthenticationService {
     }
   }
 
-  public async generateQRcode(email: string): Promise<IQRGnerateResponse> {
-    const secretKey: string = generateSecret({ length: this.numberOfBytes });
+  public async generateQRcode(email: string, secret?: string): Promise<IQRGnerateResponse> {
+    const secretKey: string = secret || generateSecret({ length: this.numberOfBytes });
     const qrUri: string = generateURI({ label: email, issuer: this.issuer, secret: secretKey });
     const qrcode: string = await QRCode.toDataURL(qrUri);
     const data: IQRGnerateResponse = {
