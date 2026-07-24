@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { PrimaryGeneratedColumn } from 'typeorm';
+import { Organization } from './organization.entity';
 
 export class BaseColumns {
   @Column({ default: true })
@@ -63,6 +64,16 @@ export class UserDetails {
 
   @Column({ nullable: true })
   twoFactorAuthenticationSecret: string;
+
+  @Column({ nullable: true })
+  organizationId: string;
+
+  @ManyToOne(() => Organization, (org) => org.users, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'organizationId' })
+  organization?: Organization;
 
   @Column({ nullable: true })
   profileImageKey: string;

@@ -19,15 +19,29 @@ import { UsersModule } from './modules/users/users.module';
 import { CaslPermissionModule } from './casl-permission/casl-permission.module';
 import { MultiFactorAuthenticationService } from './utility/multi-factor-authentication/multi-factor-authentication.service';
 import { UserDetails } from './entities/user.entity';
-import { MasterRoles, MasterModule } from './entities/master.entity';
+import { MasterRoles } from './entities/master.entity';
 import { Permission } from './entities/permission.entity';
 import { RolePermission } from './entities/role-permission.entity';
 import { UserRole } from './entities/user-role.entity';
 import { UserSession } from './entities/user-session.entity';
 import { AuditLog } from './entities/audit-log.entity';
 import { SidebarItem } from './entities/sidebar-item.entity';
+import { Organization } from './entities/organization.entity';
+import { OrganizationSettings } from './entities/organization-settings.entity';
+import { OrganizationSubscription } from './entities/organization-subscription.entity';
+import { OrganizationFeatureSubscription } from './entities/organization-feature-subscription.entity';
+import { TenantSchemaVersion } from './entities/tenant-schema-version.entity';
+import { TenantHealth } from './entities/tenant-health.entity';
+import { MasterModule } from './entities/master-module.entity';
+import { MasterFeature } from './entities/master-feature.entity';
+import { OrganizationModule as OrgModuleEntity } from './entities/organization-module.entity';
+import { TenantProvisionLog } from './entities/tenant-provision-log.entity';
+import { UserOrganization } from './entities/user-organization.entity';
+
 import { SidebarModule } from './modules/sidebar/sidebar.module';
 import { MastersModule } from './modules/common/masters/masters.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { TenantProvisionModule } from './modules/tenant-provision/tenant-provision.module';
 import { join } from 'path';
 import { LogUploadCronService } from './utility/log-upload-cron/log-upload-cron.service';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -52,6 +66,16 @@ import { RequestSignatureMiddleware } from './utility/request-signature/request-
       UserSession,
       AuditLog,
       SidebarItem,
+      Organization,
+      OrganizationSettings,
+      OrganizationSubscription,
+      OrganizationFeatureSubscription,
+      TenantSchemaVersion,
+      TenantHealth,
+      MasterFeature,
+      OrgModuleEntity,
+      TenantProvisionLog,
+      UserOrganization,
     ]),
 
     TypeOrmModule.forRootAsync({
@@ -120,6 +144,8 @@ import { RequestSignatureMiddleware } from './utility/request-signature/request-
     MastersModule,
     RequestSignatureModule,
     SidebarModule,
+    TenantProvisionModule,
+    OrganizationsModule,
   ],
   controllers: [AppController],
   providers: [

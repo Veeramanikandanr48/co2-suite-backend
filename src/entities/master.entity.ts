@@ -142,24 +142,3 @@ export class MasterHobbies extends BaseColumns {
   @Column({ nullable: true })
   hobbyName: string;
 }
-
-/**
- * master_modules — dynamic module registry.
- * Replaces the RoleFeatures enum so admins can register new modules
- * (e.g. 'Inventory', 'Training') without a code deployment.
- */
-@Entity({ name: 'master_modules' })
-export class MasterModule extends BaseColumns {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  /** Immutable key used as 'module' in the permissions table */
-  @Column({ unique: true })
-  moduleKey: string;
-
-  @Column()
-  moduleName: string;
-
-  @Column({ nullable: true })
-  description: string;
-}

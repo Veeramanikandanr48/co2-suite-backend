@@ -5,7 +5,7 @@ import { RolePermission } from 'src/entities/role-permission.entity';
 import { Permission } from 'src/entities/permission.entity';
 import { UserSession } from 'src/entities/user-session.entity';
 import { UserRole } from 'src/entities/user-role.entity';
-import { MasterModule } from 'src/entities/master.entity';
+import { MasterModule } from 'src/entities/master-module.entity';
 import { IUserPermissions } from 'src/utility/base-interface.interface';
 
 @Injectable()

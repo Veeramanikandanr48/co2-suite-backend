@@ -8,7 +8,8 @@ import { DataSource, Repository } from 'typeorm';
 import { Permission } from 'src/entities/permission.entity';
 import { RolePermission } from 'src/entities/role-permission.entity';
 import { AuditLog } from 'src/entities/audit-log.entity';
-import { MasterModule, MasterRoles } from 'src/entities/master.entity';
+import { MasterRoles } from 'src/entities/master.entity';
+import { MasterModule } from 'src/entities/master-module.entity';
 import { PermissionCacheService } from 'src/casl-permission/permission-cache.service';
 import { CaslAbilityFactory } from 'src/casl-permission/casl-ability-factory/casl-ability.factory';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
@@ -83,7 +84,7 @@ export class PermissionsService {
   async create(dto: CreatePermissionDto, changedBy: number): Promise<Permission> {
     const existing = await this.permRepo.findOne({
       where: {
-        moduleId: dto.moduleId,
+        moduleId: String(dto.moduleId),
         resource: dto.resource,
         action: dto.action,
         scope: dto.scope ?? 'any',
@@ -95,7 +96,7 @@ export class PermissionsService {
       );
     }
 
-    const moduleRecord = await this.moduleRepo.findOne({ where: { id: dto.moduleId } });
+    const moduleRecord = await this.moduleRepo.findOne({ where: { id: String(dto.moduleId) } });
     if (!moduleRecord) {
       throw new NotFoundException(`Module #${dto.moduleId} not found`);
     }

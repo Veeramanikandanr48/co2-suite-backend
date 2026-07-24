@@ -5,7 +5,8 @@ import { PermissionsService } from './permissions.service';
 import { Permission } from 'src/entities/permission.entity';
 import { RolePermission } from 'src/entities/role-permission.entity';
 import { AuditLog } from 'src/entities/audit-log.entity';
-import { MasterModule, MasterRoles } from 'src/entities/master.entity';
+import { MasterRoles } from 'src/entities/master.entity';
+import { MasterModule } from 'src/entities/master-module.entity';
 import { CaslPermissionModule } from 'src/casl-permission/casl-permission.module';
 import { UtilService } from 'src/utility/util/util.service';
 

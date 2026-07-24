@@ -6,7 +6,8 @@ import {
   OneToMany,
   JoinColumn,
 } from 'typeorm';
-import { BaseColumns, MasterModule } from './master.entity';
+import { BaseColumns } from './master.entity';
+import { MasterModule } from './master-module.entity';
 import {
   SidebarBadgeTypeEnum,
   SidebarItemTypeEnum,
@@ -22,6 +23,10 @@ export class SidebarItem extends BaseColumns {
   /** Unique identifier key (e.g. 'dashboard', 'header_admin', 'users') */
   @Column({ unique: true })
   itemKey: string;
+
+  /** Module key requirement for multi-tenant application subscription access (e.g. 'carbon', 'cbam', 'esg') */
+  @Column({ nullable: true })
+  moduleKey: string;
 
   /** Display label shown in sidebar UI */
   @Column()

@@ -9,10 +9,10 @@ import {
 } from 'class-validator';
 
 export class CreatePermissionDto {
-  @ApiProperty({ example: 3, description: 'ID from master_modules table' })
-  @IsNumber()
+  @ApiProperty({ example: 'mod-uuid', description: 'ID from master_modules table' })
+  @IsString()
   @IsNotEmpty()
-  moduleId: number;
+  moduleId: string;
 
   @ApiProperty({ example: 'profile' })
   @IsString()

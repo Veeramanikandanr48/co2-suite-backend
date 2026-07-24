@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SidebarItem } from 'src/entities/sidebar-item.entity';
-import { MasterModule } from 'src/entities/master.entity';
+import { MasterModule } from 'src/entities/master-module.entity';
 import { AuditLog } from 'src/entities/audit-log.entity';
 import { SidebarService } from './sidebar.service';
 import { SidebarController } from './sidebar.controller';

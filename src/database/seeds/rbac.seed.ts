@@ -1,9 +1,11 @@
-import { MasterRoles, MasterModule } from 'src/entities/master.entity';
+import { MasterRoles } from 'src/entities/master.entity';
 import { Permission } from 'src/entities/permission.entity';
 import { RolePermission } from 'src/entities/role-permission.entity';
 import { UserDetails, UserAuthenticationDetails } from 'src/entities/user.entity';
 import { UserRole } from 'src/entities/user-role.entity';
 import { SidebarItem } from 'src/entities/sidebar-item.entity';
+import { MasterModule } from 'src/entities/master-module.entity';
+import { MasterFeature } from 'src/entities/master-feature.entity';
 import {
   SidebarBadgeTypeEnum,
   SidebarItemTypeEnum,
@@ -23,6 +25,7 @@ import * as bcrypt from 'bcryptjs';
 export async function seedRbac(dataSource: DataSource): Promise<void> {
   const rolesRepo    = dataSource.getRepository(MasterRoles);
   const modulesRepo  = dataSource.getRepository(MasterModule);
+  const featureRepo  = dataSource.getRepository(MasterFeature);
   const permRepo     = dataSource.getRepository(Permission);
   const rolePermRepo = dataSource.getRepository(RolePermission);
 
@@ -51,224 +54,154 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
     savedRoles[role.roleKey] = existing;
   }
 
-  // ── 2. Seed master_modules ──────────────────────────────────────────────────
-  const modules = [
-    { moduleKey: 'dashboard',    moduleName: 'Dashboard'    },
-    { moduleKey: 'users',        moduleName: 'Users'        },
-    { moduleKey: 'roles',        moduleName: 'Roles'        },
-    { moduleKey: 'permissions',  moduleName: 'Permissions'  },
-    { moduleKey: 'reports',      moduleName: 'Reports'      },
-    { moduleKey: 'settings',     moduleName: 'Settings'     },
-    { moduleKey: 'audit',        moduleName: 'Audit Logs'   },
-    { moduleKey: 'notifications',moduleName: 'Notifications'},
-    { moduleKey: 'documents',    moduleName: 'Documents'    },
+  // ── 2. Seed master_modules & master_features ──────────────────────────────────
+  const modulesData = [
+    { moduleKey: 'carbon', name: 'Corporate Carbon Management', category: 'Corporate', icon: 'Layers' },
+    { moduleKey: 'cbam', name: 'EU Carbon Border Adjustment Mechanism', category: 'Global', icon: 'Globe' },
+    { moduleKey: 'esg', name: 'Corporate Sustainability (ESG)', category: 'Corporate', icon: 'Leaf' },
+    { moduleKey: 'pcf', name: 'Product Carbon Footprint (PCF)', category: 'Product', icon: 'FileText' },
+    { moduleKey: 'lca_plastics', name: 'LCA - Plastics Manufacturing', category: 'Industry', icon: 'Factory' },
+    { moduleKey: 'lca_metals', name: 'LCA - Metals & Smelting', category: 'Industry', icon: 'Zap' },
+    { moduleKey: 'epd_cables', name: 'Environmental Product Declarations (EPD)', category: 'Industry', icon: 'ShieldCheck' },
+    { moduleKey: 'users', name: 'User Management', category: 'System', icon: 'Users' },
+    { moduleKey: 'roles', name: 'Roles & Access', category: 'System', icon: 'ShieldCheck' },
+    { moduleKey: 'settings', name: 'System Settings', category: 'System', icon: 'Settings' },
   ];
 
   const savedModules: Record<string, MasterModule> = {};
-  for (const mod of modules) {
-    let existing = await modulesRepo.findOne({ where: { moduleKey: mod.moduleKey } });
-    if (!existing) {
-      existing = await modulesRepo.save(modulesRepo.create({ ...mod, isActive: true }));
-    } else if (!existing.isActive) {
-      await modulesRepo.update(existing.id, { isActive: true });
-      existing.isActive = true;
+  for (const mData of modulesData) {
+    let mod = await modulesRepo.findOne({ where: { moduleKey: mData.moduleKey } });
+    if (!mod) {
+      mod = await modulesRepo.save(modulesRepo.create({ ...mData, isEnabled: true }));
     }
-    savedModules[mod.moduleKey] = existing;
+    savedModules[mData.moduleKey] = mod;
+
+    const featKey = `${mData.moduleKey}:dashboard`;
+    const existingFeat = await featureRepo.findOne({ where: { featureKey: featKey } });
+    if (!existingFeat) {
+      await featureRepo.save(
+        featureRepo.create({
+          moduleId: mod.id,
+          featureKey: featKey,
+          name: `${mData.name} Dashboard`,
+          route: `/${mData.moduleKey}`,
+          icon: mData.icon,
+          sortOrder: 1,
+        }),
+      );
+    }
   }
 
-  // ── 3. Seed permissions ─────────────────────────────────────────────────────
-  const rawPermDefs = [
-    // Dashboard
-    { moduleKey: 'dashboard',    resource: 'dashboard',   action: 'read',     scope: 'any' },
+  // ── 3. Seed permissions ──────────────────────────────────────────────────────
+  const permissionsData = [
     // Users
-    { moduleKey: 'users',        resource: 'profile',     action: 'read',     scope: 'any' },
-    { moduleKey: 'users',        resource: 'profile',     action: 'read',     scope: 'own' },
-    { moduleKey: 'users',        resource: 'profile',     action: 'create',   scope: 'any' },
-    { moduleKey: 'users',        resource: 'profile',     action: 'update',   scope: 'any' },
-    { moduleKey: 'users',        resource: 'profile',     action: 'update',   scope: 'own' },
-    { moduleKey: 'users',        resource: 'profile',     action: 'delete',   scope: 'any' },
+    { permissionKey: 'users:profile:read:any', name: 'Read any user profile', moduleKey: 'users' },
+    { permissionKey: 'users:profile:write:any', name: 'Create/update user profiles', moduleKey: 'users' },
+    { permissionKey: 'users:profile:delete:any', name: 'Delete user profiles', moduleKey: 'users' },
     // Roles
-    { moduleKey: 'roles',        resource: 'roles',       action: 'read',     scope: 'any' },
-    { moduleKey: 'roles',        resource: 'roles',       action: 'create',   scope: 'any' },
-    { moduleKey: 'roles',        resource: 'roles',       action: 'update',   scope: 'any' },
-    { moduleKey: 'roles',        resource: 'roles',       action: 'delete',   scope: 'any' },
+    { permissionKey: 'roles:roles:read:any', name: 'Read any role', moduleKey: 'roles' },
+    { permissionKey: 'roles:roles:write:any', name: 'Create/update roles', moduleKey: 'roles' },
+    { permissionKey: 'roles:roles:delete:any', name: 'Delete roles', moduleKey: 'roles' },
     // Permissions
-    { moduleKey: 'permissions',  resource: 'permissions', action: 'read',     scope: 'any' },
-    { moduleKey: 'permissions',  resource: 'permissions', action: 'create',   scope: 'any' },
-    { moduleKey: 'permissions',  resource: 'permissions', action: 'update',   scope: 'any' },
-    { moduleKey: 'permissions',  resource: 'permissions', action: 'delete',   scope: 'any' },
-    // Reports
-    { moduleKey: 'reports',      resource: 'report',      action: 'read',     scope: 'any' },
-    { moduleKey: 'reports',      resource: 'report',      action: 'download', scope: 'any' },
-    // Settings
-    { moduleKey: 'settings',     resource: 'settings',    action: 'read',     scope: 'any' },
-    { moduleKey: 'settings',     resource: 'settings',    action: 'update',   scope: 'any' },
-    // Audit
-    { moduleKey: 'audit',        resource: 'logs',        action: 'read',     scope: 'any' },
-    // Notifications
-    { moduleKey: 'notifications',resource: 'notification', action: 'read',    scope: 'own' },
+    { permissionKey: 'permissions:permissions:read:any', name: 'Read permissions', moduleKey: 'permissions' },
+    { permissionKey: 'permissions:permissions:write:any', name: 'Modify permissions', moduleKey: 'permissions' },
+    // Dashboard & System
+    { permissionKey: 'dashboard:dashboard:read:any', name: 'View analytics dashboard', moduleKey: 'dashboard' },
+    { permissionKey: 'settings:settings:read:any', name: 'Read system settings', moduleKey: 'settings' },
+    { permissionKey: 'settings:settings:write:any', name: 'Modify system settings', moduleKey: 'settings' },
+    { permissionKey: 'notifications:notification:read:own', name: 'Read own notifications', moduleKey: 'notifications' },
   ];
 
-  interface SavedPermEntry {
-    id: number;
-    moduleKey: string;
-    resource: string;
-    action: string;
-    scope: string;
-  }
+  const savedPermissions: Record<string, Permission> = {};
+  for (const permData of permissionsData) {
+    let existing = await permRepo.findOne({ where: { permissionKey: permData.permissionKey } });
+    if (!existing) {
+      const parts = permData.permissionKey.split(':');
+      const modKey = parts[0];
+      const resource = parts[1] || 'default';
+      const action = parts[2] || 'read';
+      const scope = parts[3] || 'any';
+      const mod = savedModules[modKey];
 
-  const savedPerms: SavedPermEntry[] = [];
-  for (const def of rawPermDefs) {
-    const mod = savedModules[def.moduleKey];
-    if (!mod) continue;
-
-    const permissionKey = `${def.moduleKey}:${def.resource}:${def.action}:${def.scope}`;
-    let perm = await permRepo.findOne({
-      where: { moduleId: mod.id, resource: def.resource, action: def.action, scope: def.scope },
-    });
-    if (!perm) {
-      perm = await permRepo.save(
+      existing = await permRepo.save(
         permRepo.create({
-          permissionKey,
-          moduleId: mod.id,
-          resource: def.resource,
-          action: def.action,
-          scope: def.scope,
-          isActive: true,
+          permissionKey: permData.permissionKey,
+          resource,
+          action,
+          scope,
+          description: permData.name,
+          moduleId: mod ? mod.id : undefined,
         }),
       );
-    } else if (!perm.isActive) {
-      await permRepo.update(perm.id, { isActive: true });
-      perm.isActive = true;
     }
-    savedPerms.push({
-      id: perm.id,
-      moduleKey: def.moduleKey,
-      resource: def.resource,
-      action: def.action,
-      scope: def.scope,
-    });
+    savedPermissions[permData.permissionKey] = existing;
   }
 
-  // ── 4. Seed role_permissions ────────────────────────────────────────────────
+  // ── 4. Assign permissions to master_roles ──────────────────────────────────
+  const superAdminRole = savedRoles['SUPER_ADMIN'];
+  const adminRole      = savedRoles['ADMIN'];
 
-  const getPermId = (moduleKey: string, resource: string, action: string, scope: string): number | undefined =>
-    savedPerms.find(
-      (p) => p.moduleKey === moduleKey && p.resource === resource && p.action === action && p.scope === scope,
-    )?.id;
+  const allPerms = Object.values(savedPermissions);
 
-  const assign = async (roleKey: string, permIds: (number | undefined)[]) => {
-    const role = savedRoles[roleKey];
-    if (!role) return;
-    for (const permId of permIds) {
-      if (!permId) continue;
-      const exists = await rolePermRepo.findOne({ where: { roleId: role.id, permissionId: permId } });
-      if (!exists) {
-        await rolePermRepo.save(rolePermRepo.create({ roleId: role.id, permissionId: permId, isActive: true }));
-      } else if (!exists.isActive) {
-        await rolePermRepo.update(exists.id, { isActive: true });
-      }
+  for (const perm of allPerms) {
+    const existingSA = await rolePermRepo.findOne({
+      where: { roleId: superAdminRole.id, permissionId: perm.id },
+    });
+    if (!existingSA) {
+      await rolePermRepo.save(rolePermRepo.create({ roleId: superAdminRole.id, permissionId: perm.id }));
     }
-  };
 
-  // SUPER_ADMIN — all permissions
-  await assign('SUPER_ADMIN', savedPerms.map((p) => p.id));
+    const existingAdmin = await rolePermRepo.findOne({
+      where: { roleId: adminRole.id, permissionId: perm.id },
+    });
+    if (!existingAdmin) {
+      await rolePermRepo.save(rolePermRepo.create({ roleId: adminRole.id, permissionId: perm.id }));
+    }
+  }
 
-  // ADMIN — operational permissions
-  await assign('ADMIN', [
-    getPermId('dashboard',    'dashboard',   'read',     'any'),
-    getPermId('users',        'profile',     'read',     'any'),
-    getPermId('users',        'profile',     'create',   'any'),
-    getPermId('users',        'profile',     'update',   'any'),
-    getPermId('roles',        'roles',       'read',     'any'),
-    getPermId('permissions',  'permissions', 'read',     'any'),
-    getPermId('reports',      'report',      'read',     'any'),
-    getPermId('reports',      'report',      'download', 'any'),
-    getPermId('settings',     'settings',    'read',     'any'),
-    getPermId('notifications','notification','read',     'own'),
-  ]);
+  // ── 5. Seed initial Super Admin User ───────────────────────────────────────
+  const userDetailsRepo = dataSource.getRepository(UserDetails);
+  const userAuthRepo    = dataSource.getRepository(UserAuthenticationDetails);
+  const userRoleRepo    = dataSource.getRepository(UserRole);
 
-  // ── 5. Seed Super Admin User ────────────────────────────────────────────────
-  const userRepo     = dataSource.getRepository(UserDetails);
-  const userAuthRepo = dataSource.getRepository(UserAuthenticationDetails);
-  const userRoleRepo = dataSource.getRepository(UserRole);
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@cage.com';
+  const adminPass  = process.env.ADMIN_PASSWORD || 'Admin@123';
 
-  const superAdminEmail = 'superadmin@co2suite.com';
-  let superAdminUser = await userRepo.findOne({ where: { email: superAdminEmail } });
+  let superAdminUser = await userDetailsRepo.findOne({ where: { email: adminEmail } });
 
   if (!superAdminUser) {
-    const hashedPassword = await bcrypt.hash('SuperAdmin@12345', 10);
-    superAdminUser = await userRepo.save(
-      userRepo.create({
-        email: superAdminEmail,
-        userName: 'superadmin',
-        password: hashedPassword,
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(adminPass, salt);
+
+    superAdminUser = await userDetailsRepo.save(
+      userDetailsRepo.create({
+        email: adminEmail,
+        userName: 'Super Admin',
+        password: passwordHash,
         isActive: true,
         isVerified: true,
-        isTwoFactorAuthenticationEnabled: false,
       }),
     );
-    console.log(`👤 Super Admin user created: ${superAdminEmail}`);
-  } else {
-    const hashedPassword = await bcrypt.hash('SuperAdmin@12345', 10);
-    await userRepo.update(superAdminUser.id, {
-      password: hashedPassword,
-      isActive: true,
-      isVerified: true,
-    });
-    console.log(`👤 Super Admin user updated: ${superAdminEmail}`);
-  }
 
-  // Ensure UserAuthenticationDetails record exists
-  let superAdminAuth = await userAuthRepo.findOne({
-    where: { userId: superAdminUser.id, masterLoginTypeId: 1 },
-  });
-  if (!superAdminAuth) {
-    await userAuthRepo.save(
-      userAuthRepo.create({
+    await userRoleRepo.save(
+      userRoleRepo.create({
         userId: superAdminUser.id,
-        masterLoginTypeId: 1,
-        attemptedCount: 0,
-        isBlocked: false,
+        roleId: superAdminRole.id,
       }),
     );
-  } else if (superAdminAuth.isBlocked) {
-    await userAuthRepo.update(superAdminAuth.id, {
-      isBlocked: false,
-      attemptedCount: 0,
-      blockedTime: null,
-    });
+
+    console.log(`✅ Super Admin created: ${adminEmail}`);
   }
 
-  // Assign SUPER_ADMIN role if not already assigned
-  const superAdminRole = savedRoles['SUPER_ADMIN'];
-  if (superAdminRole) {
-    let superAdminUserRole = await userRoleRepo.findOne({
-      where: { userId: superAdminUser.id, roleId: superAdminRole.id },
-    });
-    if (!superAdminUserRole) {
-      await userRoleRepo.save(
-        userRoleRepo.create({
-          userId: superAdminUser.id,
-          roleId: superAdminRole.id,
-          isPrimary: true,
-          isActive: true,
-        }),
-      );
-    }
-  }
-
-  // ── 6. Seed Sidebar Menu Items ─────────────────────────────────────────────
+  // ── 6. Seed Enterprise Sidebar Navigation Items ─────────────────────────────
   const sidebarRepo = dataSource.getRepository(SidebarItem);
+  await sidebarRepo.query('TRUNCATE TABLE "sidebar_items" CASCADE');
 
-  // Clear existing items for clean re-seeding of standard tree structure
-  await sidebarRepo.createQueryBuilder().delete().from(SidebarItem).execute();
-
-  // Main Header
-  const headerMain = await sidebarRepo.save(
+  // Core Header
+  const headerCore = await sidebarRepo.save(
     sidebarRepo.create({
-      itemKey: 'header_main',
-      title: 'MAIN',
+      itemKey: 'header_core',
+      title: 'CORE APPLICATIONS',
       itemType: SidebarItemTypeEnum.HEADER,
       sortOrder: 1,
       visibility: SidebarVisibilityEnum.VISIBLE,
@@ -282,9 +215,10 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
       path: '/dashboard',
       icon: 'LayoutDashboard',
       itemType: SidebarItemTypeEnum.MENU,
-      parentId: headerMain.id,
-      sortOrder: 2,
+      parentId: headerCore.id,
+      sortOrder: 1,
       permissionKey: 'dashboard:dashboard:read:any',
+      activeMatch: '/dashboard*',
       visibility: SidebarVisibilityEnum.VISIBLE,
     }),
   );
@@ -294,13 +228,12 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
       itemKey: 'ecosystem',
       title: 'Ecosystem',
       path: '/ecosystem',
-      icon: 'Layers',
+      icon: 'LayoutGrid',
       itemType: SidebarItemTypeEnum.MENU,
-      parentId: headerMain.id,
-      sortOrder: 3,
-      badgeText: 'NEW',
-      badgeType: SidebarBadgeTypeEnum.NEW,
+      parentId: headerCore.id,
+      sortOrder: 2,
       permissionKey: 'dashboard:dashboard:read:any',
+      activeMatch: '/ecosystem*',
       visibility: SidebarVisibilityEnum.VISIBLE,
     }),
   );
@@ -312,6 +245,21 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
       title: 'ADMINISTRATION',
       itemType: SidebarItemTypeEnum.HEADER,
       sortOrder: 10,
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'organizations',
+      title: 'Organizations',
+      path: '/organizations',
+      icon: 'Building2',
+      itemType: SidebarItemTypeEnum.MENU,
+      parentId: headerAdmin.id,
+      sortOrder: 10,
+      permissionKey: 'users:profile:read:any',
+      activeMatch: '/organizations/*',
       visibility: SidebarVisibilityEnum.VISIBLE,
     }),
   );
@@ -349,7 +297,7 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
   await sidebarRepo.save(
     sidebarRepo.create({
       itemKey: 'roles_list',
-      title: 'Roles List',
+      title: 'All Roles',
       path: '/roles',
       icon: 'ShieldCheck',
       itemType: SidebarItemTypeEnum.MENU,
@@ -362,55 +310,14 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
 
   await sidebarRepo.save(
     sidebarRepo.create({
-      itemKey: 'permissions_list',
-      title: 'Permissions List',
-      path: '/permissions',
-      icon: 'Lock',
+      itemKey: 'roles_create',
+      title: 'Create Role',
+      path: '/roles/create',
+      icon: 'PlusCircle',
       itemType: SidebarItemTypeEnum.MENU,
       parentId: rolesGroup.id,
       sortOrder: 2,
-      permissionKey: 'permissions:permissions:read:any',
-      visibility: SidebarVisibilityEnum.VISIBLE,
-    }),
-  );
-
-  // Analytics & Reports Header
-  const headerReports = await sidebarRepo.save(
-    sidebarRepo.create({
-      itemKey: 'header_reports',
-      title: 'ANALYTICS & REPORTS',
-      itemType: SidebarItemTypeEnum.HEADER,
-      sortOrder: 20,
-      visibility: SidebarVisibilityEnum.VISIBLE,
-    }),
-  );
-
-  await sidebarRepo.save(
-    sidebarRepo.create({
-      itemKey: 'reports',
-      title: 'Reports',
-      path: '/reports',
-      icon: 'FileText',
-      itemType: SidebarItemTypeEnum.MENU,
-      parentId: headerReports.id,
-      sortOrder: 21,
-      permissionKey: 'reports:report:read:any',
-      badgeText: 'BETA',
-      badgeType: SidebarBadgeTypeEnum.BETA,
-      visibility: SidebarVisibilityEnum.VISIBLE,
-    }),
-  );
-
-  await sidebarRepo.save(
-    sidebarRepo.create({
-      itemKey: 'audit',
-      title: 'Audit Logs',
-      path: '/audit-logs',
-      icon: 'Activity',
-      itemType: SidebarItemTypeEnum.MENU,
-      parentId: headerReports.id,
-      sortOrder: 22,
-      permissionKey: 'audit:logs:read:any',
+      permissionKey: 'roles:roles:write:any',
       visibility: SidebarVisibilityEnum.VISIBLE,
     }),
   );
@@ -419,7 +326,7 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
   const headerSystem = await sidebarRepo.save(
     sidebarRepo.create({
       itemKey: 'header_system',
-      title: 'SYSTEM',
+      title: 'SYSTEM & LOGS',
       itemType: SidebarItemTypeEnum.HEADER,
       sortOrder: 30,
       visibility: SidebarVisibilityEnum.VISIBLE,
@@ -483,5 +390,5 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
     }),
   );
 
-  console.log('✅ RBAC, Super Admin & Enterprise Sidebar Items seed completed successfully');
+  console.log('✅ RBAC, Super Admin, Enterprise Sidebar & Master Modules seed completed successfully');
 }

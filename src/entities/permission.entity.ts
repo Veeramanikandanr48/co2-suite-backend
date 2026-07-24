@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { MasterModule } from './master.entity';
+import { MasterModule } from './master-module.entity';
 
 /**
  * Permissions table — source of truth for all CASL rules.
@@ -29,11 +29,8 @@ export class Permission {
   @Column({ nullable: true, unique: true })
   permissionKey: string;
 
-  /**
-   * FK → master_modules.id
-   */
-  @Column()
-  moduleId: number;
+  @Column({ type: 'uuid', nullable: true })
+  moduleId: string;
 
   @ManyToOne(() => MasterModule)
   @JoinColumn({ name: 'moduleId' })
