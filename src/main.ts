@@ -79,8 +79,10 @@ async function bootstrap() {
     console.error('❌ Failed to run RBAC seed on startup:', error?.message || error);
   }
 
-  await app.listen(process.env.PORT || 3000, () => {
-    console.log(`Server running on port ${process.env.PORT || 3000}`);
+  await app.listen(process.env.PORT || 5000, () => {
+    console.log(`Server running on port ${process.env.PORT || 5000}`);
   });
 }
 bootstrap();
+// NestJS server reloaded with PUT /api/v1/organizations/:id support
+
