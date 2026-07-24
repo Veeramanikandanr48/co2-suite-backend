@@ -3,6 +3,12 @@ import { Permission } from 'src/entities/permission.entity';
 import { RolePermission } from 'src/entities/role-permission.entity';
 import { UserDetails, UserAuthenticationDetails } from 'src/entities/user.entity';
 import { UserRole } from 'src/entities/user-role.entity';
+import { SidebarItem } from 'src/entities/sidebar-item.entity';
+import {
+  SidebarBadgeTypeEnum,
+  SidebarItemTypeEnum,
+  SidebarVisibilityEnum,
+} from 'src/enums/sidebar.enum';
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 
@@ -24,15 +30,23 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
   const roles = [
     { roleKey: 'SUPER_ADMIN', roleName: 'Super Admin', roleShortName: 'SA', description: 'Full system access' },
     { roleKey: 'ADMIN',       roleName: 'Admin',       roleShortName: 'AD', description: 'Administrative access' },
-    { roleKey: 'MEMBER',      roleName: 'Member',      roleShortName: 'MB', description: 'Standard user access' },
-    { roleKey: 'VIEWER',      roleName: 'Viewer',      roleShortName: 'VW', description: 'Read-only access' },
   ];
+
+  // Hard delete any legacy roles not in standard active list
+  await rolesRepo.createQueryBuilder()
+    .delete()
+    .from(MasterRoles)
+    .where('roleKey NOT IN (:...activeKeys)', { activeKeys: ['SUPER_ADMIN', 'ADMIN'] })
+    .execute();
 
   const savedRoles: Record<string, MasterRoles> = {};
   for (const role of roles) {
     let existing = await rolesRepo.findOne({ where: { roleKey: role.roleKey } });
     if (!existing) {
       existing = await rolesRepo.save(rolesRepo.create({ ...role, isActive: true }));
+    } else if (!existing.isActive) {
+      await rolesRepo.update(existing.id, { isActive: true });
+      existing.isActive = true;
     }
     savedRoles[role.roleKey] = existing;
   }
@@ -55,6 +69,9 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
     let existing = await modulesRepo.findOne({ where: { moduleKey: mod.moduleKey } });
     if (!existing) {
       existing = await modulesRepo.save(modulesRepo.create({ ...mod, isActive: true }));
+    } else if (!existing.isActive) {
+      await modulesRepo.update(existing.id, { isActive: true });
+      existing.isActive = true;
     }
     savedModules[mod.moduleKey] = existing;
   }
@@ -120,6 +137,9 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
           isActive: true,
         }),
       );
+    } else if (!perm.isActive) {
+      await permRepo.update(perm.id, { isActive: true });
+      perm.isActive = true;
     }
     savedPerms.push({
       id: perm.id,
@@ -145,6 +165,8 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
       const exists = await rolePermRepo.findOne({ where: { roleId: role.id, permissionId: permId } });
       if (!exists) {
         await rolePermRepo.save(rolePermRepo.create({ roleId: role.id, permissionId: permId, isActive: true }));
+      } else if (!exists.isActive) {
+        await rolePermRepo.update(exists.id, { isActive: true });
       }
     }
   };
@@ -164,20 +186,6 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
     getPermId('reports',      'report',      'download', 'any'),
     getPermId('settings',     'settings',    'read',     'any'),
     getPermId('notifications','notification','read',     'own'),
-  ]);
-
-  // MEMBER — own profile + dashboard + own notifications
-  await assign('MEMBER', [
-    getPermId('dashboard',    'dashboard',   'read',  'any'),
-    getPermId('users',        'profile',     'read',  'own'),
-    getPermId('users',        'profile',     'update','own'),
-    getPermId('notifications','notification','read',  'own'),
-  ]);
-
-  // VIEWER — read-only dashboard + own profile read
-  await assign('VIEWER', [
-    getPermId('dashboard', 'dashboard', 'read', 'any'),
-    getPermId('users',     'profile',  'read', 'own'),
   ]);
 
   // ── 5. Seed Super Admin User ────────────────────────────────────────────────
@@ -250,5 +258,230 @@ export async function seedRbac(dataSource: DataSource): Promise<void> {
     }
   }
 
-  console.log('✅ RBAC & Super Admin seed completed successfully');
+  // ── 6. Seed Sidebar Menu Items ─────────────────────────────────────────────
+  const sidebarRepo = dataSource.getRepository(SidebarItem);
+
+  // Clear existing items for clean re-seeding of standard tree structure
+  await sidebarRepo.createQueryBuilder().delete().from(SidebarItem).execute();
+
+  // Main Header
+  const headerMain = await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'header_main',
+      title: 'MAIN',
+      itemType: SidebarItemTypeEnum.HEADER,
+      sortOrder: 1,
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'dashboard',
+      title: 'Dashboard',
+      path: '/dashboard',
+      icon: 'LayoutDashboard',
+      itemType: SidebarItemTypeEnum.MENU,
+      parentId: headerMain.id,
+      sortOrder: 2,
+      permissionKey: 'dashboard:dashboard:read:any',
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'ecosystem',
+      title: 'Ecosystem',
+      path: '/ecosystem',
+      icon: 'Layers',
+      itemType: SidebarItemTypeEnum.MENU,
+      parentId: headerMain.id,
+      sortOrder: 3,
+      badgeText: 'NEW',
+      badgeType: SidebarBadgeTypeEnum.NEW,
+      permissionKey: 'dashboard:dashboard:read:any',
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  // Administration Header
+  const headerAdmin = await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'header_admin',
+      title: 'ADMINISTRATION',
+      itemType: SidebarItemTypeEnum.HEADER,
+      sortOrder: 10,
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'users',
+      title: 'User Management',
+      path: '/users',
+      icon: 'Users',
+      itemType: SidebarItemTypeEnum.MENU,
+      parentId: headerAdmin.id,
+      sortOrder: 11,
+      permissionKey: 'users:profile:read:any',
+      activeMatch: '/users/*',
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  const rolesGroup = await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'roles_group',
+      title: 'Roles & Access',
+      path: '/roles',
+      icon: 'ShieldCheck',
+      itemType: SidebarItemTypeEnum.GROUP,
+      parentId: headerAdmin.id,
+      sortOrder: 12,
+      permissionKey: 'roles:roles:read:any',
+      activeMatch: '/roles/*',
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'roles_list',
+      title: 'Roles List',
+      path: '/roles',
+      icon: 'ShieldCheck',
+      itemType: SidebarItemTypeEnum.MENU,
+      parentId: rolesGroup.id,
+      sortOrder: 1,
+      permissionKey: 'roles:roles:read:any',
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'permissions_list',
+      title: 'Permissions List',
+      path: '/permissions',
+      icon: 'Lock',
+      itemType: SidebarItemTypeEnum.MENU,
+      parentId: rolesGroup.id,
+      sortOrder: 2,
+      permissionKey: 'permissions:permissions:read:any',
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  // Analytics & Reports Header
+  const headerReports = await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'header_reports',
+      title: 'ANALYTICS & REPORTS',
+      itemType: SidebarItemTypeEnum.HEADER,
+      sortOrder: 20,
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'reports',
+      title: 'Reports',
+      path: '/reports',
+      icon: 'FileText',
+      itemType: SidebarItemTypeEnum.MENU,
+      parentId: headerReports.id,
+      sortOrder: 21,
+      permissionKey: 'reports:report:read:any',
+      badgeText: 'BETA',
+      badgeType: SidebarBadgeTypeEnum.BETA,
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'audit',
+      title: 'Audit Logs',
+      path: '/audit-logs',
+      icon: 'Activity',
+      itemType: SidebarItemTypeEnum.MENU,
+      parentId: headerReports.id,
+      sortOrder: 22,
+      permissionKey: 'audit:logs:read:any',
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  // System Header
+  const headerSystem = await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'header_system',
+      title: 'SYSTEM',
+      itemType: SidebarItemTypeEnum.HEADER,
+      sortOrder: 30,
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'notifications',
+      title: 'Notifications',
+      path: '/notifications',
+      icon: 'Bell',
+      itemType: SidebarItemTypeEnum.MENU,
+      parentId: headerSystem.id,
+      sortOrder: 31,
+      permissionKey: 'notifications:notification:read:own',
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  const settingsGroup = await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'settings',
+      title: 'Settings',
+      path: '/settings',
+      icon: 'Settings',
+      itemType: SidebarItemTypeEnum.GROUP,
+      parentId: headerSystem.id,
+      sortOrder: 32,
+      permissionKey: 'settings:settings:read:any',
+      activeMatch: '/settings/*',
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'settings_roles',
+      title: 'Roles & Permissions',
+      path: '/settings/roles',
+      icon: 'ShieldCheck',
+      itemType: SidebarItemTypeEnum.MENU,
+      parentId: settingsGroup.id,
+      sortOrder: 1,
+      permissionKey: 'roles:roles:read:any',
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  await sidebarRepo.save(
+    sidebarRepo.create({
+      itemKey: 'settings_security',
+      title: 'Security & 2FA',
+      path: '/settings/security',
+      icon: 'Lock',
+      itemType: SidebarItemTypeEnum.MENU,
+      parentId: settingsGroup.id,
+      sortOrder: 2,
+      permissionKey: 'settings:settings:read:any',
+      visibility: SidebarVisibilityEnum.VISIBLE,
+    }),
+  );
+
+  console.log('✅ RBAC, Super Admin & Enterprise Sidebar Items seed completed successfully');
 }

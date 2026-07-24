@@ -174,6 +174,8 @@ export class RequestSignatureMiddleware implements NestMiddleware {
       '/api/v1/registration/mfa/validate',
       '/registration/mfa/generate',
       '/api/v1/registration/mfa/generate',
+      '/sidebar',
+      '/api/v1/sidebar',
     ];
     return excludedPatterns.some(
       (pattern) => path.startsWith(pattern) || rawUrlPath.startsWith(pattern),

@@ -38,6 +38,4 @@ export enum RoleActions {
 export enum MasterRole {
   SUPER_ADMIN = 1,
   ADMIN       = 2,
-  MEMBER      = 3,
-  VIEWER      = 4,
 }

@@ -186,7 +186,7 @@ export class UsersService {
 
     let primaryRoleId = dto.roleId;
     if (!primaryRoleId) {
-      const defaultRole = await this.rolesRepo.findOne({ where: { roleKey: 'MEMBER', isActive: true } });
+      const defaultRole = await this.rolesRepo.findOne({ where: { roleKey: 'ADMIN', isActive: true } });
       primaryRoleId = defaultRole ? defaultRole.id : undefined;
       if (!primaryRoleId) {
         const firstRole = await this.rolesRepo.findOne({ where: { isActive: true } });

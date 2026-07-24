@@ -25,6 +25,8 @@ import { RolePermission } from './entities/role-permission.entity';
 import { UserRole } from './entities/user-role.entity';
 import { UserSession } from './entities/user-session.entity';
 import { AuditLog } from './entities/audit-log.entity';
+import { SidebarItem } from './entities/sidebar-item.entity';
+import { SidebarModule } from './modules/sidebar/sidebar.module';
 import { MastersModule } from './modules/common/masters/masters.module';
 import { join } from 'path';
 import { LogUploadCronService } from './utility/log-upload-cron/log-upload-cron.service';
@@ -49,6 +51,7 @@ import { RequestSignatureMiddleware } from './utility/request-signature/request-
       UserRole,
       UserSession,
       AuditLog,
+      SidebarItem,
     ]),
 
     TypeOrmModule.forRootAsync({
@@ -116,6 +119,7 @@ import { RequestSignatureMiddleware } from './utility/request-signature/request-
     CaslPermissionModule,
     MastersModule,
     RequestSignatureModule,
+    SidebarModule,
   ],
   controllers: [AppController],
   providers: [

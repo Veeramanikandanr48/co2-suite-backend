@@ -48,6 +48,7 @@ export interface IDecodeUserDetails {
 export interface IUserPermissions {
   action: Action;
   subject: string;
+  permissionKey?: string;
   /** Optional CASL condition — used for ownership-based rules (scope: 'own') */
   conditions?: Record<string, unknown>;
 }
