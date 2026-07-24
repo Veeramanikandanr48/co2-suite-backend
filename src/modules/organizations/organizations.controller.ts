@@ -15,6 +15,7 @@ import { OrganizationsService } from './organizations.service';
 import {
   CreateOrganizationDto,
   UpdateOrganizationModulesDto,
+  UpdateOrganizationDto,
 } from './dto/organization.dto';
 
 @Controller('organizations')
@@ -46,6 +47,16 @@ export class OrganizationsController {
   @CheckPermissions([Action.READ, 'users'])
   findOne(@Param('id') id: string) {
     return this.orgsService.findOne(id);
+  }
+
+  @Put(':id')
+  @UseGuards(PermissionGuard)
+  @CheckPermissions([Action.UPDATE, 'users'])
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrganizationDto,
+  ) {
+    return this.orgsService.updateOrganization(id, dto);
   }
 
   @Put(':id/modules')

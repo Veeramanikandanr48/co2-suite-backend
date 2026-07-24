@@ -55,3 +55,26 @@ export class UpdateOrganizationModulesDto {
   @IsNotEmpty()
   moduleKeys: string[];
 }
+
+export class UpdateOrganizationDto {
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @IsEmail()
+  @IsOptional()
+  contactEmail?: string;
+
+  @IsString()
+  @IsOptional()
+  contactPhone?: string;
+
+  @IsEnum(SubscriptionPlanEnum)
+  @IsOptional()
+  subscriptionPlan?: SubscriptionPlanEnum;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  moduleKeys?: string[];
+}

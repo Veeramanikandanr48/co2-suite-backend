@@ -19,6 +19,7 @@ import { TenantProvisionService } from 'src/modules/tenant-provision/tenant-prov
 import {
   CreateOrganizationDto,
   UpdateOrganizationModulesDto,
+  UpdateOrganizationDto,
 } from './dto/organization.dto';
 
 @Injectable()
@@ -44,7 +45,7 @@ export class OrganizationsService {
     private readonly userOrgRepo: Repository<UserOrganization>,
     private readonly tenantProvisionService: TenantProvisionService,
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
   /**
    * Onboard Organization: Generate TEN000001 & t_000001, create subscriptions, user-org link, and run provision engine
@@ -202,12 +203,12 @@ export class OrganizationsService {
         health: o.health,
         subscriptions: o.subscriptions
           ? o.subscriptions.map((s) => ({
-              moduleKey: s.module?.moduleKey,
-              name: s.module?.name,
-              category: s.module?.category,
-              status: s.status,
-              licenseKey: s.licenseKey,
-            }))
+            moduleKey: s.module?.moduleKey,
+            name: s.module?.name,
+            category: s.module?.category,
+            status: s.status,
+            licenseKey: s.licenseKey,
+          }))
           : [],
       })),
     };
@@ -279,6 +280,32 @@ export class OrganizationsService {
     return {
       message: `Module licensing & feature access for organization '${org.name}' updated successfully`,
       data: selectedModules.map((m) => m.moduleKey),
+    };
+  }
+
+  /**
+   * Update organization details and granted module subscriptions
+   */
+  async updateOrganization(id: string, dto: UpdateOrganizationDto) {
+    const org = await this.orgRepo.findOne({ where: { id } });
+    if (!org) {
+      throw new NotFoundException(`Organization '${id}' not found`);
+    }
+
+    if (dto.name) org.name = dto.name;
+    if (dto.contactEmail) org.contactEmail = dto.contactEmail;
+    if (dto.contactPhone) org.contactPhone = dto.contactPhone;
+    if (dto.subscriptionPlan) org.subscriptionPlan = dto.subscriptionPlan;
+
+    await this.orgRepo.save(org);
+
+    if (dto.moduleKeys) {
+      await this.updateModules(id, { moduleKeys: dto.moduleKeys });
+    }
+
+    return {
+      message: `Organization '${org.name}' updated successfully`,
+      data: org,
     };
   }
 
