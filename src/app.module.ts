@@ -42,6 +42,7 @@ import { SidebarModule } from './modules/sidebar/sidebar.module';
 import { MastersModule } from './modules/common/masters/masters.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { TenantProvisionModule } from './modules/tenant-provision/tenant-provision.module';
+import { TenantModule } from './modules/tenant/tenant.module';
 import { join } from 'path';
 import { LogUploadCronService } from './utility/log-upload-cron/log-upload-cron.service';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -145,6 +146,7 @@ import { RequestSignatureMiddleware } from './utility/request-signature/request-
     RequestSignatureModule,
     SidebarModule,
     TenantProvisionModule,
+    TenantModule,
     OrganizationsModule,
   ],
   controllers: [AppController],

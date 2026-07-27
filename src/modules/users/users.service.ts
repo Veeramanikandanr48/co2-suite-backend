@@ -11,6 +11,7 @@ import { AuditLog } from 'src/entities/audit-log.entity';
 import { EmailService } from 'src/utility/email/email.service';
 import { MultiFactorAuthenticationService } from 'src/utility/multi-factor-authentication/multi-factor-authentication.service';
 import { EmailTemplate } from 'src/enums/base.enum';
+import { TenantQueryService } from 'src/modules/tenant/tenant-query.service';
 import {
   CreateUserManagementDto,
   ResetUserPasswordDto,
@@ -44,7 +45,15 @@ export class UsersService {
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService,
     private readonly mfaService: MultiFactorAuthenticationService,
+    private readonly tenantQueryService: TenantQueryService,
   ) {}
+
+  /**
+   * One-time explicit migration command helper (Zero startup overhead)
+   */
+  async runOneTimeTenantUserMigration(): Promise<{ migratedCount: number }> {
+    return this.tenantQueryService.executeOneTimeTenantUserMigration(this.userRepo);
+  }
 
   async findAll(query: UserQueryDto): Promise<{
     items: any[];
@@ -57,7 +66,38 @@ export class UsersService {
     const limit = query.limit || 10;
     const skip = (page - 1) * limit;
 
-    const qb = this.userRepo.createQueryBuilder('u');
+    // 1. Query Organization Users via centralized TenantQueryService
+    if (query.organizationId) {
+      const schemaName = await this.tenantQueryService.getSchemaNameForOrg(query.organizationId);
+      if (schemaName) {
+        const { items, total } = await this.tenantQueryService.findTenantUsers(schemaName, {
+          search: query.search,
+          status: query.status,
+          limit,
+          offset: skip,
+        });
+
+        const formattedItems = items.map((u) => ({
+          userId: u.id,
+          userName: u.userName,
+          emailId: u.email,
+          organizationId: query.organizationId,
+          isActive: u.isActive,
+          isVerified: u.isVerified,
+          isTwoFactorAuthenticationEnabled: u.isTwoFactorAuthenticationEnabled ?? false,
+          createdOn: u.createdOn,
+          roles: [],
+          primaryRole: null,
+        }));
+
+        return { items: formattedItems, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+      }
+    }
+
+    // 2. Query Root System Users strictly from public schema (organizationId IS NULL)
+    const qb = this.userRepo.createQueryBuilder('u')
+      .leftJoinAndSelect('u.organization', 'org')
+      .where('u.organizationId IS NULL');
 
     if (query.status === 'active') {
       qb.andWhere('u.isActive = :active', { active: true });
@@ -109,6 +149,9 @@ export class UsersService {
         userId: u.id,
         userName: u.userName,
         emailId: u.email,
+        organizationId: null,
+        organizationName: null,
+        organizationSlug: null,
         isActive: u.isActive,
         isVerified: u.isVerified,
         isTwoFactorAuthenticationEnabled: u.isTwoFactorAuthenticationEnabled ?? false,
@@ -123,12 +166,15 @@ export class UsersService {
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit) || 1,
     };
   }
 
   async findOne(id: number): Promise<any> {
-    const user = await this.userRepo.findOne({ where: { id } });
+    const user = await this.userRepo.findOne({
+      where: { id },
+      relations: { organization: true },
+    });
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
     }
@@ -153,6 +199,9 @@ export class UsersService {
       userId: user.id,
       userName: user.userName,
       emailId: user.email,
+      organizationId: user.organizationId || null,
+      organizationName: user.organization ? user.organization.name : null,
+      organizationSlug: user.organization ? user.organization.slug : null,
       isActive: user.isActive,
       isVerified: user.isVerified,
       isTwoFactorAuthenticationEnabled: user.isTwoFactorAuthenticationEnabled ?? false,
@@ -164,18 +213,48 @@ export class UsersService {
   }
 
   async create(dto: CreateUserManagementDto, changedBy: number): Promise<any> {
-    const existing = await this.userRepo.findOne({ where: { email: dto.email } });
-    if (existing) {
-      throw new ConflictException(`Email '${dto.email}' is already registered`);
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    // If organizationId is provided, store strictly in target schema user_details table via TenantQueryService
+    if (dto.organizationId) {
+      const schemaName = await this.tenantQueryService.getSchemaNameForOrg(dto.organizationId);
+      if (schemaName) {
+        const savedUser = await this.tenantQueryService.createTenantUser(schemaName, {
+          userName: dto.userName,
+          email: dto.email,
+          password: hashedPassword,
+          organizationId: dto.organizationId,
+          isActive: dto.isActive ?? true,
+          isVerified: dto.isVerified ?? true,
+          isTwoFactorAuthenticationEnabled: dto.isTwoFactorAuthenticationEnabled ?? false,
+        });
+
+        return {
+          userId: savedUser.id,
+          userName: savedUser.userName,
+          emailId: savedUser.email,
+          organizationId: dto.organizationId,
+          isActive: savedUser.isActive,
+          isVerified: savedUser.isVerified,
+          isTwoFactorAuthenticationEnabled: savedUser.isTwoFactorAuthenticationEnabled,
+          createdOn: savedUser.createdOn,
+        };
+      }
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    // Root System User (organizationId IS NULL) -> Save strictly in public.user_details
+    const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (existing) {
+      throw new ConflictException(`Email '${dto.email}' is already registered in system root`);
+    }
+
     const newUser = this.userRepo.create({
       userName: dto.userName,
       email: dto.email,
       password: hashedPassword,
+      organizationId: null,
       isActive: dto.isActive ?? true,
-      isVerified: dto.isVerified ?? false,
+      isVerified: dto.isVerified ?? true,
       isTwoFactorAuthenticationEnabled: dto.isTwoFactorAuthenticationEnabled ?? false,
     });
 

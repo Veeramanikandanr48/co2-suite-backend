@@ -61,6 +61,11 @@ export class CreateUserManagementDto {
   @IsOptional()
   @IsBoolean()
   sendWelcomeEmail?: boolean = false;
+
+  @ApiProperty({ required: false, description: 'Organization ID if creating an organization user' })
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
 }
 
 export class UpdateUserManagementDto {
@@ -96,6 +101,11 @@ export class UpdateUserManagementDto {
   @IsArray()
   @IsInt({ each: true })
   roleIds?: number[];
+
+  @ApiProperty({ required: false, description: 'Organization ID' })
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
 }
 
 export class UserQueryDto {
@@ -122,6 +132,16 @@ export class UserQueryDto {
   @IsOptional()
   @IsString()
   status?: string = 'all';
+
+  @ApiProperty({ required: false, enum: ['root', 'organization', 'all'], default: 'root' })
+  @IsOptional()
+  @IsString()
+  scope?: string = 'root';
+
+  @ApiProperty({ required: false, description: 'Filter by Organization ID' })
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
 }
 
 export class ResetUserPasswordDto {

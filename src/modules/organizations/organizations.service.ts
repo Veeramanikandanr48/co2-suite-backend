@@ -16,6 +16,7 @@ import { MasterRoles } from 'src/entities/master.entity';
 import { UserRole } from 'src/entities/user-role.entity';
 import { UserOrganization, UserOrganizationStatusEnum } from 'src/entities/user-organization.entity';
 import { TenantProvisionService } from 'src/modules/tenant-provision/tenant-provision.service';
+import { TenantQueryService } from 'src/modules/tenant/tenant-query.service';
 import {
   CreateOrganizationDto,
   UpdateOrganizationModulesDto,
@@ -44,6 +45,7 @@ export class OrganizationsService {
     @InjectRepository(UserOrganization)
     private readonly userOrgRepo: Repository<UserOrganization>,
     private readonly tenantProvisionService: TenantProvisionService,
+    private readonly tenantQueryService: TenantQueryService,
     private readonly dataSource: DataSource,
   ) { }
 
@@ -186,9 +188,19 @@ export class OrganizationsService {
       order: { createdAt: 'DESC' },
     });
 
-    return {
-      message: 'Organizations fetched successfully',
-      data: orgs.map((o) => ({
+    const result = [];
+    for (const o of orgs) {
+      let tenantUsers: any[] = [];
+      if (o.schemaName) {
+        try {
+          const res = await this.tenantQueryService.findTenantUsers(o.schemaName, { limit: 100 });
+          tenantUsers = res.items;
+        } catch (_err) {
+          tenantUsers = [];
+        }
+      }
+
+      result.push({
         id: o.id,
         name: o.name,
         tenantCode: o.tenantCode,
@@ -201,16 +213,31 @@ export class OrganizationsService {
         createdAt: o.createdAt,
         settings: o.settings,
         health: o.health,
+        userCount: tenantUsers.length,
+        users: tenantUsers.map((u) => ({
+          userId: u.id,
+          userName: u.userName,
+          emailId: u.email,
+          isActive: u.isActive,
+          isVerified: u.isVerified,
+          isTwoFactorAuthenticationEnabled: u.isTwoFactorAuthenticationEnabled ?? false,
+          createdOn: u.createdOn,
+        })),
         subscriptions: o.subscriptions
           ? o.subscriptions.map((s) => ({
-            moduleKey: s.module?.moduleKey,
-            name: s.module?.name,
-            category: s.module?.category,
-            status: s.status,
-            licenseKey: s.licenseKey,
-          }))
+              moduleKey: s.module?.moduleKey,
+              name: s.module?.name,
+              category: s.module?.category,
+              status: s.status,
+              licenseKey: s.licenseKey,
+            }))
           : [],
-      })),
+      });
+    }
+
+    return {
+      message: 'Organizations fetched successfully',
+      data: result,
     };
   }
 
@@ -231,9 +258,31 @@ export class OrganizationsService {
       throw new NotFoundException(`Organization '${id}' not found`);
     }
 
+    let tenantUsers: any[] = [];
+    if (org.schemaName) {
+      try {
+        const res = await this.tenantQueryService.findTenantUsers(org.schemaName, { limit: 100 });
+        tenantUsers = res.items;
+      } catch (_err) {
+        tenantUsers = [];
+      }
+    }
+
     return {
       message: 'Organization details fetched successfully',
-      data: org,
+      data: {
+        ...org,
+        users: tenantUsers.map((u) => ({
+          userId: u.id,
+          userName: u.userName,
+          emailId: u.email,
+          isActive: u.isActive,
+          isVerified: u.isVerified,
+          isTwoFactorAuthenticationEnabled: u.isTwoFactorAuthenticationEnabled ?? false,
+          createdOn: u.createdOn,
+        })),
+        userCount: tenantUsers.length,
+      },
     };
   }
 
