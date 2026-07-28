@@ -14,7 +14,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { ServicesService } from './services.service';
-import { AssignServicesDto } from 'src/dto/service.dto';
+import { AssignServicesDto, CreateScopeItemDto, CreateServiceDto } from 'src/dto/service.dto';
 import { UtilService } from 'src/utility/util/util.service';
 import { MasterRole } from 'src/enums/casl.enum';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
@@ -30,7 +30,7 @@ export class ServicesController {
   @Get('services')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all available master services' })
+  @ApiOperation({ summary: 'Get all available master services from DB' })
   async getAllServices(@Req() req: Request, @Res() res: Response) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method Start: getAllServices');
@@ -42,6 +42,113 @@ export class ServicesController {
       this.utilService.sendErrorResponse(res, error.message);
     } finally {
       logger.info('Method end: getAllServices');
+      res.end();
+    }
+  }
+
+  @Post('services')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new master service in DB dynamically (Super Admin only)' })
+  async createService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() dto: CreateServiceDto,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: createService');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
+        throw new ForbiddenException('Only Super Admin can create master services');
+      }
+
+      const result = await this.servicesService.createService(dto);
+      this.utilService.sendSuccessResponse(res, 'Service created successfully in DB', result);
+    } catch (error) {
+      logger.error(`Error in createService: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: createService');
+      res.end();
+    }
+  }
+
+  @Get('services/:code/scopes')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get dynamic scope 1, 2, 3 service items from DB for a service module' })
+  async getServiceScopes(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('code') code: string,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: getServiceScopes');
+    try {
+      const result = await this.servicesService.getServiceScopes(code);
+      this.utilService.sendSuccessResponse(res, 'Successfully fetched service scope items', result);
+    } catch (error) {
+      logger.error(`Error in getServiceScopes: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: getServiceScopes');
+      res.end();
+    }
+  }
+
+  @Post('services/scopes')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add a new Scope item to DB dynamically (Super Admin only)' })
+  async createScopeItem(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() dto: CreateScopeItemDto,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: createScopeItem');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
+        throw new ForbiddenException('Only Super Admin can create scope items');
+      }
+
+      const result = await this.servicesService.createScopeItem(dto);
+      this.utilService.sendSuccessResponse(res, 'Scope item created successfully in DB', result);
+    } catch (error) {
+      logger.error(`Error in createScopeItem: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: createScopeItem');
+      res.end();
+    }
+  }
+
+  @Delete('services/scopes/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a Scope item from DB dynamically (Super Admin only)' })
+  async deleteScopeItem(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('id') id: number,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: deleteScopeItem');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
+        throw new ForbiddenException('Only Super Admin can delete scope items');
+      }
+
+      const result = await this.servicesService.deleteScopeItem(Number(id));
+      this.utilService.sendSuccessResponse(res, result.message, null);
+    } catch (error) {
+      logger.error(`Error in deleteScopeItem: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: deleteScopeItem');
       res.end();
     }
   }
@@ -60,7 +167,6 @@ export class ServicesController {
     try {
       const user = req['user'] as IDecodeUserDetails;
 
-      // Super Admin can view any org; Admin and User can only view their own org
       const isSuperAdmin = user?.roleId === MasterRole.SUPER_ADMIN;
       const isSameOrg = Number(user?.organizationId) === Number(id);
 

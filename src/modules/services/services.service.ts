@@ -2,98 +2,38 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Service } from 'src/entities/service.entity';
 import { OrganizationService } from 'src/entities/organization-service.entity';
-import { AssignServicesDto } from 'src/dto/service.dto';
-
-const MASTER_SERVICES: Omit<Service, 'id' | 'createdOn' | 'updatedOn' | 'organization' | 'service'>[] = [
-  {
-    code: 'CARBON',
-    name: 'CageSuite Carbon',
-    description: 'Corporate Carbon Management and Reporting Module',
-    category: 'Carbon',
-    tags: ['Carbon'],
-    demoUrl: '#',
-    isActive: true,
-  },
-  {
-    code: 'CBAM',
-    name: 'CageSuite CBAM',
-    description: 'EU Carbon Border Adjustment Mechanism Module',
-    category: 'CBAM',
-    tags: ['CBAM'],
-    demoUrl: '#',
-    isActive: true,
-  },
-  {
-    code: 'PEF_TEXTILES',
-    name: 'CageSuite PEF',
-    description: 'EU Product Environmental Footprint Module for Textiles & Apparels',
-    category: 'PEF',
-    tags: ['PEF', 'Textiles & Apparels'],
-    demoUrl: '#',
-    isActive: true,
-  },
-  {
-    code: 'LCA_PLASTICS',
-    name: 'CageSuite LCA',
-    description: 'Product Life Cycle Assessment for Plastic Manufacturing',
-    category: 'LCA',
-    tags: ['LCA', 'Plastics'],
-    demoUrl: '#',
-    isActive: true,
-  },
-  {
-    code: 'LCA_METALS',
-    name: 'CageSuite LCA',
-    description: 'Product Life Cycle Assessment for Metal Manufacturing',
-    category: 'LCA',
-    tags: ['LCA', 'Metals'],
-    demoUrl: '#',
-    isActive: true,
-  },
-  {
-    code: 'ESG',
-    name: 'CageSuite ESG',
-    description: 'Corporate Sustainability Management and Reporting Module',
-    category: 'ESG',
-    tags: ['ESG'],
-    demoUrl: '#',
-    isActive: true,
-  },
-  {
-    code: 'EPD_CABLES',
-    name: 'CageSuite EPD',
-    description: 'Environmental Product Declarations Module for Cable Industry',
-    category: 'EPD',
-    tags: ['EPD', 'Cables'],
-    demoUrl: '#',
-    isActive: true,
-  },
-];
+import { ServiceScopeItem } from 'src/entities/service-scope-item.entity';
+import { AssignServicesDto, CreateScopeItemDto, CreateServiceDto } from 'src/dto/service.dto';
 
 @Injectable()
-export class ServicesService implements OnApplicationBootstrap {
+export class ServicesService {
   constructor(
     @InjectRepository(Service)
     private readonly serviceRepo: Repository<Service>,
     @InjectRepository(OrganizationService)
     private readonly orgServiceRepo: Repository<OrganizationService>,
+    @InjectRepository(ServiceScopeItem)
+    private readonly scopeItemRepo: Repository<ServiceScopeItem>,
   ) {}
 
-  /**
-   * Seeds master services on first startup if not already present.
-   */
-  async onApplicationBootstrap(): Promise<void> {
-    const count = await this.serviceRepo.count();
-    if (count > 0) return;
+  async createService(dto: CreateServiceDto): Promise<Service> {
+    const codeUpper = dto.code.trim().toUpperCase();
+    const existing = await this.serviceRepo.findOne({ where: { code: codeUpper } });
+    if (existing) {
+      throw new ConflictException(`Service with code "${codeUpper}" already exists`);
+    }
 
-    const entities = this.serviceRepo.create(MASTER_SERVICES as Partial<Service>[]);
-    await this.serviceRepo.save(entities);
+    const entity = this.serviceRepo.create({
+      ...dto,
+      code: codeUpper,
+      isActive: true,
+    });
+    return this.serviceRepo.save(entity);
   }
 
   async getAllServices(): Promise<Service[]> {
@@ -132,7 +72,6 @@ export class ServicesService implements OnApplicationBootstrap {
         if (existing.isActive) {
           throw new ConflictException(`Service "${service.name}" is already assigned to this organization`);
         }
-        // Re-activate a previously removed subscription
         existing.isActive = true;
         existing.subscribedBy = subscribedBy;
         results.push(await this.orgServiceRepo.save(existing));
@@ -160,5 +99,46 @@ export class ServicesService implements OnApplicationBootstrap {
     existing.isActive = false;
     await this.orgServiceRepo.save(existing);
     return { message: 'Service removed from organization successfully' };
+  }
+
+  async createScopeItem(dto: CreateScopeItemDto): Promise<ServiceScopeItem> {
+    const serviceCode = dto.serviceCode.trim().toUpperCase();
+    const itemCode = dto.code.trim().toUpperCase();
+
+    const existing = await this.scopeItemRepo.findOne({
+      where: { serviceCode, code: itemCode, isActive: true },
+    });
+
+    if (existing) {
+      throw new ConflictException(`Scope item with code "${itemCode}" already exists for service "${serviceCode}"`);
+    }
+
+    const entity = this.scopeItemRepo.create({
+      ...dto,
+      serviceCode,
+      code: itemCode,
+      scopeCode: dto.scopeCode.trim().toUpperCase(),
+      sortOrder: dto.sortOrder ?? 0,
+      isActive: true,
+    });
+    return this.scopeItemRepo.save(entity);
+  }
+
+  async getServiceScopes(serviceCode: string): Promise<ServiceScopeItem[]> {
+    const codeUpper = (serviceCode || 'CARBON').toUpperCase();
+    return this.scopeItemRepo.find({
+      where: { serviceCode: codeUpper, isActive: true },
+      order: { scopeCode: 'ASC', sortOrder: 'ASC', id: 'ASC' },
+    });
+  }
+
+  async deleteScopeItem(id: number): Promise<{ message: string }> {
+    const existing = await this.scopeItemRepo.findOne({ where: { id, isActive: true } });
+    if (!existing) {
+      throw new BadRequestException(`Service scope item with ID ${id} not found`);
+    }
+    existing.isActive = false;
+    await this.scopeItemRepo.save(existing);
+    return { message: 'Service scope item deleted successfully' };
   }
 }
