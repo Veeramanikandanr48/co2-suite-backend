@@ -9,6 +9,9 @@ import { OrganizationService } from 'src/entities/organization-service.entity';
 import { ServiceScopeItem } from 'src/entities/service-scope-item.entity';
 import { EmissionFactor } from 'src/entities/emission-factor.entity';
 import { InventoryEntry } from 'src/entities/inventory-entry.entity';
+import { Facility } from 'src/entities/facility.entity';
+import { Organization } from 'src/entities/organization.entity';
+import { UserDetails } from 'src/entities/user.entity';
 import { ServicesService } from './services.service';
 import { ServicesController } from './services.controller';
 import { UtilService } from 'src/utility/util/util.service';
@@ -21,6 +24,9 @@ import { UtilService } from 'src/utility/util/util.service';
       ServiceScopeItem,
       EmissionFactor,
       InventoryEntry,
+      Facility,
+      Organization,
+      UserDetails,
     ]),
     MulterModule.register({
       storage: diskStorage({

@@ -105,6 +105,60 @@ export class ServicesController {
     }
   }
 
+  @Get('services/:code/summary')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get overall carbon summary metrics, graphs, charts, and activities strictly from DB' })
+  async getCarbonSummary(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('code') code: string,
+    @Query('year') year?: string,
+    @Query('facility') facility?: string,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: getCarbonSummary');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      const orgId = user?.organizationId || 1;
+      const result = await this.servicesService.getCarbonSummary(orgId, code, { year, facility });
+      this.utilService.sendSuccessResponse(res, 'Successfully fetched carbon summary', result);
+    } catch (error) {
+      logger.error(`Error in getCarbonSummary: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: getCarbonSummary');
+      res.end();
+    }
+  }
+
+  @Get('dashboard/summary')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get executive main dashboard overall summary metrics strictly from DB' })
+  async getExecutiveDashboardSummary(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('year') year?: string,
+    @Query('facility') facility?: string,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: getExecutiveDashboardSummary');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      const roleId = user?.roleId || 3;
+      const orgId = user?.organizationId || 1;
+      const result = await this.servicesService.getExecutiveDashboardSummary(roleId, orgId, { year, facility });
+      this.utilService.sendSuccessResponse(res, 'Successfully fetched executive dashboard summary', result);
+    } catch (error) {
+      logger.error(`Error in getExecutiveDashboardSummary: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: getExecutiveDashboardSummary');
+      res.end();
+    }
+  }
+
   @Post('services/scopes')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
