@@ -38,6 +38,47 @@ export class CreateEmissionFactorDto {
   formula?: string;
 }
 
+export class UpdateEmissionFactorDto {
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  category?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  source?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  version?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  fuelOrGasType?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  unit?: string;
+
+  @ApiProperty({ required: false })
+  @IsNumber()
+  @IsOptional()
+  factor?: number;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  formula?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  isActive?: boolean;
+}
+
 export class CreateInventoryEntryDto {
   @ApiProperty({ example: 'CARBON', required: false })
   @IsString()

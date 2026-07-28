@@ -12,7 +12,7 @@ import { ServiceScopeItem } from 'src/entities/service-scope-item.entity';
 import { EmissionFactor } from 'src/entities/emission-factor.entity';
 import { InventoryEntry } from 'src/entities/inventory-entry.entity';
 import { AssignServicesDto, CreateScopeItemDto, CreateServiceDto } from 'src/dto/service.dto';
-import { CreateEmissionFactorDto, CreateInventoryEntryDto } from 'src/dto/inventory.dto';
+import { CreateEmissionFactorDto, CreateInventoryEntryDto, UpdateEmissionFactorDto } from 'src/dto/inventory.dto';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import { ICommonSortFieldObject } from 'src/utility/base-interface.interface';
 import { UtilService } from 'src/utility/util/util.service';
@@ -213,6 +213,100 @@ export class ServicesService implements OnApplicationBootstrap {
       isActive: true,
     });
     return this.efRepo.save(entity);
+  }
+
+  async getEmissionFactorsFilterList(payload: CommonListPayloadDto) {
+    const tableName = 'ef';
+    const tableSortCheck = [
+      'id',
+      'category',
+      'source',
+      'version',
+      'fuelOrGasType',
+      'unit',
+      'factor',
+      'isActive',
+      'createdOn',
+    ];
+    const sortFieldObject: ICommonSortFieldObject = {
+      id: 'ef.id',
+      category: 'ef.category',
+      source: 'ef.source',
+      version: 'ef.version',
+      fuelOrGasType: 'ef.fuelOrGasType',
+      unit: 'ef.unit',
+      factor: 'ef.factor',
+      isActive: 'ef.isActive',
+      createdOn: 'ef.createdOn',
+    };
+
+    const processedPayload = await this.utilService.processListPayload(
+      payload || {},
+      tableName,
+      tableSortCheck,
+      sortFieldObject,
+      10,
+      'id',
+    );
+
+    const { offSet, limit, sortField, sortOrder } = processedPayload;
+    const { searchInput = '', additionalFilter } = payload || {};
+
+    const query = this.efRepo.createQueryBuilder(tableName);
+
+    if (additionalFilter && typeof additionalFilter === 'object') {
+      const { category, source, isActive } = additionalFilter as any;
+      if (category) {
+        query.andWhere('ef.category = :category', { category });
+      }
+      if (source) {
+        query.andWhere('ef.source = :source', { source });
+      }
+      if (isActive !== undefined) {
+        query.andWhere('ef.isActive = :isActive', { isActive });
+      }
+    }
+
+    if (searchInput && searchInput.trim()) {
+      const term = `%${searchInput.trim().toLowerCase()}%`;
+      query.andWhere(
+        '(LOWER(ef.category) LIKE :term OR LOWER(ef.source) LIKE :term OR LOWER(ef.fuelOrGasType) LIKE :term OR LOWER(ef.version) LIKE :term OR LOWER(ef.unit) LIKE :term)',
+        { term },
+      );
+    }
+
+    const orderDirection = sortOrder === -1 ? 'DESC' : 'ASC';
+    query.orderBy(sortField, orderDirection);
+    query.skip(offSet).take(limit);
+
+    const [listData, dataCount] = await query.getManyAndCount();
+
+    return {
+      listData,
+      dataCount,
+    };
+  }
+
+  async updateEmissionFactor(
+    id: number,
+    dto: UpdateEmissionFactorDto,
+  ): Promise<EmissionFactor> {
+    const existing = await this.efRepo.findOne({ where: { id } });
+    if (!existing) {
+      throw new BadRequestException(`Emission factor with ID ${id} not found`);
+    }
+
+    Object.assign(existing, dto);
+    return this.efRepo.save(existing);
+  }
+
+  async deleteEmissionFactor(id: number): Promise<{ message: string }> {
+    const existing = await this.efRepo.findOne({ where: { id } });
+    if (!existing) {
+      throw new BadRequestException(`Emission factor with ID ${id} not found`);
+    }
+    await this.efRepo.remove(existing);
+    return { message: 'Emission factor deleted successfully' };
   }
 
   // --- INVENTORY ENTRIES METHODS ---

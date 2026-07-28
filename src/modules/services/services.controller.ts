@@ -7,6 +7,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -20,7 +21,7 @@ import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagg
 import { Request, Response } from 'express';
 import { ServicesService } from './services.service';
 import { AssignServicesDto, CreateScopeItemDto, CreateServiceDto } from 'src/dto/service.dto';
-import { CreateEmissionFactorDto, CreateInventoryEntryDto } from 'src/dto/inventory.dto';
+import { CreateEmissionFactorDto, CreateInventoryEntryDto, UpdateEmissionFactorDto } from 'src/dto/inventory.dto';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import { UtilService } from 'src/utility/util/util.service';
 import { MasterRole } from 'src/enums/casl.enum';
@@ -197,6 +198,11 @@ export class ServicesController {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method Start: createEmissionFactor');
     try {
+      const user = req['user'] as IDecodeUserDetails;
+      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
+        throw new ForbiddenException('Only Super Admin is authorized to create emission factors');
+      }
+
       const result = await this.servicesService.createEmissionFactor(dto);
       this.utilService.sendSuccessResponse(res, 'Emission factor created successfully', result);
     } catch (error) {
@@ -204,6 +210,86 @@ export class ServicesController {
       this.utilService.sendErrorResponse(res, error.message);
     } finally {
       logger.info('Method end: createEmissionFactor');
+      res.end();
+    }
+  }
+
+  @Post('emission-factors/filter')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Filter and paginate emission factors with search, sort, category' })
+  async getEmissionFactorsFilterList(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() payload: CommonListPayloadDto,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: getEmissionFactorsFilterList');
+    try {
+      const result = await this.servicesService.getEmissionFactorsFilterList(payload);
+      this.utilService.sendSuccessResponse(res, 'Emission factors filter list fetched successfully', result);
+    } catch (error) {
+      logger.error(`Error in getEmissionFactorsFilterList: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: getEmissionFactorsFilterList');
+      res.end();
+    }
+  }
+
+  @Put('emission-factors/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update an existing emission factor' })
+  async updateEmissionFactor(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('id') id: string,
+    @Body() dto: UpdateEmissionFactorDto,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: updateEmissionFactor');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
+        throw new ForbiddenException('Only Super Admin is authorized to update emission factors');
+      }
+
+      const result = await this.servicesService.updateEmissionFactor(Number(id), dto);
+      this.utilService.sendSuccessResponse(res, 'Emission factor updated successfully', result);
+    } catch (error) {
+      logger.error(`Error in updateEmissionFactor: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: updateEmissionFactor');
+      res.end();
+    }
+  }
+
+  @Delete('emission-factors/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete an emission factor' })
+  async deleteEmissionFactor(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('id') id: string,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: deleteEmissionFactor');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
+        throw new ForbiddenException('Only Super Admin is authorized to delete emission factors');
+      }
+
+      const result = await this.servicesService.deleteEmissionFactor(Number(id));
+      this.utilService.sendSuccessResponse(res, result.message, result);
+    } catch (error) {
+      logger.error(`Error in deleteEmissionFactor: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: deleteEmissionFactor');
       res.end();
     }
   }
