@@ -23,17 +23,17 @@ async function bootstrap() {
     defaultVersion: '1',
   });
 
-  if (process.env.NODE_ENV === 'development') {
-    const config = new DocumentBuilder()
-      .setTitle('MES Report API')
-      .setDescription('MES Report API')
-      .setVersion('1.0')
-      .addTag('MES')
-      .addBearerAuth()
-      .build();
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api-doc', app, document);
-  }
+  const config = new DocumentBuilder()
+    .setTitle('CO2 Suite Backend API')
+    .setDescription('API documentation for CO2 Suite backend services')
+    .setVersion('1.0')
+    .addTag('Registration', 'User registration and auth endpoints')
+    .addTag('Masters', 'Master data endpoints')
+    .addTag('Notifications', 'Notification endpoints')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api-doc', app, document);
   app.enableCors({
     credentials: true,
     origin: true,

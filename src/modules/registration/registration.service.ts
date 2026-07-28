@@ -48,7 +48,7 @@ export class RegistrationService {
     return this.userRepository
       .createQueryBuilder('user')
       .select(
-        'user.id, user.email, user.password, user.userName, user.isVerified, user.isActive, user.isTwoFactorAuthenticationEnabled, user.profileImageKey',
+        'user.id, user.email, user.password, user.userName, user.roleId, user.firstName, user.lastName, user.isVerified, user.isActive, user.isTwoFactorAuthenticationEnabled, user.profileImageKey',
       )
       .addSelect(
         'auth.isBlocked, auth.blockedTime, auth.attemptedCount, auth.id as uAuthId, auth.updatedOn',

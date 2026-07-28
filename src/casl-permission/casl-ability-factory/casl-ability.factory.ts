@@ -17,8 +17,9 @@ export class CaslAbilityFactory {
   constructor(private authService: AuthService) {}
 
   async createForUser(user: IDecodeUserDetails): Promise<MongoAbility> {
+    const roleId = user?.roleId || 1;
     const dbPermissions = await this.authService.getAllUserPermission(
-      user.roleId,
+      roleId,
     );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

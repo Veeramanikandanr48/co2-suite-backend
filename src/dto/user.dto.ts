@@ -32,7 +32,6 @@ export class CreateUserDto {
   @ApiProperty()
   @IsNotEmpty()
   @IsString()
-  // @IsNumberString()
   @Transform(({ value }) => (value ? value.trim() : value))
   userName: string;
 
@@ -47,6 +46,21 @@ export class CreateUserDto {
   @Transform(({ value }) => (value ? value.trim() : value))
   @MaxLength(70)
   password: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  roleId?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
 }
 
 export class ForgotPasswordDto {

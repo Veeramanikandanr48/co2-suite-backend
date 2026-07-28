@@ -72,6 +72,9 @@ export class RegistrationController {
         userName: data.userName,
         email: data.emailId,
         password: hashedPassword,
+        roleId: data.roleId || 3,
+        firstName: data.firstName || data.userName,
+        lastName: data.lastName || undefined,
       };
       const savedUser = await this.registrationService.saveUser(newUser);
       const token = this.jwtService.sign(
@@ -199,6 +202,7 @@ export class RegistrationController {
         email: loginData.email,
         id: loginData.id,
         userName: loginData.userName,
+        roleId: loginData.roleId || 3,
       };
 
       const accessToken = this.jwtService.sign(payload, { expiresIn: '5h' });
@@ -208,12 +212,25 @@ export class RegistrationController {
         isTwoFactorAuthenticationEnabled:
           loginData.isTwoFactorAuthenticationEnabled,
         token: accessToken,
+        user: {
+          id: loginData.id,
+          userName: loginData.userName,
+          email: loginData.email,
+          roleId: loginData.roleId || 3,
+          firstName: loginData.firstName || loginData.userName || '',
+          lastName: loginData.lastName || null,
+          userId: String(loginData.id),
+          idpId: 'local',
+          profilePath: loginData.profileImageKey || null,
+        },
       };
       this.utilService.sendSuccessResponse(
         res,
         'Login successfull',
         responseData,
       );
+      logger.info('Method end: login');
+      res.end();
     } catch (error) {
       logger.error(`Error in login: ${error.message}`, error);
       this.utilService.sendErrorResponse(res, error.message);

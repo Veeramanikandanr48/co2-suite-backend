@@ -3,6 +3,9 @@ export interface ILoginInfo {
   email: string;
   password: string;
   userName: string;
+  roleId?: number;
+  firstName?: string;
+  lastName?: string;
   isBlocked: boolean;
   attemptedCount: number;
   blockedTime: Date;
@@ -20,6 +23,9 @@ export interface ICreateUser {
   password?: string;
   googleSubId?: string;
   isVerified?: boolean;
+  roleId?: number;
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface IUserAuthData {

@@ -4,19 +4,15 @@ import { MastersController } from './masters.controller';
 import { UtilService } from 'src/utility/util/util.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
-  MasterCountry,
-  MasterGender,
-  MasterHobbies,
-  MasterState,
+  MasterApprovalStatus,
+  MasterRoles,
 } from 'src/entities/master.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      MasterCountry,
-      MasterState,
-      MasterGender,
-      MasterHobbies,
+      MasterRoles,
+      MasterApprovalStatus,
     ]),
   ],
   controllers: [MastersController],

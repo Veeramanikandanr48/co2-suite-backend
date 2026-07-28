@@ -43,6 +43,15 @@ export class UserDetails {
   @Column({ nullable: true })
   userName: string;
 
+  @Column({ default: 3 })
+  roleId: number;
+
+  @Column({ nullable: true })
+  firstName: string;
+
+  @Column({ nullable: true })
+  lastName: string;
+
   @Column({ nullable: true })
   email: string;
 

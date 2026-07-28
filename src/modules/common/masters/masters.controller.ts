@@ -21,139 +21,46 @@ export class MastersController {
     private readonly utilService: UtilService,
   ) {}
 
-  @Get('getMasterCountries')
+  @Get('getMasterRoles')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiResponse({
-    status: 200,
-    description: '',
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-        },
-        success: {
-          type: 'boolean',
-        },
-        data: {
-          type: 'any',
-        },
-      },
-    },
-  })
-  async getMasterCountries(@Req() req: Request, @Res() res: Response) {
+  async getMasterRoles(@Req() req: Request, @Res() res: Response) {
     const logger = this.utilService.createLogger(MastersController.name, req);
-    logger.info('Method Start: getMasterCountries');
+    logger.info('Method Start: getMasterRoles');
     try {
-      const masterData = await this.mastersService.getMasterCountries();
-      logger.info('Master countries fetched successfully');
+      const masterData = await this.mastersService.getMasterRoles();
       this.utilService.sendSuccessResponse(
         res,
-        'Successfully fetched master countries',
+        'Successfully fetched master roles',
         masterData,
       );
     } catch (error) {
-      logger.error(`Error in getMasterCountries: ${error.message}`, error);
-      this.utilService.sendErrorResponse(
-        res,
-        'Error in fetching master countries',
-      );
+      logger.error(`Error in getMasterRoles: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, 'Error in fetching master roles');
     } finally {
-      logger.info('Method end: getMasterCountries');
+      logger.info('Method end: getMasterRoles');
       res.end();
     }
   }
 
-  @Get('getStatesByCountryId/:countryId')
+  @Get('getMasterApprovalStatuses')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiResponse({
-    status: 200,
-    description: '',
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-        },
-        success: {
-          type: 'boolean',
-        },
-        data: {
-          type: 'any',
-        },
-      },
-    },
-  })
-  async getStatesByCountryId(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Param('countryId') countryId: number,
-  ) {
+  async getMasterApprovalStatuses(@Req() req: Request, @Res() res: Response) {
     const logger = this.utilService.createLogger(MastersController.name, req);
+    logger.info('Method Start: getMasterApprovalStatuses');
     try {
-      logger.info('Method Start: getStatesByCountryId');
-      const masterData =
-        await this.mastersService.getStatesByCountryId(countryId);
-      logger.info('States fetched successfully');
+      const masterData = await this.mastersService.getMasterApprovalStatuses();
       this.utilService.sendSuccessResponse(
         res,
-        'Successfully fetched states by country id',
+        'Successfully fetched master approval statuses',
         masterData,
       );
     } catch (error) {
-      logger.error(`Error in getStatesByCountryId: ${error.message}`, error);
-      this.utilService.sendErrorResponse(
-        res,
-        'Error in fetching states by country id',
-      );
+      logger.error(`Error in getMasterApprovalStatuses: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, 'Error in fetching approval statuses');
     } finally {
-      logger.info('Method end: getStatesByCountryId');
-      res.end();
-    }
-  }
-
-  @Get('getMasterGenders')
-  @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
-  async getMasterGenders(@Req() req: Request, @Res() res: Response) {
-    const logger = this.utilService.createLogger(MastersController.name, req);
-    logger.info('Method Start: getMasterGenders');
-    try {
-      const masterData = await this.mastersService.getMasterGenders();
-      logger.info('Genders fetched successfully');
-      this.utilService.sendSuccessResponse(
-        res,
-        'Successfully fetched all genders',
-        masterData,
-      );
-    } catch (error) {
-      logger.error(`Error in getMasterGenders: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, 'Error in fetching all genders');
-    } finally {
-      logger.info('Method end: getMasterGenders');
-      res.end();
-    }
-  }
-
-  @Get('getMasterHobbies')
-  async getMasterHobbies(@Req() req: Request, @Res() res: Response) {
-    const logger = this.utilService.createLogger(MastersController.name, req);
-    logger.info('Method Start: getMasterHobbies');
-    try {
-      const masterData = await this.mastersService.getMasterHobbies();
-      logger.info('Hobbies fetched successfully');
-      this.utilService.sendSuccessResponse(
-        res,
-        'Successfully fetched all hobbies',
-        masterData,
-      );
-    } catch (error) {
-      logger.error(`Error in getMasterHobbies: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, 'Error in fetching all hobbies');
-    } finally {
-      logger.info('Method end: getMasterHobbies');
+      logger.info('Method end: getMasterApprovalStatuses');
       res.end();
     }
   }
