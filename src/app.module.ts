@@ -18,6 +18,7 @@ import { MultiFactorAuthenticationService } from './utility/multi-factor-authent
 import { UserDetails } from './entities/user.entity';
 import { Organization } from './entities/organization.entity';
 import { MastersModule } from './modules/common/masters/masters.module';
+import { ServicesModule } from './modules/services/services.module';
 import { join } from 'path';
 import { LogUploadCronService } from './utility/log-upload-cron/log-upload-cron.service';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -93,6 +94,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     RegistrationModule,
     OrganizationsModule,
     MastersModule,
+    ServicesModule,
   ],
   controllers: [AppController],
   providers: [
