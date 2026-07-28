@@ -103,4 +103,9 @@ export class CreateInventoryEntryDto {
   @IsString()
   @IsOptional()
   status?: string;
+
+  @ApiProperty({ example: 'uploads/inventory-docs/abc.pdf', required: false })
+  @IsString()
+  @IsOptional()
+  documentPath?: string;
 }

@@ -13,6 +13,9 @@ import { EmissionFactor } from 'src/entities/emission-factor.entity';
 import { InventoryEntry } from 'src/entities/inventory-entry.entity';
 import { AssignServicesDto, CreateScopeItemDto, CreateServiceDto } from 'src/dto/service.dto';
 import { CreateEmissionFactorDto, CreateInventoryEntryDto } from 'src/dto/inventory.dto';
+import { CommonListPayloadDto } from 'src/dto/common-list.dto';
+import { ICommonSortFieldObject } from 'src/utility/base-interface.interface';
+import { UtilService } from 'src/utility/util/util.service';
 import {
   SEED_SERVICES,
   SEED_SCOPE_ITEMS,
@@ -33,6 +36,7 @@ export class ServicesService implements OnApplicationBootstrap {
     private readonly efRepo: Repository<EmissionFactor>,
     @InjectRepository(InventoryEntry)
     private readonly inventoryRepo: Repository<InventoryEntry>,
+    private readonly utilService: UtilService,
   ) {}
 
   /**
@@ -213,15 +217,172 @@ export class ServicesService implements OnApplicationBootstrap {
 
   // --- INVENTORY ENTRIES METHODS ---
 
-  async getInventoryEntries(orgId: number, category?: string): Promise<InventoryEntry[]> {
-    const where: any = { organizationId: orgId };
-    if (category) {
-      where.category = category;
+  async getInventoryEntries(
+    orgId: number,
+    queryParams?: {
+      category?: string;
+      search?: string;
+      facility?: string;
+      status?: string;
+      sortField?: string;
+      sortOrder?: 'ASC' | 'DESC';
+      page?: number;
+      limit?: number;
+    },
+  ): Promise<{
+    items: InventoryEntry[];
+    totalRecords: number;
+    currentPage: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
+    const page = Number(queryParams?.page) || 1;
+    const limit = Number(queryParams?.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const queryBuilder = this.inventoryRepo
+      .createQueryBuilder('entry')
+      .where('entry.organizationId = :orgId', { orgId });
+
+    if (queryParams?.category) {
+      queryBuilder.andWhere('entry.category = :category', { category: queryParams.category });
     }
-    return this.inventoryRepo.find({
-      where,
-      order: { id: 'DESC' },
-    });
+
+    if (queryParams?.facility) {
+      queryBuilder.andWhere('entry.facility = :facility', { facility: queryParams.facility });
+    }
+
+    if (queryParams?.status) {
+      queryBuilder.andWhere(
+        '(entry.status = :status OR entry.approvalStatus = :status)',
+        { status: queryParams.status },
+      );
+    }
+
+    if (queryParams?.search?.trim()) {
+      const searchTerm = `%${queryParams.search.trim().toLowerCase()}%`;
+      queryBuilder.andWhere(
+        '(LOWER(entry.name) LIKE :search OR LOWER(entry.facility) LIKE :search OR LOWER(entry.efSource) LIKE :search OR LOWER(entry.comment) LIKE :search OR LOWER(entry.status) LIKE :search OR LOWER(entry.approvalStatus) LIKE :search)',
+        { search: searchTerm },
+      );
+    }
+
+    const sortFieldMap: Record<string, string> = {
+      name: 'entry.name',
+      amount: 'entry.amount',
+      unit: 'entry.unit',
+      ef: 'entry.ef',
+      efSource: 'entry.efSource',
+      dateFrom: 'entry.dateFrom',
+      dateTo: 'entry.dateTo',
+      facility: 'entry.facility',
+      emission: 'entry.emission',
+      status: 'entry.status',
+      id: 'entry.id',
+    };
+
+    const sortColumn = sortFieldMap[queryParams?.sortField || ''] || 'entry.id';
+    const sortDirection = (queryParams?.sortOrder || 'DESC').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    queryBuilder.orderBy(sortColumn, sortDirection as 'ASC' | 'DESC');
+    queryBuilder.skip(skip).take(limit);
+
+    const [items, totalRecords] = await queryBuilder.getManyAndCount();
+    const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
+
+    return {
+      items,
+      totalRecords,
+      currentPage: page,
+      pageSize: limit,
+      totalPages,
+    };
+  }
+
+  async getInventoryFilterList(payload: CommonListPayloadDto) {
+    const tableName = 'entry';
+    const tableSortCheck = [
+      'id',
+      'name',
+      'amount',
+      'unit',
+      'ef',
+      'efSource',
+      'dateFrom',
+      'dateTo',
+      'facility',
+      'emission',
+      'status',
+      'approvalStatus',
+      'createdOn',
+    ];
+    const sortFieldObject: ICommonSortFieldObject = {
+      id: 'entry.id',
+      name: 'entry.name',
+      amount: 'entry.amount',
+      unit: 'entry.unit',
+      ef: 'entry.ef',
+      efSource: 'entry.efSource',
+      dateFrom: 'entry.dateFrom',
+      dateTo: 'entry.dateTo',
+      facility: 'entry.facility',
+      emission: 'entry.emission',
+      status: 'entry.status',
+      approvalStatus: 'entry.approvalStatus',
+      createdOn: 'entry.createdOn',
+    };
+
+    const processedPayload = await this.utilService.processListPayload(
+      payload || {},
+      tableName,
+      tableSortCheck,
+      sortFieldObject,
+      10,
+      'id',
+    );
+
+    const { offSet, limit, sortField, sortOrder } = processedPayload;
+    const { searchInput = '', additionalFilter } = payload || {};
+
+    const query = this.inventoryRepo.createQueryBuilder(tableName);
+
+    if (additionalFilter && typeof additionalFilter === 'object') {
+      const { category, facility, status, organizationId } = additionalFilter as any;
+      if (organizationId) {
+        query.andWhere('entry.organizationId = :organizationId', { organizationId });
+      }
+      if (category) {
+        query.andWhere('entry.category = :category', { category });
+      }
+      if (facility) {
+        query.andWhere('entry.facility = :facility', { facility });
+      }
+      if (status) {
+        query.andWhere(
+          '(entry.status = :status OR entry.approvalStatus = :status)',
+          { status },
+        );
+      }
+    }
+
+    if (searchInput && searchInput.trim()) {
+      const term = `%${searchInput.trim().toLowerCase()}%`;
+      query.andWhere(
+        '(LOWER(entry.name) LIKE :term OR LOWER(entry.facility) LIKE :term OR LOWER(entry.efSource) LIKE :term OR LOWER(entry.comment) LIKE :term OR LOWER(entry.status) LIKE :term OR LOWER(entry.approvalStatus) LIKE :term)',
+        { term },
+      );
+    }
+
+    const orderDirection = sortOrder === -1 ? 'DESC' : 'ASC';
+    query.orderBy(sortField, orderDirection);
+    query.skip(offSet).take(limit);
+
+    const [listData, dataCount] = await query.getManyAndCount();
+
+    return {
+      listData,
+      dataCount,
+    };
   }
 
   async createInventoryEntry(

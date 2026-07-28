@@ -22,6 +22,7 @@ import { ServicesModule } from './modules/services/services.module';
 import { join } from 'path';
 import { LogUploadCronService } from './utility/log-upload-cron/log-upload-cron.service';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { FacilitiesModule } from './modules/facilities/facilities.module';
 
 @Module({
@@ -30,6 +31,10 @@ import { FacilitiesModule } from './modules/facilities/facilities.module';
       envFilePath: ['.env'],
       load: [config, jwtConfig],
       isGlobal: true,
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
     }),
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([UserDetails, Organization]),

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,14 +10,18 @@ import {
   Query,
   Req,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { ServicesService } from './services.service';
 import { AssignServicesDto, CreateScopeItemDto, CreateServiceDto } from 'src/dto/service.dto';
 import { CreateEmissionFactorDto, CreateInventoryEntryDto } from 'src/dto/inventory.dto';
+import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import { UtilService } from 'src/utility/util/util.service';
 import { MasterRole } from 'src/enums/casl.enum';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
@@ -208,24 +213,74 @@ export class ServicesController {
   @Get('inventory-entries')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get inventory entries from DB for user organization' })
+  @ApiOperation({ summary: 'Get inventory entries from DB with search, filter, sort, and pagination' })
   async getInventoryEntries(
     @Req() req: Request,
     @Res() res: Response,
     @Query('category') category?: string,
+    @Query('search') search?: string,
+    @Query('facility') facility?: string,
+    @Query('status') status?: string,
+    @Query('sortField') sortField?: string,
+    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method Start: getInventoryEntries');
     try {
       const user = req['user'] as IDecodeUserDetails;
       const orgId = user?.organizationId || 1;
-      const result = await this.servicesService.getInventoryEntries(orgId, category);
+      const result = await this.servicesService.getInventoryEntries(orgId, {
+        category,
+        search,
+        facility,
+        status,
+        sortField,
+        sortOrder,
+        page,
+        limit,
+      });
       this.utilService.sendSuccessResponse(res, 'Successfully fetched inventory entries', result);
     } catch (error) {
       logger.error(`Error in getInventoryEntries: ${error.message}`, error);
       this.utilService.sendErrorResponse(res, error.message);
     } finally {
       logger.info('Method end: getInventoryEntries');
+      res.end();
+    }
+  }
+
+  @Post('inventory-entries/filter')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get paginated and filtered inventory entries list for useFetchList' })
+  async getInventoryFilterList(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() payload: CommonListPayloadDto,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: getInventoryFilterList');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      const orgId = user?.organizationId || 1;
+
+      const fullPayload = {
+        ...payload,
+        additionalFilter: {
+          ...(payload.additionalFilter || {}),
+          organizationId: orgId,
+        },
+      };
+
+      const result = await this.servicesService.getInventoryFilterList(fullPayload);
+      this.utilService.sendSuccessResponse(res, 'Successfully fetched inventory list', result);
+    } catch (error) {
+      logger.error(`Error in getInventoryFilterList: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: getInventoryFilterList');
       res.end();
     }
   }
@@ -252,6 +307,38 @@ export class ServicesController {
       this.utilService.sendErrorResponse(res, error.message);
     } finally {
       logger.info('Method end: createInventoryEntry');
+      res.end();
+    }
+  }
+
+  @Post('inventory-entries/upload-document')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload proof of document file for an inventory entry' })
+  async uploadInventoryDocument(
+    @Req() req: Request,
+    @Res() res: Response,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: uploadInventoryDocument');
+    try {
+      if (!file) {
+        throw new BadRequestException('No file uploaded or file invalid');
+      }
+      const documentPath = `uploads/inventory-docs/${file.filename}`;
+      this.utilService.sendSuccessResponse(res, 'Proof document uploaded successfully', {
+        documentPath,
+        originalName: file.originalname,
+        filename: file.filename,
+      });
+    } catch (error) {
+      logger.error(`Error in uploadInventoryDocument: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: uploadInventoryDocument');
       res.end();
     }
   }

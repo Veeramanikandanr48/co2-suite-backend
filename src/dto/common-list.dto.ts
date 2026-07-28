@@ -30,4 +30,8 @@ export class CommonListPayloadDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @ApiProperty()
+  @IsOptional()
+  additionalFilter?: Record<string, unknown>;
 }

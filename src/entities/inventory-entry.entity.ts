@@ -57,6 +57,9 @@ export class InventoryEntry {
   approvalStatus: string;
 
   @Column({ nullable: true })
+  documentPath: string;
+
+  @Column({ nullable: true })
   createdBy: number;
 
   @CreateDateColumn()
