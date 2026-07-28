@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -15,6 +16,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { ServicesService } from './services.service';
 import { AssignServicesDto, CreateScopeItemDto, CreateServiceDto } from 'src/dto/service.dto';
+import { CreateEmissionFactorDto, CreateInventoryEntryDto } from 'src/dto/inventory.dto';
 import { UtilService } from 'src/utility/util/util.service';
 import { MasterRole } from 'src/enums/casl.enum';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
@@ -149,6 +151,132 @@ export class ServicesController {
       this.utilService.sendErrorResponse(res, error.message);
     } finally {
       logger.info('Method end: deleteScopeItem');
+      res.end();
+    }
+  }
+
+  // --- EMISSION FACTORS ENDPOINTS ---
+
+  @Get('emission-factors')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get emission factors and dropdown calculation parameters from DB' })
+  async getEmissionFactors(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('category') category?: string,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: getEmissionFactors');
+    try {
+      const result = await this.servicesService.getEmissionFactors(category);
+      this.utilService.sendSuccessResponse(res, 'Successfully fetched emission factors', result);
+    } catch (error) {
+      logger.error(`Error in getEmissionFactors: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: getEmissionFactors');
+      res.end();
+    }
+  }
+
+  @Post('emission-factors')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new emission factor in DB dynamically' })
+  async createEmissionFactor(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() dto: CreateEmissionFactorDto,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: createEmissionFactor');
+    try {
+      const result = await this.servicesService.createEmissionFactor(dto);
+      this.utilService.sendSuccessResponse(res, 'Emission factor created successfully', result);
+    } catch (error) {
+      logger.error(`Error in createEmissionFactor: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: createEmissionFactor');
+      res.end();
+    }
+  }
+
+  // --- INVENTORY ENTRIES ENDPOINTS ---
+
+  @Get('inventory-entries')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get inventory entries from DB for user organization' })
+  async getInventoryEntries(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('category') category?: string,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: getInventoryEntries');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      const orgId = user?.organizationId || 1;
+      const result = await this.servicesService.getInventoryEntries(orgId, category);
+      this.utilService.sendSuccessResponse(res, 'Successfully fetched inventory entries', result);
+    } catch (error) {
+      logger.error(`Error in getInventoryEntries: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: getInventoryEntries');
+      res.end();
+    }
+  }
+
+  @Post('inventory-entries')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Save new inventory entry to DB with formula calculation' })
+  async createInventoryEntry(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() dto: CreateInventoryEntryDto,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: createInventoryEntry');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      const orgId = user?.organizationId || 1;
+      const userId = user?.id || 1;
+      const result = await this.servicesService.createInventoryEntry(orgId, userId, dto);
+      this.utilService.sendSuccessResponse(res, 'Inventory entry saved to database', result);
+    } catch (error) {
+      logger.error(`Error in createInventoryEntry: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: createInventoryEntry');
+      res.end();
+    }
+  }
+
+  @Delete('inventory-entries/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete inventory entry from DB' })
+  async deleteInventoryEntry(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('id') id: number,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: deleteInventoryEntry');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      const orgId = user?.organizationId || 1;
+      const result = await this.servicesService.deleteInventoryEntry(orgId, Number(id));
+      this.utilService.sendSuccessResponse(res, result.message, null);
+    } catch (error) {
+      logger.error(`Error in deleteInventoryEntry: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: deleteInventoryEntry');
       res.end();
     }
   }

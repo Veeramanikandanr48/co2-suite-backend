@@ -22,6 +22,7 @@ import { ServicesModule } from './modules/services/services.module';
 import { join } from 'path';
 import { LogUploadCronService } from './utility/log-upload-cron/log-upload-cron.service';
 import { ScheduleModule } from '@nestjs/schedule';
+import { FacilitiesModule } from './modules/facilities/facilities.module';
 
 @Module({
   imports: [
@@ -58,24 +59,23 @@ import { ScheduleModule } from '@nestjs/schedule';
           json: false,
           zippedArchive: true,
           maxSize: '50m',
+          maxFiles: '14d',
         }),
       ],
     }),
     MailerModule.forRoot({
       transport: {
-        service: process.env.MAIL_SERVICE,
         host: process.env.MAIL_HOST,
-        port: 2525,
-        secure: false,
+        port: Number(process.env.MAIL_PORT),
+        secure: process.env.MAIL_PORT === '465',
         auth: {
           user: process.env.MAIL_USER,
           pass: process.env.MAIL_PASSWORD,
         },
       },
       defaults: {
-        from: process.env.FROM_EMAIL,
+        from: `No Reply <${process.env.MAIL_FROM}>`,
       },
-      preview: false,
       template: {
         dir: join(process.cwd(), 'src/utility/email/templates'),
         adapter: new HandlebarsAdapter(),
@@ -95,6 +95,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     OrganizationsModule,
     MastersModule,
     ServicesModule,
+    FacilitiesModule,
   ],
   controllers: [AppController],
   providers: [
