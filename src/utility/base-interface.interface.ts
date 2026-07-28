@@ -28,8 +28,10 @@ export interface IMailDetails {
 export interface IDecodeUserDetails {
   readonly iat: number;
   readonly exp: number;
+  id?: number;
   roleId: number;
   userId: number;
+  organizationId?: number;
   email?: string;
   currentRoleId?: number;
   serviceDetails?: {

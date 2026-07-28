@@ -203,6 +203,7 @@ export class RegistrationController {
         id: loginData.id,
         userName: loginData.userName,
         roleId: loginData.roleId || 3,
+        organizationId: loginData.organizationId || null,
       };
 
       const accessToken = this.jwtService.sign(payload, { expiresIn: '5h' });
@@ -217,6 +218,7 @@ export class RegistrationController {
           userName: loginData.userName,
           email: loginData.email,
           roleId: loginData.roleId || 3,
+          organizationId: loginData.organizationId || null,
           firstName: loginData.firstName || loginData.userName || '',
           lastName: loginData.lastName || null,
           userId: String(loginData.id),

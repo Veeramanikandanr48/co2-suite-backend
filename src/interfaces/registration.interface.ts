@@ -4,6 +4,7 @@ export interface ILoginInfo {
   password: string;
   userName: string;
   roleId?: number;
+  organizationId?: number;
   firstName?: string;
   lastName?: string;
   isBlocked: boolean;
@@ -24,6 +25,7 @@ export interface ICreateUser {
   googleSubId?: string;
   isVerified?: boolean;
   roleId?: number;
+  organizationId?: number;
   firstName?: string;
   lastName?: string;
 }

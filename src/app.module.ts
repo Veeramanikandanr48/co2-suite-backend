@@ -13,8 +13,10 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.ad
 import { ThrottlerModule } from '@nestjs/throttler';
 import { NotificationsModule } from './modules/common/notifications/notifications.module';
 import { RegistrationModule } from './modules/registration/registration.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { MultiFactorAuthenticationService } from './utility/multi-factor-authentication/multi-factor-authentication.service';
 import { UserDetails } from './entities/user.entity';
+import { Organization } from './entities/organization.entity';
 import { MastersModule } from './modules/common/masters/masters.module';
 import { join } from 'path';
 import { LogUploadCronService } from './utility/log-upload-cron/log-upload-cron.service';
@@ -28,7 +30,7 @@ import { ScheduleModule } from '@nestjs/schedule';
       isGlobal: true,
     }),
     ScheduleModule.forRoot(),
-    TypeOrmModule.forFeature([UserDetails]),
+    TypeOrmModule.forFeature([UserDetails, Organization]),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) =>
@@ -89,6 +91,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     ]),
     NotificationsModule,
     RegistrationModule,
+    OrganizationsModule,
     MastersModule,
   ],
   controllers: [AppController],

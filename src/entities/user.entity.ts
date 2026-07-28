@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { PrimaryGeneratedColumn } from 'typeorm';
+import { Organization } from './organization.entity';
 
 export class BaseColumns {
   @Column({ default: true })
@@ -45,6 +46,13 @@ export class UserDetails {
 
   @Column({ default: 3 })
   roleId: number;
+
+  @Column({ nullable: true })
+  organizationId: number;
+
+  @ManyToOne(() => Organization, { nullable: true })
+  @JoinColumn({ name: 'organizationId' })
+  organization: Organization;
 
   @Column({ nullable: true })
   firstName: string;
