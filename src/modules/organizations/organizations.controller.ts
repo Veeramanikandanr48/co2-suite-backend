@@ -274,4 +274,33 @@ export class OrganizationsController {
       res.end();
     }
   }
+
+  @Put(':id/users/:userId')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update organization member user details' })
+  async updateOrganizationMember(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('id') id: number,
+    @Param('userId') userId: number,
+    @Body() dto: any,
+  ) {
+    const logger = this.utilService.createLogger(OrganizationsController.name, req);
+    logger.info('Method Start: updateOrganizationMember');
+    try {
+      const result = await this.organizationsService.updateOrganizationMember(id, userId, dto);
+      this.utilService.sendSuccessResponse(
+        res,
+        'Member user updated successfully',
+        result,
+      );
+    } catch (error) {
+      logger.error(`Error in updateOrganizationMember: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: updateOrganizationMember');
+      res.end();
+    }
+  }
 }

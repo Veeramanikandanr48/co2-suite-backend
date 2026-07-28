@@ -293,4 +293,23 @@ export class OrganizationsService {
       organizationId: savedUser.organizationId,
     };
   }
+
+  async updateOrganizationMember(
+    orgId: number,
+    userId: number,
+    dto: Partial<AddOrganizationMemberDto>,
+  ) {
+    const user = await this.userRepo.findOne({ where: { id: userId, organizationId: orgId } });
+    if (!user) {
+      throw new BadRequestException(`User with ID ${userId} not found in this organization`);
+    }
+
+    if (dto.firstName) user.firstName = dto.firstName;
+    if (dto.lastName) user.lastName = dto.lastName;
+    if (dto.email) user.email = dto.email;
+    if (dto.roleId) user.roleId = dto.roleId;
+
+    await this.userRepo.save(user);
+    return user;
+  }
 }
