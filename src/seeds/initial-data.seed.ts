@@ -52,11 +52,13 @@ export const SEED_EMISSION_FACTORS: Partial<EmissionFactor>[] = [
   // Mobile Combustion
   { category: 'Mobile Combustion', source: 'IPCC-AR6', version: 'AR6', fuelOrGasType: 'Diesel - On Road Fleet', unit: 'L', factor: 2.666, formula: '(amount * factor) / 1000', isActive: true },
   { category: 'Mobile Combustion', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Petrol - Fleet Cars', unit: 'L', factor: 2.314, formula: '(amount * factor) / 1000', isActive: true },
-  { category: 'Mobile Combustion', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Light Commercial Van (Diesel)', unit: 'km', factor: 0.218, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Mobile Combustion', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Light Commercial Van (Diesel)', unit: 'km', factor: 0.218, formula: '(distance * factor) / 1000', isActive: true },
+  { category: 'Mobile Combustion', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'On Road - Diesel', unit: 'L', factor: 2.684, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Mobile Combustion', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'On Road - Petrol', unit: 'L', factor: 2.314, formula: '(amount * factor) / 1000', isActive: true },
 
   // Fugitive & Process Emissions
-  { category: 'Fugitive Emissions', source: 'IPCC-AR6 GWP', version: 'AR6', fuelOrGasType: 'Refrigerant R-134a', unit: 'kg', factor: 1430.000, formula: '(amount * factor) / 1000', isActive: true },
-  { category: 'Fugitive Emissions', source: 'IPCC-AR6 GWP', version: 'AR6', fuelOrGasType: 'Refrigerant R-410A', unit: 'kg', factor: 2088.000, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Fugitive Emissions', source: 'IPCC-AR6 GWP', version: 'AR6', fuelOrGasType: 'Refrigerant R-134a', unit: 'kg', factor: 1430.000, formula: '(amount * (leakage / 100) * factor) / 1000', isActive: true },
+  { category: 'Fugitive Emissions', source: 'IPCC-AR6 GWP', version: 'AR6', fuelOrGasType: 'Refrigerant R-410A', unit: 'kg', factor: 2088.000, formula: '(amount * (leakage / 100) * factor) / 1000', isActive: true },
   { category: 'Process Emissions', source: 'IPCC Industrial Processes', version: 'AR6', fuelOrGasType: 'CO2 Process Release', unit: 'kg', factor: 1.000, formula: '(amount * factor) / 1000', isActive: true },
 
   // Scope 2: Purchased Electricity
@@ -77,26 +79,49 @@ export const SEED_EMISSION_FACTORS: Partial<EmissionFactor>[] = [
   // Scope 3: Capital Goods
   { category: 'Capital Goods', source: 'EXIOBASE v3.8', version: 'v3.8', fuelOrGasType: 'Industrial Machinery & Equipment', unit: 'USD', factor: 0.425, formula: '(amount * factor) / 1000', isActive: true },
 
-  // Scope 3: Freight & Transportation
-  { category: 'Upstream Transportation', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'HGV Freight (Diesel, Laden)', unit: 'ton.km', factor: 0.121, formula: '(amount * factor) / 1000', isActive: true },
-  { category: 'Upstream Transportation', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Air Freight (International Long Haul)', unit: 'ton.km', factor: 0.602, formula: '(amount * factor) / 1000', isActive: true },
-  { category: 'Downstream Transportation', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Container Sea Cargo Ship', unit: 'ton.km', factor: 0.016, formula: '(amount * factor) / 1000', isActive: true },
+  // Scope 3: Upstream & Downstream Transportation
+  { category: 'Upstream Transportation', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'HGV Freight (Diesel, Laden)', unit: 'ton.km', factor: 0.121, formula: '(distance * amount * factor) / 1000', isActive: true },
+  { category: 'Upstream Transportation', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Air Freight (International Long Haul)', unit: 'ton.km', factor: 0.602, formula: '(distance * amount * factor) / 1000', isActive: true },
+  { category: 'Upstream Transportation', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Freighting Goods', unit: 'ton.km', factor: 0.121, formula: '(distance * amount * factor) / 1000', isActive: true },
+  { category: 'Upstream Transportation', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Heavy Goods Vehicle', unit: 'ton.km', factor: 0.121, formula: '(distance * amount * factor) / 1000', isActive: true },
+  { category: 'Downstream Transportation', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Container Sea Cargo Ship', unit: 'ton.km', factor: 0.016, formula: '(distance * amount * factor) / 1000', isActive: true },
+  { category: 'Downstream Transportation', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Freighting Goods', unit: 'ton.km', factor: 0.121, formula: '(distance * amount * factor) / 1000', isActive: true },
+  { category: 'Downstream Transportation', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Heavy Goods Vehicle', unit: 'ton.km', factor: 0.121, formula: '(distance * amount * factor) / 1000', isActive: true },
 
-  // Scope 3: Waste & Travel
+  // Scope 3: Waste Generated in Operations
   { category: 'Waste Generated in Operations', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Commercial Mixed Waste - Landfill', unit: 'tonne', factor: 446.200, formula: '(amount * factor) / 1000', isActive: true },
-  { category: 'Business Travel', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Long Haul Flight (Business Class)', unit: 'passenger.km', factor: 0.254, formula: '(amount * factor) / 1000', isActive: true },
-  { category: 'Employee Commuting', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Average Diesel Passenger Car', unit: 'km', factor: 0.171, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Waste Generated in Operations', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Average Construction - Closed Loop', unit: 'tonne', factor: 0.001, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Waste Generated in Operations', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Glass - Closed Loop', unit: 'tonne', factor: 6.411, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Waste Generated in Operations', source: 'DEFRA 2025', version: '2025', fuelOrGasType: 'Discharged Wastewater', unit: 'm3', factor: 0.171, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Waste Generated in Operations', source: 'DEFRA 2025', version: '2025', fuelOrGasType: 'Industrial Wastewater', unit: 'm3', factor: 0.220, formula: '(amount * factor) / 1000', isActive: true },
+
+  // Scope 3: Business Travel & Employee Commuting
+  { category: 'Business Travel', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Short Haul - Economy', unit: 'passenger.km', factor: 0.205, formula: '(people * distance * factor) / 1000', isActive: true },
+  { category: 'Business Travel', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Long Haul Flight (Business Class)', unit: 'passenger.km', factor: 0.254, formula: '(people * distance * factor) / 1000', isActive: true },
+  { category: 'Business Travel', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Ferry - Passenger', unit: 'passenger.km', factor: 0.019, formula: '(people * distance * factor) / 1000', isActive: true },
+  { category: 'Business Travel', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Taxi - Regular', unit: 'passenger.km', factor: 0.150, formula: '(people * distance * factor) / 1000', isActive: true },
+  { category: 'Business Travel', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Hotel Stay - Standard', unit: 'room-night', factor: 14.500, formula: '(rooms * nights * factor) / 1000', isActive: true },
+  { category: 'Employee Commuting', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Average Diesel Passenger Car', unit: 'km', factor: 0.171, formula: '(people * distance * factor) / 1000', isActive: true },
+  { category: 'Employee Commuting', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'On Road - Diesel', unit: 'km', factor: 0.171, formula: '(people * distance * factor) / 1000', isActive: true },
+  { category: 'Employee Commuting', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'On Road - Petrol', unit: 'km', factor: 0.165, formula: '(people * distance * factor) / 1000', isActive: true },
 
   // Scope 3: End of Life
-  { category: 'EOL Treatment of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Metal (Mixed Can) - Closed Loop', unit: 'ton', factor: 6.411, formula: '(amount * factor)', isActive: true },
-  { category: 'EOL Treatment of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Paper Board - Landfill Disposal', unit: 'ton', factor: 1164.489, formula: '(amount * factor)', isActive: true },
+  { category: 'EOL Treatment of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Metal (Mixed Can) - Closed Loop', unit: 'ton', factor: 6.411, formula: 'amount * factor', isActive: true },
+  { category: 'EOL Treatment of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Paper Board - Landfill Disposal', unit: 'ton', factor: 1164.489, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'EOL Treatment of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Metal (Mixed Can)', unit: 'ton', factor: 6.411, formula: 'amount * factor', isActive: true },
+  { category: 'EOL Treatment of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Paper Board', unit: 'ton', factor: 1164.489, formula: '(amount * factor) / 1000', isActive: true },
 
   // Scope 3: Other Categories
   { category: 'Energy and Fuel Related Activities', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'WTT - Electricity (UK Grid)', unit: 'kWh', factor: 0.045, formula: '(amount * factor) / 1000', isActive: true },
-  { category: 'Processing of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Intermediate Metal Processing', unit: 'tonne', factor: 1.250, formula: '(amount * factor)', isActive: true },
+  { category: 'Processing of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Intermediate Metal Processing', unit: 'tonne', factor: 1.250, formula: 'amount * factor', isActive: true },
+  { category: 'Processing of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Manufacturing Facility', unit: 'tonne', factor: 1.250, formula: 'amount * factor', isActive: true },
   { category: 'Use of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Direct Fuel Use (Equipment)', unit: 'L', factor: 2.314, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Use of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Consumer Use', unit: 'L', factor: 2.314, formula: '(amount * factor) / 1000', isActive: true },
   { category: 'Franchise', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Franchise Facility Operations', unit: 'sqm', factor: 45.200, formula: '(amount * factor) / 1000', isActive: true },
-  { category: 'Investments', source: 'PCAF 2023', version: '2023', fuelOrGasType: 'Equity Investment (Manufacturing)', unit: 'USD', factor: 0.350, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Franchise', source: 'IEA Grid Factors 2023', version: '2023', fuelOrGasType: 'Electricity Consumption', unit: 'kWh', factor: 0.442, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Franchise', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Stationary Combustion', unit: 'sm3', factor: 1.942, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Franchise', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Water Consumption', unit: 'm3', factor: 0.149, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Investments', source: 'PCAF 2023', version: '2023', fuelOrGasType: 'Equity Investment (Manufacturing)', unit: 'USD', factor: 0.350, formula: '(scope1 + scope2) * (equityShare / 100)', isActive: true },
 ];
 
 export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [

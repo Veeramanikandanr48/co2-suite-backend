@@ -457,20 +457,26 @@ export class ServicesService implements OnApplicationBootstrap {
     const query = this.inventoryRepo.createQueryBuilder(tableName);
 
     if (additionalFilter && typeof additionalFilter === 'object') {
-      const { category, facility, status, organizationId } = additionalFilter as any;
+      const { category, facility, status, organizationId, year } = additionalFilter as any;
       if (organizationId) {
         query.andWhere('entry.organizationId = :organizationId', { organizationId });
       }
       if (category) {
         query.andWhere('entry.category = :category', { category });
       }
-      if (facility) {
+      if (facility && facility !== 'All Facilities' && facility !== 'all') {
         query.andWhere('entry.facility = :facility', { facility });
       }
-      if (status) {
+      if (status && status !== 'All Statuses' && status !== 'all') {
         query.andWhere(
-          '(entry.status = :status OR entry.approvalStatus = :status)',
+          '(LOWER(entry.status) = LOWER(:status) OR LOWER(entry.approvalStatus) = LOWER(:status))',
           { status },
+        );
+      }
+      if (year && year !== 'All Years' && year !== 'all') {
+        query.andWhere(
+          '(entry.dateFrom LIKE :yearTerm OR entry.dateTo LIKE :yearTerm)',
+          { yearTerm: `%${year}%` },
         );
       }
     }

@@ -157,7 +157,7 @@ export class UtilService {
       ? `${tableName}.${defaultSortField}`
       : sortFieldObject[rawSortField];
     const limit = !rawLimit ? defaultLimit : rawLimit;
-    const offSet = !rawOffset ? 0 : rawOffset * limit;
+    const offSet = !rawOffset ? 0 : rawOffset;
     return { offSet, limit, sortField, sortOrder };
   };
 
