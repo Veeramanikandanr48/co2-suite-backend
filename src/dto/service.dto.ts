@@ -18,7 +18,7 @@ export class CreateServiceDto {
   @IsNotEmpty()
   code: string;
 
-  @ApiProperty({ example: 'CageSuite Carbon', description: 'Service display name' })
+  @ApiProperty({ example: 'CO2 Suite Carbon', description: 'Service display name' })
   @IsString()
   @IsNotEmpty()
   name: string;

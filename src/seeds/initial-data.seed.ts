@@ -5,13 +5,13 @@ import { InventoryEntry } from 'src/entities/inventory-entry.entity';
 import { Facility } from 'src/entities/facility.entity';
 
 export const SEED_SERVICES: Partial<Service>[] = [
-  { code: 'CARBON', name: 'CageSuite Carbon', description: 'Corporate Carbon Management and GHG Accounting Module', category: 'Carbon', tags: ['Carbon'], demoUrl: '/services/carbon', isActive: true },
-  { code: 'CBAM', name: 'CageSuite CBAM', description: 'EU Carbon Border Adjustment Mechanism Reporting Module', category: 'CBAM', tags: ['CBAM'], demoUrl: '/services/cbam', isActive: true },
-  { code: 'PEF_TEXTILES', name: 'CageSuite PEF', description: 'EU Product Environmental Footprint Module for Textiles & Apparels', category: 'PEF', tags: ['PEF', 'Textiles & Apparels'], demoUrl: '/services/pef_textiles', isActive: true },
-  { code: 'LCA_PLASTICS', name: 'CageSuite LCA', description: 'Product Life Cycle Assessment for Plastic Manufacturing', category: 'LCA', tags: ['LCA', 'Plastics'], demoUrl: '/services/lca_plastics', isActive: true },
-  { code: 'LCA_METALS', name: 'CageSuite LCA', description: 'Product Life Cycle Assessment for Metal Manufacturing', category: 'LCA', tags: ['LCA', 'Metals'], demoUrl: '/services/lca_metals', isActive: true },
-  { code: 'ESG', name: 'CageSuite ESG', description: 'Corporate Sustainability Management and CSRD Reporting Module', category: 'ESG', tags: ['ESG'], demoUrl: '/services/esg', isActive: true },
-  { code: 'EPD_CABLES', name: 'CageSuite EPD', description: 'Environmental Product Declarations Module for Cable Industry', category: 'EPD', tags: ['EPD', 'Cables'], demoUrl: '/services/epd_cables', isActive: true },
+  { code: 'CARBON', name: 'CO2 Suite Carbon', description: 'Corporate Carbon Management and GHG Accounting Module', category: 'Carbon', tags: ['Carbon'], demoUrl: '/services/carbon', isActive: true },
+  { code: 'CBAM', name: 'CO2 Suite CBAM', description: 'EU Carbon Border Adjustment Mechanism Reporting Module', category: 'CBAM', tags: ['CBAM'], demoUrl: '/services/cbam', isActive: true },
+  { code: 'PEF_TEXTILES', name: 'CO2 Suite PEF', description: 'EU Product Environmental Footprint Module for Textiles & Apparels', category: 'PEF', tags: ['PEF', 'Textiles & Apparels'], demoUrl: '/services/pef_textiles', isActive: true },
+  { code: 'LCA_PLASTICS', name: 'CO2 Suite LCA', description: 'Product Life Cycle Assessment for Plastic Manufacturing', category: 'LCA', tags: ['LCA', 'Plastics'], demoUrl: '/services/lca_plastics', isActive: true },
+  { code: 'LCA_METALS', name: 'CO2 Suite LCA', description: 'Product Life Cycle Assessment for Metal Manufacturing', category: 'LCA', tags: ['LCA', 'Metals'], demoUrl: '/services/lca_metals', isActive: true },
+  { code: 'ESG', name: 'CO2 Suite ESG', description: 'Corporate Sustainability Management and CSRD Reporting Module', category: 'ESG', tags: ['ESG'], demoUrl: '/services/esg', isActive: true },
+  { code: 'EPD_CABLES', name: 'CO2 Suite EPD', description: 'Environmental Product Declarations Module for Cable Industry', category: 'EPD', tags: ['EPD', 'Cables'], demoUrl: '/services/epd_cables', isActive: true },
 ];
 
 export const SEED_SCOPE_ITEMS: Partial<ServiceScopeItem>[] = [
