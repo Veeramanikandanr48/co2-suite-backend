@@ -21,7 +21,7 @@ import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagg
 import { Request, Response } from 'express';
 import { ServicesService } from './services.service';
 import { AssignServicesDto, CreateScopeItemDto, CreateServiceDto } from 'src/dto/service.dto';
-import { CreateEmissionFactorDto, CreateInventoryEntryDto, UpdateEmissionFactorDto } from 'src/dto/inventory.dto';
+import { CreateEmissionFactorDto, CreateInventoryEntryDto, UpdateEmissionFactorDto, UpdateInventoryEntryDto } from 'src/dto/inventory.dto';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import { UtilService } from 'src/utility/util/util.service';
 import { MasterRole } from 'src/enums/casl.enum';
@@ -479,6 +479,32 @@ export class ServicesController {
       this.utilService.sendErrorResponse(res, error.message);
     } finally {
       logger.info('Method end: uploadInventoryDocument');
+      res.end();
+    }
+  }
+
+  @Put('inventory-entries/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update existing inventory entry in DB' })
+  async updateInventoryEntry(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('id') id: number,
+    @Body() dto: UpdateInventoryEntryDto,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method Start: updateInventoryEntry');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      const orgId = user?.organizationId || 1;
+      const result = await this.servicesService.updateInventoryEntry(orgId, Number(id), dto);
+      this.utilService.sendSuccessResponse(res, 'Inventory entry updated successfully', result);
+    } catch (error) {
+      logger.error(`Error in updateInventoryEntry: ${error.message}`, error);
+      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info('Method end: updateInventoryEntry');
       res.end();
     }
   }

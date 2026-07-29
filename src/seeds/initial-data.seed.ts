@@ -90,6 +90,13 @@ export const SEED_EMISSION_FACTORS: Partial<EmissionFactor>[] = [
   // Scope 3: End of Life
   { category: 'EOL Treatment of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Metal (Mixed Can) - Closed Loop', unit: 'ton', factor: 6.411, formula: '(amount * factor)', isActive: true },
   { category: 'EOL Treatment of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Paper Board - Landfill Disposal', unit: 'ton', factor: 1164.489, formula: '(amount * factor)', isActive: true },
+
+  // Scope 3: Other Categories
+  { category: 'Energy and Fuel Related Activities', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'WTT - Electricity (UK Grid)', unit: 'kWh', factor: 0.045, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Processing of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Intermediate Metal Processing', unit: 'tonne', factor: 1.250, formula: '(amount * factor)', isActive: true },
+  { category: 'Use of Sold Products', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Direct Fuel Use (Equipment)', unit: 'L', factor: 2.314, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Franchise', source: 'DEFRA 2024', version: '2024', fuelOrGasType: 'Franchise Facility Operations', unit: 'sqm', factor: 45.200, formula: '(amount * factor) / 1000', isActive: true },
+  { category: 'Investments', source: 'PCAF 2023', version: '2023', fuelOrGasType: 'Equity Investment (Manufacturing)', unit: 'USD', factor: 0.350, formula: '(amount * factor) / 1000', isActive: true },
 ];
 
 export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [

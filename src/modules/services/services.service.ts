@@ -15,7 +15,7 @@ import { Facility } from 'src/entities/facility.entity';
 import { Organization } from 'src/entities/organization.entity';
 import { UserDetails } from 'src/entities/user.entity';
 import { AssignServicesDto, CreateScopeItemDto, CreateServiceDto } from 'src/dto/service.dto';
-import { CreateEmissionFactorDto, CreateInventoryEntryDto, UpdateEmissionFactorDto } from 'src/dto/inventory.dto';
+import { CreateEmissionFactorDto, CreateInventoryEntryDto, UpdateEmissionFactorDto, UpdateInventoryEntryDto } from 'src/dto/inventory.dto';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import { ICommonSortFieldObject } from 'src/utility/base-interface.interface';
 import { UtilService } from 'src/utility/util/util.service';
@@ -63,8 +63,15 @@ export class ServicesService implements OnApplicationBootstrap {
     }
 
     const efCount = await this.efRepo.count();
-    if (efCount < 15) {
-      await this.efRepo.save(this.efRepo.create(SEED_EMISSION_FACTORS as Partial<EmissionFactor>[]));
+    if (efCount < SEED_EMISSION_FACTORS.length) {
+      for (const ef of SEED_EMISSION_FACTORS) {
+        const existing = await this.efRepo.findOne({
+          where: { category: ef.category, fuelOrGasType: ef.fuelOrGasType, source: ef.source },
+        });
+        if (!existing) {
+          await this.efRepo.save(this.efRepo.create(ef as Partial<EmissionFactor>));
+        }
+      }
     }
 
     const invCount = await this.inventoryRepo.count();
@@ -269,7 +276,7 @@ export class ServicesService implements OnApplicationBootstrap {
         query.andWhere('ef.category = :category', { category });
       }
       if (source) {
-        query.andWhere('ef.source = :source', { source });
+        query.andWhere('LOWER(ef.source) LIKE :source', { source: `%${source.toLowerCase()}%` });
       }
       if (isActive !== undefined) {
         query.andWhere('ef.isActive = :isActive', { isActive });
@@ -488,35 +495,92 @@ export class ServicesService implements OnApplicationBootstrap {
     };
   }
 
+  /**
+   * Evaluates a mathematical formula expression safely with amount and factor variables.
+   * e.g. "(amount * factor) / 1000", "amount * factor", "amount * factor * 0.001"
+   */
+  private evaluateFormulaExpression(
+    formula: string,
+    amount: number,
+    factor: number,
+  ): number | null {
+    if (!formula || !formula.trim()) return null;
+
+    try {
+      let expr = formula.toLowerCase().trim();
+
+      // Replace variable names with actual numeric values
+      expr = expr.replace(/\bamount\b/g, String(amount));
+      expr = expr.replace(/\bfactor\b/g, String(factor));
+      expr = expr.replace(/\bef\b/g, String(factor));
+
+      // Sanitize: only allow numbers, whitespace, +, -, *, /, (, ), .
+      if (!/^[0-9\s\+\-\*\/\(\)\.]+$/.test(expr)) {
+        return null;
+      }
+
+      const result = new Function(`"use strict"; return (${expr})`)();
+      if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
+        return Number(result.toFixed(3));
+      }
+    } catch (err) {
+      // Return null on parsing or evaluation error to fallback to standard formula rules
+    }
+    return null;
+  }
+
+  /**
+   * Calculates emission (in metric tonnes CO2-e) using formula string or GHG standard rules
+   */
+  private calculateEmissionValue(
+    amount: number,
+    efVal: number,
+    formula?: string,
+    unit?: string,
+  ): number {
+    const amountVal = Number(amount) || 0;
+    const factorVal = Number(efVal) || 0;
+
+    if (amountVal === 0 || factorVal === 0) return 0;
+
+    // 1. Evaluate explicit formula expression if configured
+    if (formula && formula.trim()) {
+      const evaluated = this.evaluateFormulaExpression(formula, amountVal, factorVal);
+      if (evaluated !== null) {
+        return evaluated;
+      }
+    }
+
+    // 2. Fallback standard: if unit is 'tonne' or 'ton' and factor is in tCO2e/tonne (factor <= 10)
+    const unitLower = (unit || '').toLowerCase();
+    if ((unitLower === 'tonne' || unitLower === 'ton') && factorVal <= 10.0) {
+      return Number((amountVal * factorVal).toFixed(3));
+    }
+
+    // Standard default: (amount * factor) / 1000 (kg CO2e -> metric tonnes CO2e)
+    return Number(((amountVal * factorVal) / 1000).toFixed(3));
+  }
+
   async createInventoryEntry(
     orgId: number,
     userId: number,
     dto: CreateInventoryEntryDto,
   ): Promise<InventoryEntry> {
+    const efRecord = await this.efRepo.findOne({
+      where: { category: dto.category, fuelOrGasType: dto.name, isActive: true },
+    });
+
     let efVal = dto.ef;
     if (efVal === undefined || efVal === null) {
-      const efRecord = await this.efRepo.findOne({
-        where: { category: dto.category, fuelOrGasType: dto.name, isActive: true },
-      });
       efVal = efRecord?.factor ?? 0;
     }
 
-    const amountVal = Number(dto.amount) || 0;
-    const unitLower = (dto.unit || '').toLowerCase();
-
-    let calculatedEmission = 0;
-    if (unitLower === 'tonne' || unitLower === 'ton') {
-      // If EF is in kg/tonne (e.g. > 1.0), divide by 1000 to convert to metric tonnes CO2-e
-      if (efVal > 1.0) {
-        calculatedEmission = Number(((amountVal * efVal) / 1000).toFixed(3));
-      } else {
-        // If EF is already in t CO2-e / tonne (e.g. <= 1.0)
-        calculatedEmission = Number((amountVal * efVal).toFixed(3));
-      }
-    } else {
-      // Standard kg, kWh, L, sm3, km, ton.km: (amount * factor) / 1000
-      calculatedEmission = Number(((amountVal * efVal) / 1000).toFixed(3));
-    }
+    const calculatedEmission = this.calculateEmissionValue(
+      dto.amount,
+      efVal,
+      dto.formula || efRecord?.formula,
+      dto.unit,
+    );
 
     const entity = this.inventoryRepo.create({
       ...dto,
@@ -528,6 +592,40 @@ export class ServicesService implements OnApplicationBootstrap {
     });
 
     return this.inventoryRepo.save(entity);
+  }
+
+  async updateInventoryEntry(
+    orgId: number,
+    id: number,
+    dto: UpdateInventoryEntryDto,
+  ): Promise<InventoryEntry> {
+    const existing = await this.inventoryRepo.findOne({ where: { id, organizationId: orgId } });
+    if (!existing) {
+      throw new BadRequestException(`Inventory entry with ID ${id} not found`);
+    }
+
+    Object.assign(existing, dto);
+
+    const efRecord = await this.efRepo.findOne({
+      where: { category: existing.category, fuelOrGasType: existing.name, isActive: true },
+    });
+
+    if (dto.ef === undefined || dto.ef === null) {
+      if (efRecord?.factor) {
+        existing.ef = efRecord.factor;
+      }
+    } else {
+      existing.ef = dto.ef;
+    }
+
+    existing.emission = this.calculateEmissionValue(
+      existing.amount,
+      existing.ef,
+      dto.formula || efRecord?.formula,
+      existing.unit,
+    );
+
+    return this.inventoryRepo.save(existing);
   }
 
   async deleteInventoryEntry(orgId: number, id: number): Promise<{ message: string }> {

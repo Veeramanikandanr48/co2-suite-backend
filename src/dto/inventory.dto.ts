@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateEmissionFactorDto {
@@ -149,4 +149,12 @@ export class CreateInventoryEntryDto {
   @IsString()
   @IsOptional()
   documentPath?: string;
+
+  @ApiProperty({ example: '(amount * factor) / 1000', required: false })
+  @IsString()
+  @IsOptional()
+  formula?: string;
 }
+
+export class UpdateInventoryEntryDto extends PartialType(CreateInventoryEntryDto) {}
+
