@@ -28,6 +28,14 @@ export class LoginDto {
   userName: string;
 }
 
+export class GoogleLoginDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  accessToken: string;
+}
+
 export class CreateUserDto {
   @ApiProperty()
   @IsNotEmpty()
@@ -51,6 +59,11 @@ export class CreateUserDto {
   @IsOptional()
   @IsNumber()
   roleId?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  organizationId?: number;
 
   @ApiProperty({ required: false })
   @IsOptional()

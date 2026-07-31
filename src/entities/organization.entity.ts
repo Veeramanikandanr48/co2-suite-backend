@@ -1,14 +1,8 @@
-import {
-  Column,
-  CreateDateColumn,
-  DeleteDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BaseColumns } from './base-columns.entity';
 
 @Entity({ name: 'organizations' })
-export class Organization {
+export class Organization extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -53,19 +47,4 @@ export class Organization {
 
   @Column({ nullable: true })
   timezone: string;
-
-  @Column({ default: true })
-  isActive: boolean;
-
-  @Column({ nullable: true })
-  createdBy: number;
-
-  @CreateDateColumn()
-  createdOn: Date;
-
-  @UpdateDateColumn()
-  updatedOn: Date;
-
-  @DeleteDateColumn({ nullable: true })
-  deletedOn: Date;
 }

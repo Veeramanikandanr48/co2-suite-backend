@@ -16,7 +16,6 @@ const config = {
   autoLoadEntities: true,
   migrationsRun: false,
   synchronize: true,
-  logging: true,
   logger: 'advanced-console',
   cli: {
     migrationsDir: 'src/migrations',

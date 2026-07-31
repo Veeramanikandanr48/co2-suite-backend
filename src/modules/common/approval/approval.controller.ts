@@ -9,13 +9,12 @@ import {
   GetNextApprovarDetailsDto,
   UpdateUserApprovalDto,
 } from 'src/modules/common/approval/dto/apprroval.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   ApprovalAccessResult,
   IApprovalData,
 } from 'src/interfaces/approval.interface';
 import { ApprovalStatusEnum } from 'src/enums/approval.enum';
-import { UserDetails } from 'src/entities/user.entity';
 import { CurrentRoleId } from 'src/utility/decorators/current-role.decorator';
 
 @Controller('approval')
@@ -27,6 +26,15 @@ export class ApprovalController {
   ) {}
 
   @Post('getNextApprovarDetails')
+  @ApiOperation({ summary: 'Get next approver details' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved next approver details',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to retrieve next approver details',
+  })
   async getNextApprovarDetails(
     @Body() body: GetNextApprovarDetailsDto,
     @UserId() userId: number,
@@ -40,23 +48,33 @@ export class ApprovalController {
         body.approvalModuleUniqueId,
         body.approvalModuleId,
       );
+      logger.info('Operation successful');
       this.utilService.sendSuccessResponse(
         res,
         'Successfully retrieved next approver details',
         result,
       );
     } catch (error) {
-      logger.error(
-        `Error in getNextApprovarDetails: ${error.message}`,
-        error.stack,
+      logger.error('Error occurred', error);
+      this.utilService.sendErrorResponse(
+        res,
+        'Failed to retrieve next approver details. Please try again later.',
       );
-      this.utilService.sendErrorResponse(res, error.message);
     } finally {
       logger.info(`Method end: getNextApprovarDetails`);
     }
   }
 
   @Post('getApprovalDetails')
+  @ApiOperation({ summary: 'Get approval details' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved approval details',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to retrieve approval details',
+  })
   async getApprovalDetails(
     @Body() body: GetApprovalDetailsDto,
     @UserId() userId: number,
@@ -71,23 +89,30 @@ export class ApprovalController {
         body.approvalModuleId,
         body.toRoleId,
       );
+      logger.info('Operation successful');
       this.utilService.sendSuccessResponse(
         res,
         'Successfully retrieved approval details',
         result,
       );
     } catch (error) {
-      logger.error(
-        `Error in getApprovalDetails: ${error.message}`,
-        error.stack,
+      logger.error('Error occurred', error);
+      this.utilService.sendErrorResponse(
+        res,
+        'Failed to retrieve approval details. Please try again later.',
       );
-      this.utilService.sendErrorResponse(res, error.message);
     } finally {
       logger.info(`Method end: getApprovalDetails`);
     }
   }
 
   @Post('checkApprovalAccess')
+  @ApiOperation({ summary: 'Check approval access' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully checked approval access',
+  })
+  @ApiResponse({ status: 400, description: 'Failed to check approval access' })
   async checkApprovalAccess(
     @Body() body: CheckApprovalAccessDto,
     @UserId() userId: number,
@@ -108,22 +133,30 @@ export class ApprovalController {
           ? 'You have access to approve this action.'
           : 'You do not have access to approve this action.',
       };
-
+      logger.info('Operation successful');
       this.utilService.sendSuccessResponse(
         res,
         'Successfully checked approval access',
         result,
       );
     } catch (error) {
-      logger.error(
-        `Error in checkApprovalAccess: ${error.message}`,
-        error.stack,
+      logger.error('Error occurred', error);
+      this.utilService.sendErrorResponse(
+        res,
+        'Failed to check approval access. Please try again later.',
       );
-      this.utilService.sendErrorResponse(res, error.message);
+    } finally {
+      logger.info(`Method end: checkApprovalAccess`);
     }
   }
 
   @Post('updateUserApproval')
+  @ApiOperation({ summary: 'Update user approval' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully updated user approval',
+  })
+  @ApiResponse({ status: 400, description: 'Failed to update user approval' })
   async updateUserApproval(
     @Body() body: UpdateUserApprovalDto,
     @UserId() userId: number,
@@ -174,22 +207,21 @@ export class ApprovalController {
           );
         if (!nextApprovalDetail) {
           logger.info(`No next approver found`);
-          // Update the approval module status to approved in the master table
         }
-      } else {
       }
 
+      logger.info('Operation successful');
       this.utilService.sendSuccessResponse(
         res,
         'Successfully updated user approval',
         result,
       );
     } catch (error) {
-      logger.error(
-        `Error in updateUserApproval: ${error.message}`,
-        error.stack,
+      logger.error('Error occurred', error);
+      this.utilService.sendErrorResponse(
+        res,
+        'Failed to update user approval. Please try again later.',
       );
-      this.utilService.sendErrorResponse(res, error.message);
     } finally {
       await queryRunner.release();
       logger.info(`Releasing query runner`);

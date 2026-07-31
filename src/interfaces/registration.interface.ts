@@ -14,7 +14,7 @@ export interface ILoginInfo {
   isVerified: boolean;
   uAuthId: number | null;
   masterLoginTypeId: number | null;
-  updatedOn: Date;
+  updatedAt: Date;
   profileImageKey?: string;
   isTwoFactorAuthenticationEnabled: boolean;
 }
@@ -37,7 +37,7 @@ export interface IUserAuthData {
   isBlocked: boolean;
   blockedTime: Date;
   masterLoginTypeId: number;
-  updatedOn?: Date;
+  updatedAt?: Date;
 }
 
 export interface IQRGnerateResponse {

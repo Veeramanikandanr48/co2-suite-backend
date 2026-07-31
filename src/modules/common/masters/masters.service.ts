@@ -13,16 +13,31 @@ export class MastersService {
   ) {}
 
   async getMasterRoles() {
-    return await this.masterRolesRepository.find({
-      where: { isActive: true },
-      order: { id: 'ASC' },
-    });
+    return await this.masterRolesRepository
+      .createQueryBuilder('role')
+      .select([
+        'role.id',
+        'role.roleName',
+        'role.roleShortName',
+        'role.isActive',
+        'role.createdAt',
+      ])
+      .where('role.isActive = :isActive', { isActive: true })
+      .orderBy('role.id', 'ASC')
+      .getMany();
   }
 
   async getMasterApprovalStatuses() {
-    return await this.masterApprovalStatusRepository.find({
-      where: { isActive: true },
-      order: { id: 'ASC' },
-    });
+    return await this.masterApprovalStatusRepository
+      .createQueryBuilder('status')
+      .select([
+        'status.id',
+        'status.name',
+        'status.isActive',
+        'status.createdAt',
+      ])
+      .where('status.isActive = :isActive', { isActive: true })
+      .orderBy('status.id', 'ASC')
+      .getMany();
   }
 }

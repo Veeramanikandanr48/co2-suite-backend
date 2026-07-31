@@ -13,6 +13,7 @@ import { Facility } from 'src/entities/facility.entity';
 import { Organization } from 'src/entities/organization.entity';
 import { UserDetails } from 'src/entities/user.entity';
 import { ServicesService } from './services.service';
+import { SummaryService } from './summary.service';
 import { ServicesController } from './services.controller';
 import { UtilService } from 'src/utility/util/util.service';
 
@@ -38,7 +39,8 @@ import { UtilService } from 'src/utility/util/util.service';
           cb(null, uploadPath);
         },
         filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
           cb(null, `doc-${uniqueSuffix}${ext}`);
         },
@@ -49,7 +51,7 @@ import { UtilService } from 'src/utility/util/util.service';
     }),
   ],
   controllers: [ServicesController],
-  providers: [ServicesService, UtilService],
-  exports: [ServicesService],
+  providers: [ServicesService, SummaryService, UtilService],
+  exports: [ServicesService, SummaryService],
 })
 export class ServicesModule {}

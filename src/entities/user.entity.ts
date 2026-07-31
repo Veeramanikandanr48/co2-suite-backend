@@ -1,43 +1,15 @@
 import {
   Column,
-  CreateDateColumn,
-  DeleteDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
-  UpdateDateColumn,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
-import { PrimaryGeneratedColumn } from 'typeorm';
+import { BaseColumns } from './base-columns.entity';
 import { Organization } from './organization.entity';
 
-export class BaseColumns {
-  @Column({ default: true })
-  isActive: boolean;
-
-  @ManyToOne(() => UserDetails, (user) => user.id)
-  @JoinColumn({ name: 'createdBy' })
-  createdBy: number;
-
-  @ManyToOne(() => UserDetails, (user) => user.id, { nullable: true })
-  @JoinColumn({ name: 'updatedBy' })
-  updatedBy: number;
-
-  @ManyToOne(() => UserDetails, (user) => user.id, { nullable: true })
-  @JoinColumn({ name: 'deletedBy' })
-  deletedBy: number;
-
-  @CreateDateColumn()
-  createdOn: Date;
-
-  @UpdateDateColumn()
-  updatedOn: Date;
-
-  @DeleteDateColumn({ nullable: true })
-  deletedOn: Date;
-}
-
 @Entity({ name: 'user_details' })
-export class UserDetails {
+export class UserDetails extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -69,9 +41,6 @@ export class UserDetails {
   @Column({ nullable: true })
   googleSubId: string;
 
-  @Column({ default: true })
-  isActive: boolean;
-
   @Column({ default: false })
   isVerified: boolean;
 
@@ -83,28 +52,10 @@ export class UserDetails {
 
   @Column({ nullable: true })
   profileImageKey: string;
-
-  @Column({ nullable: true })
-  createdBy: number;
-
-  @Column({ nullable: true })
-  updatedBy: number;
-
-  @Column({ nullable: true })
-  deletedBy: number;
-
-  @CreateDateColumn()
-  createdOn: Date;
-
-  @UpdateDateColumn()
-  updatedOn: Date;
-
-  @DeleteDateColumn()
-  deletedOn: Date;
 }
 
 @Entity({ name: 'user_authentication_details' })
-export class UserAuthenticationDetails {
+export class UserAuthenticationDetails extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -123,24 +74,6 @@ export class UserAuthenticationDetails {
 
   @Column({ nullable: true })
   masterLoginTypeId: number;
-
-  @Column({ nullable: true })
-  createdBy: number;
-
-  @Column({ nullable: true })
-  updatedBy: number;
-
-  @Column({ nullable: true })
-  deletedBy: number;
-
-  @CreateDateColumn()
-  createdOn: Date;
-
-  @UpdateDateColumn()
-  updatedOn: Date;
-
-  @DeleteDateColumn()
-  deletedOn: Date;
 }
 
 @Entity({ name: 'user_email_verification' })

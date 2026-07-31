@@ -24,6 +24,7 @@ import { LogUploadCronService } from './utility/log-upload-cron/log-upload-cron.
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { FacilitiesModule } from './modules/facilities/facilities.module';
+import { UtilService } from './utility/util/util.service';
 
 @Module({
   imports: [
@@ -105,6 +106,7 @@ import { FacilitiesModule } from './modules/facilities/facilities.module';
   controllers: [AppController],
   providers: [
     AppService,
+    UtilService,
     MultiFactorAuthenticationService,
     LogUploadCronService,
   ],

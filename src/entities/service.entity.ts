@@ -1,13 +1,8 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BaseColumns } from './base-columns.entity';
 
 @Entity({ name: 'services' })
-export class Service {
+export class Service extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -31,13 +26,4 @@ export class Service {
 
   @Column({ nullable: true })
   demoUrl: string;
-
-  @Column({ default: true })
-  isActive: boolean;
-
-  @CreateDateColumn()
-  createdOn: Date;
-
-  @UpdateDateColumn()
-  updatedOn: Date;
 }

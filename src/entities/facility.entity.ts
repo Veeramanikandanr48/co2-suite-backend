@@ -1,13 +1,8 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BaseColumns } from './base-columns.entity';
 
 @Entity({ name: 'facilities' })
-export class Facility {
+export class Facility extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -34,13 +29,4 @@ export class Facility {
 
   @Column({ nullable: true })
   countryCode: string;
-
-  @Column({ default: true })
-  isActive: boolean;
-
-  @CreateDateColumn()
-  createdOn: Date;
-
-  @UpdateDateColumn()
-  updatedOn: Date;
 }

@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class AssignServicesDto {
   @ApiProperty({
@@ -18,17 +25,28 @@ export class CreateServiceDto {
   @IsNotEmpty()
   code: string;
 
-  @ApiProperty({ example: 'CO2 Suite Carbon', description: 'Service display name' })
+  @ApiProperty({
+    example: 'CO2 Suite Carbon',
+    description: 'Service display name',
+  })
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'Corporate Carbon Management', description: 'Service description', required: false })
+  @ApiProperty({
+    example: 'Corporate Carbon Management',
+    description: 'Service description',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ example: 'Carbon', description: 'Service category', required: false })
+  @ApiProperty({
+    example: 'Carbon',
+    description: 'Service category',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   category?: string;
@@ -38,7 +56,11 @@ export class CreateServiceDto {
   @IsOptional()
   tags?: string[];
 
-  @ApiProperty({ example: '/services/carbon', description: 'Demo URL', required: false })
+  @ApiProperty({
+    example: '/services/carbon',
+    description: 'Demo URL',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   demoUrl?: string;
@@ -50,7 +72,10 @@ export class CreateScopeItemDto {
   @IsNotEmpty()
   serviceCode: string;
 
-  @ApiProperty({ example: 'Scope 1', description: 'Scope display label e.g. Scope 1' })
+  @ApiProperty({
+    example: 'Scope 1',
+    description: 'Scope display label e.g. Scope 1',
+  })
   @IsString()
   @IsNotEmpty()
   scope: string;
@@ -60,17 +85,27 @@ export class CreateScopeItemDto {
   @IsNotEmpty()
   scopeCode: string;
 
-  @ApiProperty({ example: 'Stationary Combustion', description: 'Scope item name' })
+  @ApiProperty({
+    example: 'Stationary Combustion',
+    description: 'Scope item name',
+  })
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'STATIONARY_COMBUSTION', description: 'Scope item code' })
+  @ApiProperty({
+    example: 'STATIONARY_COMBUSTION',
+    description: 'Scope item code',
+  })
   @IsString()
   @IsNotEmpty()
   code: string;
 
-  @ApiProperty({ example: 'Fuel burnt in stationary equipment', description: 'Item description', required: false })
+  @ApiProperty({
+    example: 'Fuel burnt in stationary equipment',
+    description: 'Item description',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;

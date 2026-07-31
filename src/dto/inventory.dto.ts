@@ -110,7 +110,10 @@ export class CreateInventoryEntryDto {
   @IsOptional()
   ef?: number;
 
-  @ApiProperty({ example: 'IPCC (Commercial & Institutional Use)-AR6', required: false })
+  @ApiProperty({
+    example: 'IPCC (Commercial & Institutional Use)-AR6',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   efSource?: string;
@@ -156,5 +159,6 @@ export class CreateInventoryEntryDto {
   formula?: string;
 }
 
-export class UpdateInventoryEntryDto extends PartialType(CreateInventoryEntryDto) {}
-
+export class UpdateInventoryEntryDto extends PartialType(
+  CreateInventoryEntryDto,
+) {}

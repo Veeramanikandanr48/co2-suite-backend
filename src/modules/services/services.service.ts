@@ -1,24 +1,33 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   OnApplicationBootstrap,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Service } from 'src/entities/service.entity';
 import { OrganizationService } from 'src/entities/organization-service.entity';
 import { ServiceScopeItem } from 'src/entities/service-scope-item.entity';
 import { EmissionFactor } from 'src/entities/emission-factor.entity';
 import { InventoryEntry } from 'src/entities/inventory-entry.entity';
-import { Facility } from 'src/entities/facility.entity';
-import { Organization } from 'src/entities/organization.entity';
-import { UserDetails } from 'src/entities/user.entity';
-import { AssignServicesDto, CreateScopeItemDto, CreateServiceDto } from 'src/dto/service.dto';
-import { CreateEmissionFactorDto, CreateInventoryEntryDto, UpdateEmissionFactorDto, UpdateInventoryEntryDto } from 'src/dto/inventory.dto';
+import {
+  AssignServicesDto,
+  CreateScopeItemDto,
+  CreateServiceDto,
+} from 'src/dto/service.dto';
+import {
+  CreateEmissionFactorDto,
+  CreateInventoryEntryDto,
+  UpdateEmissionFactorDto,
+  UpdateInventoryEntryDto,
+} from 'src/dto/inventory.dto';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import { ICommonSortFieldObject } from 'src/utility/base-interface.interface';
 import { UtilService } from 'src/utility/util/util.service';
+import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
+import { MasterRole } from 'src/enums/casl.enum';
 import {
   SEED_SERVICES,
   SEED_SCOPE_ITEMS,
@@ -29,6 +38,7 @@ import {
 @Injectable()
 export class ServicesService implements OnApplicationBootstrap {
   constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(Service)
     private readonly serviceRepo: Repository<Service>,
     @InjectRepository(OrganizationService)
@@ -39,14 +49,26 @@ export class ServicesService implements OnApplicationBootstrap {
     private readonly efRepo: Repository<EmissionFactor>,
     @InjectRepository(InventoryEntry)
     private readonly inventoryRepo: Repository<InventoryEntry>,
-    @InjectRepository(Facility)
-    private readonly facilityRepo: Repository<Facility>,
-    @InjectRepository(Organization)
-    private readonly orgRepo: Repository<Organization>,
-    @InjectRepository(UserDetails)
-    private readonly userRepo: Repository<UserDetails>,
     private readonly utilService: UtilService,
   ) {}
+
+  private assertSuperAdmin(user: IDecodeUserDetails): void {
+    if (user?.roleId !== MasterRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Only Super Admin can perform this action');
+    }
+  }
+
+  private resolveOrgId(user: IDecodeUserDetails): number {
+    return user?.organizationId || 1;
+  }
+
+  private assertOrgAccess(user: IDecodeUserDetails, orgId: number): void {
+    const isSuperAdmin = user?.roleId === MasterRole.SUPER_ADMIN;
+    const isSameOrg = Number(user?.organizationId) === Number(orgId);
+    if (!isSuperAdmin && !isSameOrg) {
+      throw new ForbiddenException('Access denied');
+    }
+  }
 
   /**
    * Seeds initial DB tables from separate seed file on application startup.
@@ -54,39 +76,67 @@ export class ServicesService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     const serviceCount = await this.serviceRepo.count();
     if (serviceCount === 0) {
-      await this.serviceRepo.save(this.serviceRepo.create(SEED_SERVICES as Partial<Service>[]));
+      await this.serviceRepo.save(
+        this.serviceRepo.create(SEED_SERVICES as Partial<Service>[]),
+      );
     }
 
     const scopeCount = await this.scopeItemRepo.count();
     if (scopeCount === 0) {
-      await this.scopeItemRepo.save(this.scopeItemRepo.create(SEED_SCOPE_ITEMS as Partial<ServiceScopeItem>[]));
+      await this.scopeItemRepo.save(
+        this.scopeItemRepo.create(
+          SEED_SCOPE_ITEMS as Partial<ServiceScopeItem>[],
+        ),
+      );
     }
 
     const efCount = await this.efRepo.count();
     if (efCount < SEED_EMISSION_FACTORS.length) {
       for (const ef of SEED_EMISSION_FACTORS) {
-        const existing = await this.efRepo.findOne({
-          where: { category: ef.category, fuelOrGasType: ef.fuelOrGasType, source: ef.source },
-        });
+        const existing = await this.efRepo
+          .createQueryBuilder('ef')
+          .select(['ef.id', 'ef.category', 'ef.fuelOrGasType', 'ef.source'])
+          .where('ef.category = :category', { category: ef.category })
+          .andWhere('ef.fuelOrGasType = :fuelOrGasType', {
+            fuelOrGasType: ef.fuelOrGasType,
+          })
+          .andWhere('ef.source = :source', { source: ef.source })
+          .getOne();
         if (!existing) {
-          await this.efRepo.save(this.efRepo.create(ef as Partial<EmissionFactor>));
+          await this.efRepo.save(
+            this.efRepo.create(ef as Partial<EmissionFactor>),
+          );
         }
       }
     }
 
     const invCount = await this.inventoryRepo.count();
     if (invCount < 15) {
-      await this.inventoryRepo.save(this.inventoryRepo.create(SEED_INVENTORY_ENTRIES as Partial<InventoryEntry>[]));
+      await this.inventoryRepo.save(
+        this.inventoryRepo.create(
+          SEED_INVENTORY_ENTRIES as Partial<InventoryEntry>[],
+        ),
+      );
     }
   }
 
   // --- SERVICE METHODS ---
 
-  async createService(dto: CreateServiceDto): Promise<Service> {
+  async createService(
+    dto: CreateServiceDto,
+    user: IDecodeUserDetails,
+  ): Promise<Service> {
+    this.assertSuperAdmin(user);
     const codeUpper = dto.code.trim().toUpperCase();
-    const existing = await this.serviceRepo.findOne({ where: { code: codeUpper } });
+    const existing = await this.serviceRepo
+      .createQueryBuilder('service')
+      .select(['service.id', 'service.code'])
+      .where('service.code = :codeUpper', { codeUpper })
+      .getOne();
     if (existing) {
-      throw new ConflictException(`Service with code "${codeUpper}" already exists`);
+      throw new ConflictException(
+        `Service with code "${codeUpper}" already exists`,
+      );
     }
 
     const entity = this.serviceRepo.create({
@@ -98,62 +148,134 @@ export class ServicesService implements OnApplicationBootstrap {
   }
 
   async getAllServices(): Promise<Service[]> {
-    return this.serviceRepo.find({
-      where: { isActive: true },
-      order: { id: 'ASC' },
-    });
+    return this.serviceRepo
+      .createQueryBuilder('service')
+      .select([
+        'service.id',
+        'service.code',
+        'service.name',
+        'service.description',
+        'service.category',
+        'service.tags',
+        'service.demoUrl',
+        'service.isActive',
+        'service.createdAt',
+        'service.updatedAt',
+      ])
+      .where('service.isActive = :isActive', { isActive: true })
+      .orderBy('service.id', 'ASC')
+      .getMany();
   }
 
-  async getOrgServices(orgId: number): Promise<OrganizationService[]> {
-    return this.orgServiceRepo.find({
-      where: { organizationId: orgId, isActive: true },
-      relations: { service: true },
-      order: { id: 'ASC' },
-    });
+  async getOrgServices(
+    orgId: number,
+    user: IDecodeUserDetails,
+  ): Promise<OrganizationService[]> {
+    this.assertOrgAccess(user, orgId);
+    return this.orgServiceRepo
+      .createQueryBuilder('orgService')
+      .leftJoinAndSelect('orgService.service', 'service')
+      .select([
+        'orgService.id',
+        'orgService.organizationId',
+        'orgService.serviceId',
+        'orgService.subscribedBy',
+        'orgService.isActive',
+        'orgService.createdAt',
+        'orgService.updatedAt',
+        'service.id',
+        'service.code',
+        'service.name',
+        'service.description',
+        'service.category',
+        'service.tags',
+        'service.demoUrl',
+        'service.isActive',
+      ])
+      .where('orgService.organizationId = :orgId', { orgId })
+      .andWhere('orgService.isActive = :isActive', { isActive: true })
+      .orderBy('orgService.id', 'ASC')
+      .getMany();
   }
 
   async assignServices(
     orgId: number,
     dto: AssignServicesDto,
-    subscribedBy: number,
+    user: IDecodeUserDetails,
   ): Promise<OrganizationService[]> {
+    this.assertSuperAdmin(user);
+    const subscribedBy = user.id;
     const results: OrganizationService[] = [];
 
-    for (const serviceId of dto.serviceIds) {
-      const service = await this.serviceRepo.findOne({ where: { id: serviceId, isActive: true } });
-      if (!service) {
-        throw new BadRequestException(`Service with ID ${serviceId} not found`);
-      }
-
-      const existing = await this.orgServiceRepo.findOne({
-        where: { organizationId: orgId, serviceId },
-      });
-
-      if (existing) {
-        if (existing.isActive) {
-          throw new ConflictException(`Service "${service.name}" is already assigned to this organization`);
+    return this.dataSource.transaction(async (manager) => {
+      for (const serviceId of dto.serviceIds) {
+        const service = await manager
+          .getRepository(Service)
+          .createQueryBuilder('service')
+          .select(['service.id', 'service.name', 'service.isActive'])
+          .where('service.id = :serviceId', { serviceId })
+          .andWhere('service.isActive = :isActive', { isActive: true })
+          .getOne();
+        if (!service) {
+          throw new BadRequestException(`Service with ID ${serviceId} not found`);
         }
-        existing.isActive = true;
-        existing.subscribedBy = subscribedBy;
-        results.push(await this.orgServiceRepo.save(existing));
-      } else {
-        const entity = this.orgServiceRepo.create({
-          organizationId: orgId,
-          serviceId,
-          subscribedBy,
-          isActive: true,
-        });
-        results.push(await this.orgServiceRepo.save(entity));
-      }
-    }
 
-    return results;
+        const existing = await manager
+          .getRepository(OrganizationService)
+          .createQueryBuilder('orgService')
+          .select([
+            'orgService.id',
+            'orgService.organizationId',
+            'orgService.serviceId',
+            'orgService.subscribedBy',
+            'orgService.isActive',
+          ])
+          .where('orgService.organizationId = :orgId', { orgId })
+          .andWhere('orgService.serviceId = :serviceId', { serviceId })
+          .getOne();
+
+        if (existing) {
+          if (existing.isActive) {
+            throw new ConflictException(
+              `Service "${service.name}" is already assigned to this organization`,
+            );
+          }
+          existing.isActive = true;
+          existing.subscribedBy = subscribedBy;
+          results.push(await manager.save(OrganizationService, existing));
+        } else {
+          const entity = manager.create(OrganizationService, {
+            organizationId: orgId,
+            serviceId,
+            subscribedBy,
+            isActive: true,
+          });
+          results.push(await manager.save(OrganizationService, entity));
+        }
+      }
+
+      return results;
+    });
   }
 
-  async removeOrgService(orgId: number, serviceId: number): Promise<{ message: string }> {
-    const existing = await this.orgServiceRepo.findOne({
-      where: { organizationId: orgId, serviceId, isActive: true },
-    });
+  async removeOrgService(
+    orgId: number,
+    serviceId: number,
+    user: IDecodeUserDetails,
+  ): Promise<{ message: string }> {
+    this.assertSuperAdmin(user);
+    const existing = await this.orgServiceRepo
+      .createQueryBuilder('orgService')
+      .select([
+        'orgService.id',
+        'orgService.organizationId',
+        'orgService.serviceId',
+        'orgService.isActive',
+      ])
+      .where('orgService.organizationId = :orgId', { orgId })
+      .andWhere('orgService.serviceId = :serviceId', { serviceId })
+      .andWhere('orgService.isActive = :isActive', { isActive: true })
+      .getOne();
     if (!existing) {
       throw new BadRequestException('This service subscription does not exist');
     }
@@ -164,16 +286,26 @@ export class ServicesService implements OnApplicationBootstrap {
 
   // --- SERVICE SCOPE ITEMS METHODS ---
 
-  async createScopeItem(dto: CreateScopeItemDto): Promise<ServiceScopeItem> {
+  async createScopeItem(
+    dto: CreateScopeItemDto,
+    user: IDecodeUserDetails,
+  ): Promise<ServiceScopeItem> {
+    this.assertSuperAdmin(user);
     const serviceCode = dto.serviceCode.trim().toUpperCase();
     const itemCode = dto.code.trim().toUpperCase();
 
-    const existing = await this.scopeItemRepo.findOne({
-      where: { serviceCode, code: itemCode, isActive: true },
-    });
+    const existing = await this.scopeItemRepo
+      .createQueryBuilder('scopeItem')
+      .select(['scopeItem.id', 'scopeItem.serviceCode', 'scopeItem.code'])
+      .where('scopeItem.serviceCode = :serviceCode', { serviceCode })
+      .andWhere('scopeItem.code = :itemCode', { itemCode })
+      .andWhere('scopeItem.isActive = :isActive', { isActive: true })
+      .getOne();
 
     if (existing) {
-      throw new ConflictException(`Scope item with code "${itemCode}" already exists for service "${serviceCode}"`);
+      throw new ConflictException(
+        `Scope item with code "${itemCode}" already exists for service "${serviceCode}"`,
+      );
     }
 
     const entity = this.scopeItemRepo.create({
@@ -188,42 +320,91 @@ export class ServicesService implements OnApplicationBootstrap {
   }
 
   async getServiceScopes(serviceCode?: string): Promise<ServiceScopeItem[]> {
-    const codeUpper = serviceCode ? serviceCode.trim().toUpperCase() : undefined;
-    const where: any = { isActive: true };
+    const codeUpper = serviceCode
+      ? serviceCode.trim().toUpperCase()
+      : undefined;
+
+    const query = this.scopeItemRepo
+      .createQueryBuilder('scopeItem')
+      .select([
+        'scopeItem.id',
+        'scopeItem.serviceCode',
+        'scopeItem.scope',
+        'scopeItem.scopeCode',
+        'scopeItem.name',
+        'scopeItem.code',
+        'scopeItem.description',
+        'scopeItem.sortOrder',
+        'scopeItem.isActive',
+        'scopeItem.createdAt',
+      ])
+      .where('scopeItem.isActive = :isActive', { isActive: true });
+
     if (codeUpper) {
-      where.serviceCode = codeUpper;
+      query.andWhere('scopeItem.serviceCode = :codeUpper', { codeUpper });
     }
 
-    return this.scopeItemRepo.find({
-      where,
-      order: { scopeCode: 'ASC', sortOrder: 'ASC', id: 'ASC' },
-    });
+    return query
+      .orderBy('scopeItem.scopeCode', 'ASC')
+      .addOrderBy('scopeItem.sortOrder', 'ASC')
+      .addOrderBy('scopeItem.id', 'ASC')
+      .getMany();
   }
 
-  async deleteScopeItem(id: number): Promise<{ message: string }> {
-    const existing = await this.scopeItemRepo.findOne({ where: { id, isActive: true } });
+  async deactivateScopeItem(
+    id: number,
+    user: IDecodeUserDetails,
+  ): Promise<{ message: string }> {
+    this.assertSuperAdmin(user);
+    const existing = await this.scopeItemRepo
+      .createQueryBuilder('scopeItem')
+      .select(['scopeItem.id', 'scopeItem.isActive'])
+      .where('scopeItem.id = :id', { id })
+      .andWhere('scopeItem.isActive = :isActive', { isActive: true })
+      .getOne();
     if (!existing) {
-      throw new BadRequestException(`Service scope item with ID ${id} not found`);
+      throw new BadRequestException('Service scope item not found');
     }
     existing.isActive = false;
     await this.scopeItemRepo.save(existing);
-    return { message: 'Service scope item deleted successfully' };
+    return { message: 'Service scope item deactivated successfully' };
   }
 
   // --- EMISSION FACTORS METHODS ---
 
   async getEmissionFactors(category?: string): Promise<EmissionFactor[]> {
-    const where: any = { isActive: true };
+    const query = this.efRepo
+      .createQueryBuilder('ef')
+      .select([
+        'ef.id',
+        'ef.category',
+        'ef.source',
+        'ef.version',
+        'ef.fuelOrGasType',
+        'ef.unit',
+        'ef.factor',
+        'ef.formula',
+        'ef.isActive',
+        'ef.createdAt',
+      ])
+      .where('ef.isActive = :isActive', { isActive: true });
+
     if (category) {
-      where.category = category;
+      query.andWhere('ef.category = :category', { category });
     }
-    return this.efRepo.find({
-      where,
-      order: { category: 'ASC', source: 'ASC', fuelOrGasType: 'ASC' },
-    });
+
+    return query
+      .orderBy('ef.category', 'ASC')
+      .addOrderBy('ef.source', 'ASC')
+      .addOrderBy('ef.fuelOrGasType', 'ASC')
+      .getMany();
   }
 
-  async createEmissionFactor(dto: CreateEmissionFactorDto): Promise<EmissionFactor> {
+  async createEmissionFactor(
+    dto: CreateEmissionFactorDto,
+    user: IDecodeUserDetails,
+  ): Promise<EmissionFactor> {
+    this.assertSuperAdmin(user);
     const entity = this.efRepo.create({
       ...dto,
       isActive: true,
@@ -242,7 +423,7 @@ export class ServicesService implements OnApplicationBootstrap {
       'unit',
       'factor',
       'isActive',
-      'createdOn',
+      'createdAt',
     ];
     const sortFieldObject: ICommonSortFieldObject = {
       id: 'ef.id',
@@ -253,7 +434,7 @@ export class ServicesService implements OnApplicationBootstrap {
       unit: 'ef.unit',
       factor: 'ef.factor',
       isActive: 'ef.isActive',
-      createdOn: 'ef.createdOn',
+      createdAt: 'ef.createdAt',
     };
 
     const processedPayload = await this.utilService.processListPayload(
@@ -268,15 +449,34 @@ export class ServicesService implements OnApplicationBootstrap {
     const { offSet, limit, sortField, sortOrder } = processedPayload;
     const { searchInput = '', additionalFilter } = payload || {};
 
-    const query = this.efRepo.createQueryBuilder(tableName);
+    const query = this.efRepo
+      .createQueryBuilder(tableName)
+      .select([
+        'ef.id',
+        'ef.category',
+        'ef.source',
+        'ef.fuelOrGasType',
+        'ef.unit',
+        'ef.factor',
+        'ef.version',
+        'ef.formula',
+        'ef.description',
+        'ef.isActive',
+        'ef.createdAt',
+      ]);
 
     if (additionalFilter && typeof additionalFilter === 'object') {
-      const { category, source, isActive } = additionalFilter as any;
+      const { category, source, isActive } = additionalFilter as Record<
+        string,
+        string | boolean | undefined
+      >;
       if (category) {
         query.andWhere('ef.category = :category', { category });
       }
-      if (source) {
-        query.andWhere('LOWER(ef.source) LIKE :source', { source: `%${source.toLowerCase()}%` });
+      if (source && typeof source === 'string') {
+        query.andWhere('LOWER(ef.source) LIKE :source', {
+          source: `%${source.toLowerCase()}%`,
+        });
       }
       if (isActive !== undefined) {
         query.andWhere('ef.isActive = :isActive', { isActive });
@@ -306,8 +506,24 @@ export class ServicesService implements OnApplicationBootstrap {
   async updateEmissionFactor(
     id: number,
     dto: UpdateEmissionFactorDto,
+    user: IDecodeUserDetails,
   ): Promise<EmissionFactor> {
-    const existing = await this.efRepo.findOne({ where: { id } });
+    this.assertSuperAdmin(user);
+    const existing = await this.efRepo
+      .createQueryBuilder('ef')
+      .select([
+        'ef.id',
+        'ef.category',
+        'ef.source',
+        'ef.version',
+        'ef.fuelOrGasType',
+        'ef.unit',
+        'ef.factor',
+        'ef.formula',
+        'ef.isActive',
+      ])
+      .where('ef.id = :id', { id })
+      .getOne();
     if (!existing) {
       throw new BadRequestException(`Emission factor with ID ${id} not found`);
     }
@@ -316,19 +532,28 @@ export class ServicesService implements OnApplicationBootstrap {
     return this.efRepo.save(existing);
   }
 
-  async deleteEmissionFactor(id: number): Promise<{ message: string }> {
-    const existing = await this.efRepo.findOne({ where: { id } });
+  async deactivateEmissionFactor(
+    id: number,
+    user: IDecodeUserDetails,
+  ): Promise<{ message: string }> {
+    this.assertSuperAdmin(user);
+    const existing = await this.efRepo
+      .createQueryBuilder('ef')
+      .select(['ef.id', 'ef.isActive'])
+      .where('ef.id = :id', { id })
+      .getOne();
     if (!existing) {
-      throw new BadRequestException(`Emission factor with ID ${id} not found`);
+      throw new BadRequestException('Emission factor not found');
     }
-    await this.efRepo.remove(existing);
-    return { message: 'Emission factor deleted successfully' };
+    existing.isActive = false;
+    await this.efRepo.save(existing);
+    return { message: 'Emission factor deactivated successfully' };
   }
 
   // --- INVENTORY ENTRIES METHODS ---
 
   async getInventoryEntries(
-    orgId: number,
+    user: IDecodeUserDetails,
     queryParams?: {
       category?: string;
       search?: string;
@@ -346,20 +571,48 @@ export class ServicesService implements OnApplicationBootstrap {
     pageSize: number;
     totalPages: number;
   }> {
+    const orgId = this.resolveOrgId(user);
     const page = Number(queryParams?.page) || 1;
     const limit = Number(queryParams?.limit) || 10;
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.inventoryRepo
       .createQueryBuilder('entry')
-      .where('entry.organizationId = :orgId', { orgId });
+      .select([
+        'entry.id',
+        'entry.organizationId',
+        'entry.serviceCode',
+        'entry.category',
+        'entry.name',
+        'entry.amount',
+        'entry.unit',
+        'entry.ef',
+        'entry.efSource',
+        'entry.dateFrom',
+        'entry.dateTo',
+        'entry.facility',
+        'entry.emission',
+        'entry.comment',
+        'entry.status',
+        'entry.approvalStatus',
+        'entry.rejectionReason',
+        'entry.createdBy',
+        'entry.createdAt',
+        'entry.updatedAt',
+      ])
+      .where('entry.organizationId = :orgId', { orgId })
+      .andWhere('entry.isActive = :isActive', { isActive: true });
 
     if (queryParams?.category) {
-      queryBuilder.andWhere('entry.category = :category', { category: queryParams.category });
+      queryBuilder.andWhere('entry.category = :category', {
+        category: queryParams.category,
+      });
     }
 
     if (queryParams?.facility) {
-      queryBuilder.andWhere('entry.facility = :facility', { facility: queryParams.facility });
+      queryBuilder.andWhere('entry.facility = :facility', {
+        facility: queryParams.facility,
+      });
     }
 
     if (queryParams?.status) {
@@ -392,7 +645,10 @@ export class ServicesService implements OnApplicationBootstrap {
     };
 
     const sortColumn = sortFieldMap[queryParams?.sortField || ''] || 'entry.id';
-    const sortDirection = (queryParams?.sortOrder || 'DESC').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    const sortDirection =
+      (queryParams?.sortOrder || 'DESC').toUpperCase() === 'ASC'
+        ? 'ASC'
+        : 'DESC';
 
     queryBuilder.orderBy(sortColumn, sortDirection as 'ASC' | 'DESC');
     queryBuilder.skip(skip).take(limit);
@@ -409,7 +665,11 @@ export class ServicesService implements OnApplicationBootstrap {
     };
   }
 
-  async getInventoryFilterList(payload: CommonListPayloadDto) {
+  async getInventoryFilterList(
+    payload: CommonListPayloadDto,
+    user: IDecodeUserDetails,
+  ) {
+    const orgId = this.resolveOrgId(user);
     const tableName = 'entry';
     const tableSortCheck = [
       'id',
@@ -424,7 +684,7 @@ export class ServicesService implements OnApplicationBootstrap {
       'emission',
       'status',
       'approvalStatus',
-      'createdOn',
+      'createdAt',
     ];
     const sortFieldObject: ICommonSortFieldObject = {
       id: 'entry.id',
@@ -439,7 +699,7 @@ export class ServicesService implements OnApplicationBootstrap {
       emission: 'entry.emission',
       status: 'entry.status',
       approvalStatus: 'entry.approvalStatus',
-      createdOn: 'entry.createdOn',
+      createdAt: 'entry.createdAt',
     };
 
     const processedPayload = await this.utilService.processListPayload(
@@ -454,12 +714,49 @@ export class ServicesService implements OnApplicationBootstrap {
     const { offSet, limit, sortField, sortOrder } = processedPayload;
     const { searchInput = '', additionalFilter } = payload || {};
 
-    const query = this.inventoryRepo.createQueryBuilder(tableName);
+    const mergedAdditionalFilter = {
+      ...(typeof additionalFilter === 'object' && additionalFilter !== null
+        ? additionalFilter
+        : {}),
+      organizationId: orgId,
+    };
 
-    if (additionalFilter && typeof additionalFilter === 'object') {
-      const { category, facility, status, organizationId, year } = additionalFilter as any;
+    const query = this.inventoryRepo
+      .createQueryBuilder(tableName)
+      .select([
+        'entry.id',
+        'entry.organizationId',
+        'entry.serviceCode',
+        'entry.category',
+        'entry.name',
+        'entry.amount',
+        'entry.unit',
+        'entry.ef',
+        'entry.efSource',
+        'entry.dateFrom',
+        'entry.dateTo',
+        'entry.facility',
+        'entry.emission',
+        'entry.comment',
+        'entry.status',
+        'entry.approvalStatus',
+        'entry.rejectionReason',
+        'entry.createdBy',
+        'entry.createdAt',
+        'entry.updatedAt',
+      ])
+      .andWhere('entry.isActive = :isActive', { isActive: true });
+
+    if (mergedAdditionalFilter && typeof mergedAdditionalFilter === 'object') {
+      const { category, facility, status, organizationId, year } =
+        mergedAdditionalFilter as Record<
+          string,
+          string | number | boolean | undefined
+        >;
       if (organizationId) {
-        query.andWhere('entry.organizationId = :organizationId', { organizationId });
+        query.andWhere('entry.organizationId = :organizationId', {
+          organizationId,
+        });
       }
       if (category) {
         query.andWhere('entry.category = :category', { category });
@@ -529,7 +826,7 @@ export class ServicesService implements OnApplicationBootstrap {
       if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
         return Number(result.toFixed(3));
       }
-    } catch (err) {
+    } catch {
       // Return null on parsing or evaluation error to fallback to standard formula rules
     }
     return null;
@@ -551,7 +848,11 @@ export class ServicesService implements OnApplicationBootstrap {
 
     // 1. Evaluate explicit formula expression if configured
     if (formula && formula.trim()) {
-      const evaluated = this.evaluateFormulaExpression(formula, amountVal, factorVal);
+      const evaluated = this.evaluateFormulaExpression(
+        formula,
+        amountVal,
+        factorVal,
+      );
       if (evaluated !== null) {
         return evaluated;
       }
@@ -568,13 +869,18 @@ export class ServicesService implements OnApplicationBootstrap {
   }
 
   async createInventoryEntry(
-    orgId: number,
-    userId: number,
+    user: IDecodeUserDetails,
     dto: CreateInventoryEntryDto,
   ): Promise<InventoryEntry> {
-    const efRecord = await this.efRepo.findOne({
-      where: { category: dto.category, fuelOrGasType: dto.name, isActive: true },
-    });
+    const orgId = this.resolveOrgId(user);
+    const userId = user.id;
+    const efRecord = await this.efRepo
+      .createQueryBuilder('ef')
+      .select(['ef.id', 'ef.factor', 'ef.formula'])
+      .where('ef.category = :category', { category: dto.category })
+      .andWhere('ef.fuelOrGasType = :name', { name: dto.name })
+      .andWhere('ef.isActive = :isActive', { isActive: true })
+      .getOne();
 
     let efVal = dto.ef;
     if (efVal === undefined || efVal === null) {
@@ -601,20 +907,48 @@ export class ServicesService implements OnApplicationBootstrap {
   }
 
   async updateInventoryEntry(
-    orgId: number,
+    user: IDecodeUserDetails,
     id: number,
     dto: UpdateInventoryEntryDto,
   ): Promise<InventoryEntry> {
-    const existing = await this.inventoryRepo.findOne({ where: { id, organizationId: orgId } });
+    const orgId = this.resolveOrgId(user);
+    const existing = await this.inventoryRepo
+      .createQueryBuilder('entry')
+      .select([
+        'entry.id',
+        'entry.organizationId',
+        'entry.serviceCode',
+        'entry.category',
+        'entry.name',
+        'entry.amount',
+        'entry.unit',
+        'entry.ef',
+        'entry.efSource',
+        'entry.dateFrom',
+        'entry.dateTo',
+        'entry.facility',
+        'entry.emission',
+        'entry.status',
+        'entry.comment',
+        'entry.approvalStatus',
+        'entry.isActive',
+      ])
+      .where('entry.id = :id', { id })
+      .andWhere('entry.organizationId = :orgId', { orgId })
+      .getOne();
     if (!existing) {
       throw new BadRequestException(`Inventory entry with ID ${id} not found`);
     }
 
     Object.assign(existing, dto);
 
-    const efRecord = await this.efRepo.findOne({
-      where: { category: existing.category, fuelOrGasType: existing.name, isActive: true },
-    });
+    const efRecord = await this.efRepo
+      .createQueryBuilder('ef')
+      .select(['ef.id', 'ef.factor', 'ef.formula'])
+      .where('ef.category = :category', { category: existing.category })
+      .andWhere('ef.fuelOrGasType = :name', { name: existing.name })
+      .andWhere('ef.isActive = :isActive', { isActive: true })
+      .getOne();
 
     if (dto.ef === undefined || dto.ef === null) {
       if (efRecord?.factor) {
@@ -634,761 +968,22 @@ export class ServicesService implements OnApplicationBootstrap {
     return this.inventoryRepo.save(existing);
   }
 
-  async deleteInventoryEntry(orgId: number, id: number): Promise<{ message: string }> {
-    const existing = await this.inventoryRepo.findOne({ where: { id, organizationId: orgId } });
+  async deactivateInventoryEntry(
+    user: IDecodeUserDetails,
+    id: number,
+  ): Promise<{ message: string }> {
+    const orgId = this.resolveOrgId(user);
+    const existing = await this.inventoryRepo
+      .createQueryBuilder('entry')
+      .select(['entry.id', 'entry.organizationId', 'entry.isActive'])
+      .where('entry.id = :id', { id })
+      .andWhere('entry.organizationId = :orgId', { orgId })
+      .getOne();
     if (!existing) {
-      throw new BadRequestException(`Inventory entry with ID ${id} not found`);
+      throw new BadRequestException('Inventory entry not found');
     }
-    await this.inventoryRepo.remove(existing);
-    return { message: 'Inventory entry deleted successfully' };
-  }
-
-  /**
-   * Calculate dynamic Carbon Summary metrics, graphs, charts, and activities strictly from DB data.
-   */
-  async getCarbonSummary(
-    orgId: number,
-    serviceCode: string,
-    queryParams?: { year?: string; facility?: string },
-  ) {
-    const codeUpper = (serviceCode || 'CARBON').trim().toUpperCase();
-
-    // 1. Fetch available facilities for this org from DB
-    const dbFacilities = await this.facilityRepo.find({
-      where: { organizationId: orgId, isActive: true },
-      order: { name: 'ASC' },
-    });
-    const facilityList = dbFacilities.map((f) => f.name);
-
-    // 2. Fetch all inventory entries for this org & service code from DB
-    const allEntries = await this.inventoryRepo.find({
-      where: { organizationId: orgId, serviceCode: codeUpper },
-      order: { id: 'DESC' },
-    });
-
-    // Include any additional facilities found in inventory entries
-    allEntries.forEach((e) => {
-      if (e.facility && !facilityList.includes(e.facility)) {
-        facilityList.push(e.facility);
-      }
-    });
-
-    // 3. Extract all available years from DB records
-    const availableYearsSet = new Set<string>();
-    allEntries.forEach((e) => {
-      const yearFromDate = e.dateFrom ? e.dateFrom.split('.').pop() || e.dateFrom.split('-')[0] : null;
-      if (yearFromDate && yearFromDate.length === 4) {
-        availableYearsSet.add(yearFromDate);
-      } else if (e.createdOn) {
-        availableYearsSet.add(new Date(e.createdOn).getFullYear().toString());
-      }
-    });
-    if (availableYearsSet.size === 0) {
-      availableYearsSet.add(new Date().getFullYear().toString());
-    }
-    const availableYears = Array.from(availableYearsSet).sort((a, b) => Number(b) - Number(a));
-
-    // 4. Fetch service scope items from DB
-    const scopeItems = await this.scopeItemRepo.find({
-      where: { serviceCode: codeUpper, isActive: true },
-      order: { scopeCode: 'ASC', sortOrder: 'ASC' },
-    });
-
-    const categoryToScopeMap = new Map<string, string>();
-    const scope1CategoriesSet = new Set<string>();
-    const scope2CategoriesSet = new Set<string>();
-    const scope3CategoriesSet = new Set<string>();
-
-    scopeItems.forEach((item) => {
-      categoryToScopeMap.set(item.name.toLowerCase(), item.scope);
-      if (item.scope === 'Scope 1') scope1CategoriesSet.add(item.name.toLowerCase());
-      if (item.scope === 'Scope 2') scope2CategoriesSet.add(item.name.toLowerCase());
-      if (item.scope === 'Scope 3') scope3CategoriesSet.add(item.name.toLowerCase());
-    });
-
-    // 5. Filter entries based on queryParams
-    let filteredEntries = allEntries;
-    if (queryParams?.facility && queryParams.facility !== 'all' && queryParams.facility !== 'All Facilities') {
-      const selectedFac = queryParams.facility.toLowerCase().trim();
-      filteredEntries = filteredEntries.filter(
-        (e) => (e.facility || '').toLowerCase().trim() === selectedFac,
-      );
-    }
-
-    if (queryParams?.year && queryParams.year !== 'all' && queryParams.year !== 'All Years') {
-      const selectedYr = queryParams.year.trim();
-      filteredEntries = filteredEntries.filter((e) => {
-        const entryYear = e.dateFrom
-          ? e.dateFrom.split('.').pop() || e.dateFrom.split('-')[0]
-          : e.createdOn
-          ? new Date(e.createdOn).getFullYear().toString()
-          : '';
-        return entryYear === selectedYr;
-      });
-    }
-
-    // 6. Calculate KPIs & Chart data from DB filtered entries
-    let totalEmissions = 0;
-    let scope1Emissions = 0;
-    let scope2Emissions = 0;
-    let scope3Emissions = 0;
-
-    const recordedScope1Categories = new Set<string>();
-    const recordedScope2Categories = new Set<string>();
-    const recordedScope3Categories = new Set<string>();
-
-    const categoryAggregationMap = new Map<string, { category: string; scope: string; emission: number; count: number }>();
-    const facilityAggregationMap = new Map<string, { facility: string; emission: number; count: number }>();
-    const monthlyAggregationMap = new Map<string, { period: string; scope1: number; scope2: number; scope3: number; total: number }>();
-
-    filteredEntries.forEach((entry) => {
-      const em = entry.emission || 0;
-      totalEmissions += em;
-
-      const catLower = (entry.category || '').toLowerCase();
-      let scopeName = categoryToScopeMap.get(catLower);
-      if (!scopeName) {
-        if (catLower.includes('purchased electricity') || catLower.includes('heating')) {
-          scopeName = 'Scope 2';
-        } else if (
-          catLower.includes('goods') ||
-          catLower.includes('capital') ||
-          catLower.includes('travel') ||
-          catLower.includes('commuting') ||
-          catLower.includes('transportation') ||
-          catLower.includes('waste') ||
-          catLower.includes('sold')
-        ) {
-          scopeName = 'Scope 3';
-        } else {
-          scopeName = 'Scope 1';
-        }
-      }
-
-      if (scopeName === 'Scope 1') {
-        scope1Emissions += em;
-        recordedScope1Categories.add(catLower);
-      } else if (scopeName === 'Scope 2') {
-        scope2Emissions += em;
-        recordedScope2Categories.add(catLower);
-      } else {
-        scope3Emissions += em;
-        recordedScope3Categories.add(catLower);
-      }
-
-      // Aggregate by category
-      const existingCat = categoryAggregationMap.get(entry.category || 'Other') || {
-        category: entry.category || 'Other',
-        scope: scopeName,
-        emission: 0,
-        count: 0,
-      };
-      existingCat.emission += em;
-      existingCat.count += 1;
-      categoryAggregationMap.set(entry.category || 'Other', existingCat);
-
-      // Aggregate by facility
-      const facName = entry.facility || 'Unassigned Facility';
-      const existingFac = facilityAggregationMap.get(facName) || {
-        facility: facName,
-        emission: 0,
-        count: 0,
-      };
-      existingFac.emission += em;
-      existingFac.count += 1;
-      facilityAggregationMap.set(facName, existingFac);
-
-      // Aggregate by month/period
-      let monthLabel = 'Recent';
-      if (entry.dateFrom) {
-        const parts = entry.dateFrom.split('.');
-        if (parts.length === 3) {
-          const monthIndex = parseInt(parts[1], 10) - 1;
-          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          if (monthIndex >= 0 && monthIndex < 12) {
-            monthLabel = `${monthNames[monthIndex]} ${parts[2]}`;
-          }
-        }
-      } else if (entry.createdOn) {
-        const d = new Date(entry.createdOn);
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        monthLabel = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
-      }
-
-      const existingMonth = monthlyAggregationMap.get(monthLabel) || {
-        period: monthLabel,
-        scope1: 0,
-        scope2: 0,
-        scope3: 0,
-        total: 0,
-      };
-      if (scopeName === 'Scope 1') existingMonth.scope1 += em;
-      else if (scopeName === 'Scope 2') existingMonth.scope2 += em;
-      else existingMonth.scope3 += em;
-      existingMonth.total += em;
-      monthlyAggregationMap.set(monthLabel, existingMonth);
-    });
-
-    totalEmissions = Number(totalEmissions.toFixed(2));
-    scope1Emissions = Number(scope1Emissions.toFixed(2));
-    scope2Emissions = Number(scope2Emissions.toFixed(2));
-    scope3Emissions = Number(scope3Emissions.toFixed(2));
-
-    const scope1Percentage = totalEmissions > 0 ? Number(((scope1Emissions / totalEmissions) * 100).toFixed(1)) : 0;
-    const scope2Percentage = totalEmissions > 0 ? Number(((scope2Emissions / totalEmissions) * 100).toFixed(1)) : 0;
-    const scope3Percentage = totalEmissions > 0 ? Number(((scope3Emissions / totalEmissions) * 100).toFixed(1)) : 0;
-
-    const emissionsByCategory = Array.from(categoryAggregationMap.values())
-      .map((cat) => ({
-        ...cat,
-        emission: Number(cat.emission.toFixed(2)),
-        percentage: totalEmissions > 0 ? Number(((cat.emission / totalEmissions) * 100).toFixed(1)) : 0,
-      }))
-      .sort((a, b) => b.emission - a.emission);
-
-    const emissionsByFacility = Array.from(facilityAggregationMap.values())
-      .map((fac) => ({
-        ...fac,
-        emission: Number(fac.emission.toFixed(2)),
-        percentage: totalEmissions > 0 ? Number(((fac.emission / totalEmissions) * 100).toFixed(1)) : 0,
-      }))
-      .sort((a, b) => b.emission - a.emission);
-
-    const emissionsTrend = Array.from(monthlyAggregationMap.values()).map((m) => ({
-      period: m.period,
-      scope1: Number(m.scope1.toFixed(2)),
-      scope2: Number(m.scope2.toFixed(2)),
-      scope3: Number(m.scope3.toFixed(2)),
-      total: Number(m.total.toFixed(2)),
-    }));
-
-    const latestActivities = filteredEntries.slice(0, 10).map((entry) => ({
-      id: entry.id,
-      name: entry.name,
-      category: entry.category,
-      facility: entry.facility || 'Unassigned',
-      amount: entry.amount,
-      unit: entry.unit,
-      ef: entry.ef,
-      efSource: entry.efSource,
-      emission: entry.emission,
-      status: entry.status || 'Approved',
-      dateFrom: entry.dateFrom,
-      dateTo: entry.dateTo,
-      createdOn: entry.createdOn,
-    }));
-
-    return {
-      serviceCode: codeUpper,
-      unit: 'tonne CO₂-e',
-      availableYears,
-      availableFacilities: ['All Facilities', ...facilityList],
-      totalEntries: filteredEntries.length,
-      kpis: {
-        totalEmissions,
-        scope1Emissions,
-        scope1Percentage,
-        scope1CategoryCount: {
-          recorded: recordedScope1Categories.size,
-          total: Math.max(scope1CategoriesSet.size, recordedScope1Categories.size, 4),
-        },
-        scope2Emissions,
-        scope2Percentage,
-        scope2CategoryCount: {
-          recorded: recordedScope2Categories.size,
-          total: Math.max(scope2CategoriesSet.size, recordedScope2Categories.size, 2),
-        },
-        scope3Emissions,
-        scope3Percentage,
-        scope3CategoryCount: {
-          recorded: recordedScope3Categories.size,
-          total: Math.max(scope3CategoriesSet.size, recordedScope3Categories.size, 13),
-        },
-      },
-      emissionsByCategory,
-      emissionsByFacility,
-      emissionsTrend,
-      latestActivities,
-    };
-  }
-
-  /**
-   * Calculate overall Executive Main Dashboard summary metrics, active services, graphs, and activity stream from DB.
-   * Differentiates Super Admin (Role 1) platform view from Org Admin/User (Role 2/3) tenant view.
-   */
-  async getExecutiveDashboardSummary(
-    userRoleId: number,
-    orgId: number,
-    queryParams?: { year?: string; facility?: string },
-  ) {
-    const isSuperAdmin = Number(userRoleId) === 1;
-
-    // 1. Fetch Master Services
-    const allMasterServices = await this.serviceRepo.find({
-      where: { isActive: true },
-      order: { id: 'ASC' },
-    });
-
-    const serviceConfigMap: Record<string, { daysLeft: number; demoUrl: string }> = {
-      CARBON: { daysLeft: 2863, demoUrl: '/services/carbon' },
-      CBAM: { daysLeft: 1420, demoUrl: '/services/cbam' },
-      PEF_TEXTILES: { daysLeft: 980, demoUrl: '/services/pef_textiles' },
-      LCA_PLASTICS: { daysLeft: 1840, demoUrl: '/services/lca_plastics' },
-      LCA_METALS: { daysLeft: 2100, demoUrl: '/services/lca_metals' },
-      ESG: { daysLeft: 3120, demoUrl: '/services/esg' },
-      EPD_CABLES: { daysLeft: 1650, demoUrl: '/services/epd_cables' },
-    };
-
-    if (isSuperAdmin) {
-      // ─── SUPER ADMIN PLATFORM GOVERNANCE DASHBOARD DATA ───────────────────
-      const allOrgs = await this.orgRepo.find({
-        where: { isActive: true },
-        order: { id: 'ASC' },
-      });
-
-      const totalUsersCount = await this.userRepo.count({
-        where: { isActive: true },
-      });
-
-      const allFacilities = await this.facilityRepo.find({
-        where: { isActive: true },
-      });
-
-      const allOrgServices = await this.orgServiceRepo.find({
-        where: { isActive: true },
-        relations: { service: true },
-      });
-
-      const allEntries = await this.inventoryRepo.find({
-        order: { id: 'DESC' },
-      });
-
-      // Map organization id to org details
-      const orgMap = new Map<number, Organization>();
-      allOrgs.forEach((o) => orgMap.set(o.id, o));
-
-      // Calculate portfolio metrics & facility details per organization
-      const orgSummaryList = await Promise.all(
-        allOrgs.map(async (org) => {
-          const orgFacs = allFacilities.filter((f) => f.organizationId === org.id);
-          const orgSvcs = allOrgServices.filter((s) => s.organizationId === org.id);
-          const orgEntries = allEntries.filter((e) => e.organizationId === org.id);
-          const orgTotalEmissions = Number(
-            orgEntries.reduce((sum, e) => sum + (e.emission || 0), 0).toFixed(2),
-          );
-
-          const orgFacDetails = orgFacs.map((f) => {
-            const facEntries = orgEntries.filter((e) => (e.facility || '').toLowerCase() === f.name.toLowerCase());
-            const facEmissions = Number(facEntries.reduce((sum, e) => sum + (e.emission || 0), 0).toFixed(2));
-            return {
-              id: f.id,
-              name: f.name,
-              address: f.address || 'Facility Site Location',
-              countryCode: f.countryCode || 'UK',
-              postCode: f.postCode || 'N/A',
-              unLocode: f.unLocode || 'N/A',
-              totalEmissions: facEmissions,
-              entriesCount: facEntries.length,
-            };
-          });
-
-          return {
-            id: org.id,
-            name: org.name,
-            code: org.code,
-            contactEmail: org.contactEmail || 'N/A',
-            industry: org.industry || 'Enterprise Sustainability',
-            facilitiesCount: orgFacs.length,
-            subscribedServicesCount: orgSvcs.length || allMasterServices.length,
-            totalEmissions: orgTotalEmissions,
-            entriesCount: orgEntries.length,
-            facilities: orgFacDetails,
-          };
-        }),
-      );
-
-      // Global platform KPIs
-      let globalEmissions = 0;
-      let scope1Emissions = 0;
-      let scope2Emissions = 0;
-      let scope3Emissions = 0;
-
-      const monthlyMap = new Map<string, { period: string; scope1: number; scope2: number; scope3: number; total: number }>();
-      const categoryMap = new Map<string, { category: string; scope: string; emission: number; count: number }>();
-
-      allEntries.forEach((entry) => {
-        const em = entry.emission || 0;
-        globalEmissions += em;
-
-        const catLower = (entry.category || '').toLowerCase();
-        let scopeName = 'Scope 1';
-        if (catLower.includes('purchased electricity') || catLower.includes('heating')) scopeName = 'Scope 2';
-        else if (
-          catLower.includes('goods') || catLower.includes('capital') || catLower.includes('travel') ||
-          catLower.includes('commuting') || catLower.includes('transportation') || catLower.includes('waste') || catLower.includes('sold')
-        ) scopeName = 'Scope 3';
-
-        if (scopeName === 'Scope 1') scope1Emissions += em;
-        else if (scopeName === 'Scope 2') scope2Emissions += em;
-        else scope3Emissions += em;
-
-        const existingCat = categoryMap.get(entry.category || 'Other') || {
-          category: entry.category || 'Other',
-          scope: scopeName,
-          emission: 0,
-          count: 0,
-        };
-        existingCat.emission += em;
-        existingCat.count += 1;
-        categoryMap.set(entry.category || 'Other', existingCat);
-
-        let monthLabel = 'Recent';
-        if (entry.dateFrom) {
-          const parts = entry.dateFrom.split('.');
-          if (parts.length === 3) {
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const mIdx = parseInt(parts[1], 10) - 1;
-            if (mIdx >= 0 && mIdx < 12) monthLabel = `${monthNames[mIdx]} ${parts[2]}`;
-          }
-        }
-        const existingMonth = monthlyMap.get(monthLabel) || { period: monthLabel, scope1: 0, scope2: 0, scope3: 0, total: 0 };
-        if (scopeName === 'Scope 1') existingMonth.scope1 += em;
-        else if (scopeName === 'Scope 2') existingMonth.scope2 += em;
-        else existingMonth.scope3 += em;
-        existingMonth.total += em;
-        monthlyMap.set(monthLabel, existingMonth);
-      });
-
-      globalEmissions = Number(globalEmissions.toFixed(2));
-      scope1Emissions = Number(scope1Emissions.toFixed(2));
-      scope2Emissions = Number(scope2Emissions.toFixed(2));
-      scope3Emissions = Number(scope3Emissions.toFixed(2));
-
-      const recentActivities = allEntries.slice(0, 10).map((e) => {
-        const org = orgMap.get(e.organizationId);
-        return {
-          id: e.id,
-          orgName: org?.name || `Org #${e.organizationId}`,
-          name: e.name,
-          serviceCode: e.serviceCode,
-          category: e.category,
-          facility: e.facility || 'Unassigned',
-          amount: e.amount,
-          unit: e.unit,
-          emission: e.emission,
-          status: e.status || 'Approved',
-          createdOn: e.createdOn,
-        };
-      });
-
-      const subscribedServices = allMasterServices.map((svc) => {
-        const codeUpper = svc.code.toUpperCase();
-        const cfg = serviceConfigMap[codeUpper] || { daysLeft: 2800, demoUrl: `/services/${svc.code.toLowerCase()}` };
-        const totalSvcEmissions = Number(
-          allEntries.filter((e) => (e.serviceCode || 'CARBON').toUpperCase() === codeUpper)
-            .reduce((sum, e) => sum + (e.emission || 0), 0).toFixed(2),
-        );
-        const subCount = allOrgServices.filter((s) => s.service?.code?.toUpperCase() === codeUpper).length || allOrgs.length;
-
-        return {
-          id: svc.id,
-          code: svc.code,
-          name: svc.name,
-          category: svc.category,
-          description: svc.description,
-          demoUrl: svc.demoUrl || cfg.demoUrl,
-          daysLeft: cfg.daysLeft,
-          isSubscribed: true,
-          totalEmissions: totalSvcEmissions,
-          subscriberCount: subCount,
-          entriesCount: allEntries.filter((e) => (e.serviceCode || 'CARBON').toUpperCase() === codeUpper).length,
-        };
-      });
-
-      return {
-        isSuperAdmin: true,
-        unit: 'tonne CO₂-e',
-        availableYears: ['2026', '2025', '2024'],
-        availableFacilities: ['All Facilities', ...allFacilities.map((f) => f.name)],
-        kpis: {
-          totalEmissions: globalEmissions,
-          scope1Emissions,
-          scope1Percentage: globalEmissions > 0 ? Number(((scope1Emissions / globalEmissions) * 100).toFixed(1)) : 0,
-          scope2Emissions,
-          scope2Percentage: globalEmissions > 0 ? Number(((scope2Emissions / globalEmissions) * 100).toFixed(1)) : 0,
-          scope3Emissions,
-          scope3Percentage: globalEmissions > 0 ? Number(((scope3Emissions / globalEmissions) * 100).toFixed(1)) : 0,
-          totalOrganizations: allOrgs.length,
-          totalUsers: totalUsersCount,
-          totalInventoryEntries: allEntries.length,
-          activeServicesCount: allMasterServices.length,
-          facilitiesCount: allFacilities.length,
-          dataCompletenessPercent: 100,
-        },
-        organizationsSummary: orgSummaryList,
-        subscribedServices,
-        emissionsByCategory: Array.from(categoryMap.values()).map((c) => ({
-          ...c,
-          emission: Number(c.emission.toFixed(2)),
-          percentage: globalEmissions > 0 ? Number(((c.emission / globalEmissions) * 100).toFixed(1)) : 0,
-        })),
-        emissionsTrend: Array.from(monthlyMap.values()).map((m) => ({
-          period: m.period,
-          scope1: Number(m.scope1.toFixed(2)),
-          scope2: Number(m.scope2.toFixed(2)),
-          scope3: Number(m.scope3.toFixed(2)),
-          total: Number(m.total.toFixed(2)),
-        })),
-        recentActivities,
-      };
-    }
-
-    // ─── ORGANIZATION ADMIN & USER SUSTAINABILITY DASHBOARD DATA ─────────
-    const dbFacilities = await this.facilityRepo.find({
-      where: { organizationId: orgId, isActive: true },
-      order: { name: 'ASC' },
-    });
-    const facilityList = dbFacilities.map((f) => f.name);
-
-    const orgServices = await this.orgServiceRepo.find({
-      where: { organizationId: orgId, isActive: true },
-      relations: { service: true },
-    });
-
-    const assignedServiceCodes = new Set<string>();
-    orgServices.forEach((os) => {
-      if (os.service?.code) {
-        assignedServiceCodes.add(os.service.code.toUpperCase());
-      }
-    });
-    if (assignedServiceCodes.size === 0) {
-      allMasterServices.forEach((s) => assignedServiceCodes.add(s.code.toUpperCase()));
-    }
-
-    const allEntries = await this.inventoryRepo.find({
-      where: { organizationId: orgId },
-      order: { id: 'DESC' },
-    });
-
-    allEntries.forEach((e) => {
-      if (e.facility && !facilityList.includes(e.facility)) {
-        facilityList.push(e.facility);
-      }
-    });
-
-    const availableYearsSet = new Set<string>();
-    allEntries.forEach((e) => {
-      const yearFromDate = e.dateFrom ? e.dateFrom.split('.').pop() || e.dateFrom.split('-')[0] : null;
-      if (yearFromDate && yearFromDate.length === 4) {
-        availableYearsSet.add(yearFromDate);
-      } else if (e.createdOn) {
-        availableYearsSet.add(new Date(e.createdOn).getFullYear().toString());
-      }
-    });
-    if (availableYearsSet.size === 0) {
-      availableYearsSet.add(new Date().getFullYear().toString());
-    }
-    const availableYears = Array.from(availableYearsSet).sort((a, b) => Number(b) - Number(a));
-
-    let filteredEntries = allEntries;
-    if (queryParams?.facility && queryParams.facility !== 'all' && queryParams.facility !== 'All Facilities') {
-      const selectedFac = queryParams.facility.toLowerCase().trim();
-      filteredEntries = filteredEntries.filter(
-        (e) => (e.facility || '').toLowerCase().trim() === selectedFac,
-      );
-    }
-
-    if (queryParams?.year && queryParams.year !== 'all' && queryParams.year !== 'All Years') {
-      const selectedYr = queryParams.year.trim();
-      filteredEntries = filteredEntries.filter((e) => {
-        const entryYear = e.dateFrom
-          ? e.dateFrom.split('.').pop() || e.dateFrom.split('-')[0]
-          : e.createdOn
-          ? new Date(e.createdOn).getFullYear().toString()
-          : '';
-        return entryYear === selectedYr;
-      });
-    }
-
-    let totalEmissions = 0;
-    let scope1Emissions = 0;
-    let scope2Emissions = 0;
-    let scope3Emissions = 0;
-
-    const serviceEmissionsMap = new Map<string, { totalEmissions: number; count: number }>();
-    const categoryAggregationMap = new Map<string, { category: string; scope: string; emission: number; count: number }>();
-    const facilityAggregationMap = new Map<string, { facility: string; emission: number; count: number }>();
-    const monthlyAggregationMap = new Map<string, { period: string; scope1: number; scope2: number; scope3: number; total: number }>();
-
-    filteredEntries.forEach((entry) => {
-      const em = entry.emission || 0;
-      totalEmissions += em;
-
-      const sCode = (entry.serviceCode || 'CARBON').toUpperCase();
-      const existingSvc = serviceEmissionsMap.get(sCode) || { totalEmissions: 0, count: 0 };
-      existingSvc.totalEmissions += em;
-      existingSvc.count += 1;
-      serviceEmissionsMap.set(sCode, existingSvc);
-
-      const catLower = (entry.category || '').toLowerCase();
-      let scopeName = 'Scope 1';
-      if (catLower.includes('purchased electricity') || catLower.includes('heating')) scopeName = 'Scope 2';
-      else if (
-        catLower.includes('goods') || catLower.includes('capital') || catLower.includes('travel') ||
-        catLower.includes('commuting') || catLower.includes('transportation') || catLower.includes('waste') || catLower.includes('sold')
-      ) scopeName = 'Scope 3';
-
-      if (scopeName === 'Scope 1') scope1Emissions += em;
-      else if (scopeName === 'Scope 2') scope2Emissions += em;
-      else scope3Emissions += em;
-
-      const existingCat = categoryAggregationMap.get(entry.category || 'Other') || {
-        category: entry.category || 'Other',
-        scope: scopeName,
-        emission: 0,
-        count: 0,
-      };
-      existingCat.emission += em;
-      existingCat.count += 1;
-      categoryAggregationMap.set(entry.category || 'Other', existingCat);
-
-      const facName = entry.facility || 'Unassigned Facility';
-      const existingFac = facilityAggregationMap.get(facName) || {
-        facility: facName,
-        emission: 0,
-        count: 0,
-      };
-      existingFac.emission += em;
-      existingFac.count += 1;
-      facilityAggregationMap.set(facName, existingFac);
-
-      let monthLabel = 'Recent';
-      if (entry.dateFrom) {
-        const parts = entry.dateFrom.split('.');
-        if (parts.length === 3) {
-          const monthIndex = parseInt(parts[1], 10) - 1;
-          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          if (monthIndex >= 0 && monthIndex < 12) monthLabel = `${monthNames[monthIndex]} ${parts[2]}`;
-        }
-      } else if (entry.createdOn) {
-        const d = new Date(entry.createdOn);
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        monthLabel = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
-      }
-
-      const existingMonth = monthlyAggregationMap.get(monthLabel) || {
-        period: monthLabel, scope1: 0, scope2: 0, scope3: 0, total: 0,
-      };
-      if (scopeName === 'Scope 1') existingMonth.scope1 += em;
-      else if (scopeName === 'Scope 2') existingMonth.scope2 += em;
-      else existingMonth.scope3 += em;
-      existingMonth.total += em;
-      monthlyAggregationMap.set(monthLabel, existingMonth);
-    });
-
-    totalEmissions = Number(totalEmissions.toFixed(2));
-    scope1Emissions = Number(scope1Emissions.toFixed(2));
-    scope2Emissions = Number(scope2Emissions.toFixed(2));
-    scope3Emissions = Number(scope3Emissions.toFixed(2));
-
-    const orgFacDetails = dbFacilities.map((f) => {
-      const facEntries = allEntries.filter((e) => (e.facility || '').toLowerCase() === f.name.toLowerCase());
-      const facEmissions = Number(facEntries.reduce((sum, e) => sum + (e.emission || 0), 0).toFixed(2));
-      return {
-        id: f.id,
-        name: f.name,
-        address: f.address || 'Facility Installation Address',
-        countryCode: f.countryCode || 'UK',
-        postCode: f.postCode || 'N/A',
-        unLocode: f.unLocode || 'N/A',
-        totalEmissions: facEmissions,
-        entriesCount: facEntries.length,
-      };
-    });
-
-    const subscribedServices = allMasterServices.map((svc) => {
-      const codeUpper = svc.code.toUpperCase();
-      const isSubscribed = assignedServiceCodes.has(codeUpper);
-      const aggData = serviceEmissionsMap.get(codeUpper) || { totalEmissions: 0, count: 0 };
-      const cfg = serviceConfigMap[codeUpper] || { daysLeft: 2800, demoUrl: `/services/${svc.code.toLowerCase()}` };
-
-      return {
-        id: svc.id,
-        code: svc.code,
-        name: svc.name,
-        category: svc.category,
-        description: svc.description,
-        demoUrl: svc.demoUrl || cfg.demoUrl,
-        daysLeft: cfg.daysLeft,
-        isSubscribed,
-        totalEmissions: Number(aggData.totalEmissions.toFixed(2)),
-        entriesCount: aggData.count,
-      };
-    });
-
-    const emissionsByCategory = Array.from(categoryAggregationMap.values())
-      .map((cat) => ({
-        ...cat,
-        emission: Number(cat.emission.toFixed(2)),
-        percentage: totalEmissions > 0 ? Number(((cat.emission / totalEmissions) * 100).toFixed(1)) : 0,
-      }))
-      .sort((a, b) => b.emission - a.emission);
-
-    const emissionsByFacility = Array.from(facilityAggregationMap.values())
-      .map((fac) => ({
-        ...fac,
-        emission: Number(fac.emission.toFixed(2)),
-        percentage: totalEmissions > 0 ? Number(((fac.emission / totalEmissions) * 100).toFixed(1)) : 0,
-      }))
-      .sort((a, b) => b.emission - a.emission);
-
-    const emissionsTrend = Array.from(monthlyAggregationMap.values()).map((m) => ({
-      period: m.period,
-      scope1: Number(m.scope1.toFixed(2)),
-      scope2: Number(m.scope2.toFixed(2)),
-      scope3: Number(m.scope3.toFixed(2)),
-      total: Number(m.total.toFixed(2)),
-    }));
-
-    const recentActivities = filteredEntries.slice(0, 8).map((e) => ({
-      id: e.id,
-      name: e.name,
-      serviceCode: e.serviceCode,
-      category: e.category,
-      facility: e.facility || 'Unassigned',
-      amount: e.amount,
-      unit: e.unit,
-      emission: e.emission,
-      status: e.status || 'Approved',
-      createdOn: e.createdOn,
-    }));
-
-    return {
-      isSuperAdmin: false,
-      unit: 'tonne CO₂-e',
-      availableYears,
-      availableFacilities: ['All Facilities', ...facilityList],
-      kpis: {
-        totalEmissions,
-        scope1Emissions,
-        scope1Percentage: totalEmissions > 0 ? Number(((scope1Emissions / totalEmissions) * 100).toFixed(1)) : 0,
-        scope2Emissions,
-        scope2Percentage: totalEmissions > 0 ? Number(((scope2Emissions / totalEmissions) * 100).toFixed(1)) : 0,
-        scope3Emissions,
-        scope3Percentage: totalEmissions > 0 ? Number(((scope3Emissions / totalEmissions) * 100).toFixed(1)) : 0,
-        totalInventoryEntries: filteredEntries.length,
-        activeServicesCount: assignedServiceCodes.size,
-        facilitiesCount: facilityList.length,
-        dataCompletenessPercent: filteredEntries.length > 0 ? 100 : 0,
-      },
-      facilities: orgFacDetails,
-      subscribedServices,
-      emissionsByCategory,
-      emissionsByFacility,
-      emissionsTrend,
-      recentActivities,
-    };
+    existing.isActive = false;
+    await this.inventoryRepo.save(existing);
+    return { message: 'Inventory entry deactivated successfully' };
   }
 }
-
-

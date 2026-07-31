@@ -2,10 +2,9 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
-  ForbiddenException,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Put,
   Query,
@@ -17,14 +16,31 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { ServicesService } from './services.service';
-import { AssignServicesDto, CreateScopeItemDto, CreateServiceDto } from 'src/dto/service.dto';
-import { CreateEmissionFactorDto, CreateInventoryEntryDto, UpdateEmissionFactorDto, UpdateInventoryEntryDto } from 'src/dto/inventory.dto';
+import { SummaryService } from './summary.service';
+import {
+  AssignServicesDto,
+  CreateScopeItemDto,
+  CreateServiceDto,
+} from 'src/dto/service.dto';
+import {
+  CreateEmissionFactorDto,
+  CreateInventoryEntryDto,
+  UpdateEmissionFactorDto,
+  UpdateInventoryEntryDto,
+} from 'src/dto/inventory.dto';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import { UtilService } from 'src/utility/util/util.service';
-import { MasterRole } from 'src/enums/casl.enum';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
 
 @ApiTags('Services')
@@ -32,6 +48,7 @@ import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
 export class ServicesController {
   constructor(
     private readonly servicesService: ServicesService,
+    private readonly summaryService: SummaryService,
     private readonly utilService: UtilService,
   ) {}
 
@@ -39,76 +56,115 @@ export class ServicesController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all available master services from DB' })
+  @ApiResponse({ status: 200, description: 'Successfully fetched services' })
   async getAllServices(@Req() req: Request, @Res() res: Response) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: getAllServices');
+    logger.info('Method started: getAllServices');
     try {
       const result = await this.servicesService.getAllServices();
-      this.utilService.sendSuccessResponse(res, 'Successfully fetched services', result);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched services',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in getAllServices: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch services. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getAllServices');
-      res.end();
+      logger.info('Method ended: getAllServices');
     }
   }
 
   @Post('services')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a new master service in DB dynamically (Super Admin only)' })
+  @ApiOperation({
+    summary: 'Create a new master service in DB dynamically (Super Admin only)',
+  })
+  @ApiResponse({ status: 200, description: 'Service created successfully' })
   async createService(
     @Req() req: Request,
     @Res() res: Response,
     @Body() dto: CreateServiceDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: createService');
+    logger.info('Method started: createService');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
-        throw new ForbiddenException('Only Super Admin can create master services');
-      }
-
-      const result = await this.servicesService.createService(dto);
-      this.utilService.sendSuccessResponse(res, 'Service created successfully in DB', result);
+      const result = await this.servicesService.createService(dto, user);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Service created successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in createService: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to create service. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: createService');
-      res.end();
+      logger.info('Method ended: createService');
     }
   }
 
   @Get('services/:code/scopes')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get dynamic scope 1, 2, 3 service items from DB for a service module' })
+  @ApiOperation({
+    summary:
+      'Get dynamic scope 1, 2, 3 service items from DB for a service module',
+  })
+  @ApiParam({ name: 'code', type: String, description: 'Service code' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched service scope items',
+  })
   async getServiceScopes(
     @Req() req: Request,
     @Res() res: Response,
     @Param('code') code: string,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: getServiceScopes');
+    logger.info('Method started: getServiceScopes');
     try {
       const result = await this.servicesService.getServiceScopes(code);
-      this.utilService.sendSuccessResponse(res, 'Successfully fetched service scope items', result);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched service scope items',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in getServiceScopes: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch scope items. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getServiceScopes');
-      res.end();
+      logger.info('Method ended: getServiceScopes');
     }
   }
 
   @Get('services/:code/summary')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get overall carbon summary metrics, graphs, charts, and activities strictly from DB' })
+  @ApiOperation({
+    summary:
+      'Get overall carbon summary metrics, graphs, charts, and activities strictly from DB',
+  })
+  @ApiParam({ name: 'code', type: String, description: 'Service code' })
+  @ApiQuery({ name: 'year', type: String, required: false })
+  @ApiQuery({ name: 'facility', type: String, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched carbon summary',
+  })
   async getCarbonSummary(
     @Req() req: Request,
     @Res() res: Response,
@@ -117,25 +173,43 @@ export class ServicesController {
     @Query('facility') facility?: string,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: getCarbonSummary');
+    logger.info('Method started: getCarbonSummary');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      const orgId = user?.organizationId || 1;
-      const result = await this.servicesService.getCarbonSummary(orgId, code, { year, facility });
-      this.utilService.sendSuccessResponse(res, 'Successfully fetched carbon summary', result);
+      const result = await this.summaryService.getCarbonSummary(user, code, {
+        year,
+        facility,
+      });
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched carbon summary',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in getCarbonSummary: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch carbon summary. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getCarbonSummary');
-      res.end();
+      logger.info('Method ended: getCarbonSummary');
     }
   }
 
   @Get('dashboard/summary')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get executive main dashboard overall summary metrics strictly from DB' })
+  @ApiOperation({
+    summary:
+      'Get executive main dashboard overall summary metrics strictly from DB',
+  })
+  @ApiQuery({ name: 'year', type: String, required: false })
+  @ApiQuery({ name: 'facility', type: String, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched dashboard summary',
+  })
   async getExecutiveDashboardSummary(
     @Req() req: Request,
     @Res() res: Response,
@@ -143,75 +217,97 @@ export class ServicesController {
     @Query('facility') facility?: string,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: getExecutiveDashboardSummary');
+    logger.info('Method started: getExecutiveDashboardSummary');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      const roleId = user?.roleId || 3;
-      const orgId = user?.organizationId || 1;
-      const result = await this.servicesService.getExecutiveDashboardSummary(roleId, orgId, { year, facility });
-      this.utilService.sendSuccessResponse(res, 'Successfully fetched executive dashboard summary', result);
+      const result = await this.summaryService.getExecutiveDashboardSummary(
+        user,
+        { year, facility },
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched dashboard summary',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in getExecutiveDashboardSummary: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch dashboard summary. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getExecutiveDashboardSummary');
-      res.end();
+      logger.info('Method ended: getExecutiveDashboardSummary');
     }
   }
 
   @Post('services/scopes')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Add a new Scope item to DB dynamically (Super Admin only)' })
+  @ApiOperation({
+    summary: 'Add a new Scope item to DB dynamically (Super Admin only)',
+  })
+  @ApiResponse({ status: 200, description: 'Scope item created successfully' })
   async createScopeItem(
     @Req() req: Request,
     @Res() res: Response,
     @Body() dto: CreateScopeItemDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: createScopeItem');
+    logger.info('Method started: createScopeItem');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
-        throw new ForbiddenException('Only Super Admin can create scope items');
-      }
-
-      const result = await this.servicesService.createScopeItem(dto);
-      this.utilService.sendSuccessResponse(res, 'Scope item created successfully in DB', result);
+      const result = await this.servicesService.createScopeItem(dto, user);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Scope item created successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in createScopeItem: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to create scope item. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: createScopeItem');
-      res.end();
+      logger.info('Method ended: createScopeItem');
     }
   }
 
-  @Delete('services/scopes/:id')
+  @Post('services/scopes/:id/deactivate')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete a Scope item from DB dynamically (Super Admin only)' })
-  async deleteScopeItem(
+  @ApiOperation({ summary: 'Deactivate a Scope item (Super Admin only)' })
+  @ApiParam({ name: 'id', type: Number, description: 'Scope item ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Scope item deactivated successfully',
+  })
+  async deactivateScopeItem(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: deleteScopeItem');
+    logger.info('Method started: deactivateScopeItem');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
-        throw new ForbiddenException('Only Super Admin can delete scope items');
-      }
-
-      const result = await this.servicesService.deleteScopeItem(Number(id));
-      this.utilService.sendSuccessResponse(res, result.message, null);
+      const result = await this.servicesService.deactivateScopeItem(id, user);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Scope item deactivated successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in deleteScopeItem: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to deactivate scope item. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: deleteScopeItem');
-      res.end();
+      logger.info('Method ended: deactivateScopeItem');
     }
   }
 
@@ -220,23 +316,37 @@ export class ServicesController {
   @Get('emission-factors')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get emission factors and dropdown calculation parameters from DB' })
+  @ApiOperation({
+    summary: 'Get emission factors and dropdown calculation parameters from DB',
+  })
+  @ApiQuery({ name: 'category', type: String, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched emission factors',
+  })
   async getEmissionFactors(
     @Req() req: Request,
     @Res() res: Response,
     @Query('category') category?: string,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: getEmissionFactors');
+    logger.info('Method started: getEmissionFactors');
     try {
       const result = await this.servicesService.getEmissionFactors(category);
-      this.utilService.sendSuccessResponse(res, 'Successfully fetched emission factors', result);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched emission factors',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in getEmissionFactors: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch emission factors. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getEmissionFactors');
-      res.end();
+      logger.info('Method ended: getEmissionFactors');
     }
   }
 
@@ -244,50 +354,71 @@ export class ServicesController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new emission factor in DB dynamically' })
+  @ApiResponse({
+    status: 200,
+    description: 'Emission factor created successfully',
+  })
   async createEmissionFactor(
     @Req() req: Request,
     @Res() res: Response,
     @Body() dto: CreateEmissionFactorDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: createEmissionFactor');
+    logger.info('Method started: createEmissionFactor');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
-        throw new ForbiddenException('Only Super Admin is authorized to create emission factors');
-      }
-
-      const result = await this.servicesService.createEmissionFactor(dto);
-      this.utilService.sendSuccessResponse(res, 'Emission factor created successfully', result);
+      const result = await this.servicesService.createEmissionFactor(dto, user);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Emission factor created successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in createEmissionFactor: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to create emission factor. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: createEmissionFactor');
-      res.end();
+      logger.info('Method ended: createEmissionFactor');
     }
   }
 
   @Post('emission-factors/filter')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Filter and paginate emission factors with search, sort, category' })
+  @ApiOperation({
+    summary: 'Filter and paginate emission factors with search, sort, category',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Emission factors filter list fetched successfully',
+  })
   async getEmissionFactorsFilterList(
     @Req() req: Request,
     @Res() res: Response,
     @Body() payload: CommonListPayloadDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: getEmissionFactorsFilterList');
+    logger.info('Method started: getEmissionFactorsFilterList');
     try {
-      const result = await this.servicesService.getEmissionFactorsFilterList(payload);
-      this.utilService.sendSuccessResponse(res, 'Emission factors filter list fetched successfully', result);
+      const result =
+        await this.servicesService.getEmissionFactorsFilterList(payload);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Emission factors list fetched successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in getEmissionFactorsFilterList: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch emission factors. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getEmissionFactorsFilterList');
-      res.end();
+      logger.info('Method ended: getEmissionFactorsFilterList');
     }
   }
 
@@ -295,56 +426,79 @@ export class ServicesController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update an existing emission factor' })
+  @ApiParam({ name: 'id', type: Number, description: 'Emission factor ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Emission factor updated successfully',
+  })
   async updateEmissionFactor(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEmissionFactorDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: updateEmissionFactor');
+    logger.info('Method started: updateEmissionFactor');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
-        throw new ForbiddenException('Only Super Admin is authorized to update emission factors');
-      }
-
-      const result = await this.servicesService.updateEmissionFactor(Number(id), dto);
-      this.utilService.sendSuccessResponse(res, 'Emission factor updated successfully', result);
+      const result = await this.servicesService.updateEmissionFactor(
+        id,
+        dto,
+        user,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Emission factor updated successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in updateEmissionFactor: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to update emission factor. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: updateEmissionFactor');
-      res.end();
+      logger.info('Method ended: updateEmissionFactor');
     }
   }
 
-  @Delete('emission-factors/:id')
+  @Post('emission-factors/:id/deactivate')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete an emission factor' })
-  async deleteEmissionFactor(
+  @ApiOperation({ summary: 'Deactivate an emission factor' })
+  @ApiParam({ name: 'id', type: Number, description: 'Emission factor ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Emission factor deactivated successfully',
+  })
+  async deactivateEmissionFactor(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: deleteEmissionFactor');
+    logger.info('Method started: deactivateEmissionFactor');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
-        throw new ForbiddenException('Only Super Admin is authorized to delete emission factors');
-      }
-
-      const result = await this.servicesService.deleteEmissionFactor(Number(id));
-      this.utilService.sendSuccessResponse(res, result.message, result);
+      const result = await this.servicesService.deactivateEmissionFactor(
+        id,
+        user,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Emission factor deactivated successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in deleteEmissionFactor: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to deactivate emission factor. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: deleteEmissionFactor');
-      res.end();
+      logger.info('Method ended: deactivateEmissionFactor');
     }
   }
 
@@ -353,7 +507,22 @@ export class ServicesController {
   @Get('inventory-entries')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get inventory entries from DB with search, filter, sort, and pagination' })
+  @ApiOperation({
+    summary:
+      'Get inventory entries from DB with search, filter, sort, and pagination',
+  })
+  @ApiQuery({ name: 'category', type: String, required: false })
+  @ApiQuery({ name: 'search', type: String, required: false })
+  @ApiQuery({ name: 'facility', type: String, required: false })
+  @ApiQuery({ name: 'status', type: String, required: false })
+  @ApiQuery({ name: 'sortField', type: String, required: false })
+  @ApiQuery({ name: 'sortOrder', enum: ['ASC', 'DESC'], required: false })
+  @ApiQuery({ name: 'page', type: Number, required: false })
+  @ApiQuery({ name: 'limit', type: Number, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched inventory entries',
+  })
   async getInventoryEntries(
     @Req() req: Request,
     @Res() res: Response,
@@ -367,11 +536,10 @@ export class ServicesController {
     @Query('limit') limit?: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: getInventoryEntries');
+    logger.info('Method started: getInventoryEntries');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      const orgId = user?.organizationId || 1;
-      const result = await this.servicesService.getInventoryEntries(orgId, {
+      const result = await this.servicesService.getInventoryEntries(user, {
         category,
         search,
         facility,
@@ -381,73 +549,97 @@ export class ServicesController {
         page,
         limit,
       });
-      this.utilService.sendSuccessResponse(res, 'Successfully fetched inventory entries', result);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched inventory entries',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in getInventoryEntries: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch inventory entries. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getInventoryEntries');
-      res.end();
+      logger.info('Method ended: getInventoryEntries');
     }
   }
 
   @Post('inventory-entries/filter')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get paginated and filtered inventory entries list for useFetchList' })
+  @ApiOperation({
+    summary: 'Get paginated and filtered inventory entries list',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched inventory list',
+  })
   async getInventoryFilterList(
     @Req() req: Request,
     @Res() res: Response,
     @Body() payload: CommonListPayloadDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: getInventoryFilterList');
+    logger.info('Method started: getInventoryFilterList');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      const orgId = user?.organizationId || 1;
-
-      const fullPayload = {
-        ...payload,
-        additionalFilter: {
-          ...(payload.additionalFilter || {}),
-          organizationId: orgId,
-        },
-      };
-
-      const result = await this.servicesService.getInventoryFilterList(fullPayload);
-      this.utilService.sendSuccessResponse(res, 'Successfully fetched inventory list', result);
+      const result = await this.servicesService.getInventoryFilterList(
+        payload,
+        user,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched inventory list',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in getInventoryFilterList: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch inventory list. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getInventoryFilterList');
-      res.end();
+      logger.info('Method ended: getInventoryFilterList');
     }
   }
 
   @Post('inventory-entries')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Save new inventory entry to DB with formula calculation' })
+  @ApiOperation({
+    summary: 'Save new inventory entry to DB with formula calculation',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Inventory entry saved successfully',
+  })
   async createInventoryEntry(
     @Req() req: Request,
     @Res() res: Response,
     @Body() dto: CreateInventoryEntryDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: createInventoryEntry');
+    logger.info('Method started: createInventoryEntry');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      const orgId = user?.organizationId || 1;
-      const userId = user?.id || 1;
-      const result = await this.servicesService.createInventoryEntry(orgId, userId, dto);
-      this.utilService.sendSuccessResponse(res, 'Inventory entry saved to database', result);
+      const result = await this.servicesService.createInventoryEntry(user, dto);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Inventory entry saved successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in createInventoryEntry: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to save inventory entry. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: createInventoryEntry');
-      res.end();
+      logger.info('Method ended: createInventoryEntry');
     }
   }
 
@@ -456,30 +648,40 @@ export class ServicesController {
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Upload proof of document file for an inventory entry' })
+  @ApiOperation({
+    summary: 'Upload proof of document file for an inventory entry',
+  })
+  @ApiResponse({ status: 200, description: 'Document uploaded successfully' })
   async uploadInventoryDocument(
     @Req() req: Request,
     @Res() res: Response,
     @UploadedFile() file: Express.Multer.File,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: uploadInventoryDocument');
+    logger.info('Method started: uploadInventoryDocument');
     try {
       if (!file) {
-        throw new BadRequestException('No file uploaded or file invalid');
+        throw new BadRequestException('No file uploaded');
       }
       const documentPath = `uploads/inventory-docs/${file.filename}`;
-      this.utilService.sendSuccessResponse(res, 'Proof document uploaded successfully', {
-        documentPath,
-        originalName: file.originalname,
-        filename: file.filename,
-      });
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Document uploaded successfully',
+        {
+          documentPath,
+          originalName: file.originalname,
+          filename: file.filename,
+        },
+      );
     } catch (error) {
-      logger.error(`Error in uploadInventoryDocument: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to upload document. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: uploadInventoryDocument');
-      res.end();
+      logger.info('Method ended: uploadInventoryDocument');
     }
   }
 
@@ -487,50 +689,79 @@ export class ServicesController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update existing inventory entry in DB' })
+  @ApiParam({ name: 'id', type: Number, description: 'Inventory entry ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Inventory entry updated successfully',
+  })
   async updateInventoryEntry(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateInventoryEntryDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: updateInventoryEntry');
+    logger.info('Method started: updateInventoryEntry');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      const orgId = user?.organizationId || 1;
-      const result = await this.servicesService.updateInventoryEntry(orgId, Number(id), dto);
-      this.utilService.sendSuccessResponse(res, 'Inventory entry updated successfully', result);
+      const result = await this.servicesService.updateInventoryEntry(
+        user,
+        id,
+        dto,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Inventory entry updated successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in updateInventoryEntry: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to update inventory entry. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: updateInventoryEntry');
-      res.end();
+      logger.info('Method ended: updateInventoryEntry');
     }
   }
 
-  @Delete('inventory-entries/:id')
+  @Post('inventory-entries/:id/deactivate')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete inventory entry from DB' })
-  async deleteInventoryEntry(
+  @ApiOperation({ summary: 'Deactivate inventory entry from DB' })
+  @ApiParam({ name: 'id', type: Number, description: 'Inventory entry ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Inventory entry deactivated successfully',
+  })
+  async deactivateInventoryEntry(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: deleteInventoryEntry');
+    logger.info('Method started: deactivateInventoryEntry');
     try {
       const user = req['user'] as IDecodeUserDetails;
-      const orgId = user?.organizationId || 1;
-      const result = await this.servicesService.deleteInventoryEntry(orgId, Number(id));
-      this.utilService.sendSuccessResponse(res, result.message, null);
+      const result = await this.servicesService.deactivateInventoryEntry(
+        user,
+        id,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Inventory entry deactivated successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in deleteInventoryEntry: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to deactivate inventory entry. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: deleteInventoryEntry');
-      res.end();
+      logger.info('Method ended: deactivateInventoryEntry');
     }
   }
 
@@ -538,91 +769,112 @@ export class ServicesController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get services subscribed by an organization' })
+  @ApiParam({ name: 'id', type: Number, description: 'Organization ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched organization services',
+  })
   async getOrgServices(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: getOrgServices');
+    logger.info('Method started: getOrgServices');
     try {
       const user = req['user'] as IDecodeUserDetails;
-
-      const isSuperAdmin = user?.roleId === MasterRole.SUPER_ADMIN;
-      const isSameOrg = Number(user?.organizationId) === Number(id);
-
-      if (!isSuperAdmin && !isSameOrg) {
-        throw new ForbiddenException('Access denied');
-      }
-
-      const result = await this.servicesService.getOrgServices(id);
-      this.utilService.sendSuccessResponse(res, 'Successfully fetched organization services', result);
+      const result = await this.servicesService.getOrgServices(id, user);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched organization services',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in getOrgServices: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch organization services. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getOrgServices');
-      res.end();
+      logger.info('Method ended: getOrgServices');
     }
   }
 
   @Post('organizations/:id/services')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Assign services to an organization (Super Admin only)' })
+  @ApiOperation({
+    summary: 'Assign services to an organization (Super Admin only)',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Organization ID' })
+  @ApiResponse({ status: 200, description: 'Services assigned successfully' })
   async assignServices(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: AssignServicesDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: assignServices');
+    logger.info('Method started: assignServices');
     try {
       const user = req['user'] as IDecodeUserDetails;
-
-      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
-        throw new ForbiddenException('Only Super Admin can assign services to organizations');
-      }
-
-      const result = await this.servicesService.assignServices(id, dto, user.id);
-      this.utilService.sendSuccessResponse(res, 'Services assigned successfully', result);
+      const result = await this.servicesService.assignServices(id, dto, user);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Services assigned successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in assignServices: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to assign services. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: assignServices');
-      res.end();
+      logger.info('Method ended: assignServices');
     }
   }
 
-  @Delete('organizations/:id/services/:serviceId')
+  @Post('organizations/:id/services/:serviceId/deactivate')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Remove a service from an organization (Super Admin only)' })
+  @ApiOperation({
+    summary: 'Remove a service from an organization (Super Admin only)',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Organization ID' })
+  @ApiParam({ name: 'serviceId', type: Number, description: 'Service ID' })
+  @ApiResponse({ status: 200, description: 'Service removed successfully' })
   async removeOrgService(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
-    @Param('serviceId') serviceId: number,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('serviceId', ParseIntPipe) serviceId: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
-    logger.info('Method Start: removeOrgService');
+    logger.info('Method started: removeOrgService');
     try {
       const user = req['user'] as IDecodeUserDetails;
-
-      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
-        throw new ForbiddenException('Only Super Admin can remove services from organizations');
-      }
-
-      const result = await this.servicesService.removeOrgService(id, serviceId);
-      this.utilService.sendSuccessResponse(res, result.message, null);
+      const result = await this.servicesService.removeOrgService(
+        id,
+        serviceId,
+        user,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Service removed successfully',
+        result,
+      );
     } catch (error) {
-      logger.error(`Error in removeOrgService: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to remove service. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: removeOrgService');
-      res.end();
+      logger.info('Method ended: removeOrgService');
     }
   }
 }

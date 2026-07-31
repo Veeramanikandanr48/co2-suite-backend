@@ -1,16 +1,16 @@
 import {
   Column,
-  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { BaseColumns } from './base-columns.entity';
 import { Organization } from './organization.entity';
 import { Service } from './service.entity';
 
 @Entity({ name: 'organization_services' })
-export class OrganizationService {
+export class OrganizationService extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -22,12 +22,6 @@ export class OrganizationService {
 
   @Column({ nullable: true })
   subscribedBy: number;
-
-  @Column({ default: true })
-  isActive: boolean;
-
-  @CreateDateColumn()
-  subscribedOn: Date;
 
   @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'organizationId' })

@@ -1,13 +1,8 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BaseColumns } from './base-columns.entity';
 
 @Entity({ name: 'service_scope_items' })
-export class ServiceScopeItem {
+export class ServiceScopeItem extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -31,13 +26,4 @@ export class ServiceScopeItem {
 
   @Column({ default: 0 })
   sortOrder: number;
-
-  @Column({ default: true })
-  isActive: boolean;
-
-  @CreateDateColumn()
-  createdOn: Date;
-
-  @UpdateDateColumn()
-  updatedOn: Date;
 }

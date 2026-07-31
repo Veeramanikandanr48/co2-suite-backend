@@ -1,8 +1,6 @@
 import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable, Logger } from '@nestjs/common';
 import { IMailDetails } from '../base-interface.interface';
-import * as path from 'path';
-import * as fs from 'fs';
 
 @Injectable()
 export class EmailService {

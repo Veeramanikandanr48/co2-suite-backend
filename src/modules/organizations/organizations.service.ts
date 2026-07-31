@@ -1,19 +1,29 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Organization } from 'src/entities/organization.entity';
-import { UserAuthenticationDetails, UserDetails } from 'src/entities/user.entity';
-import { CreateOrganizationDto, AddOrganizationMemberDto } from 'src/dto/organization.dto';
+import {
+  UserAuthenticationDetails,
+  UserDetails,
+} from 'src/entities/user.entity';
+import {
+  CreateOrganizationDto,
+  AddOrganizationMemberDto,
+  UpdateOrganizationDto,
+  UpdateOrganizationMemberDto,
+} from 'src/dto/organization.dto';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import { ICommonSortFieldObject } from 'src/utility/base-interface.interface';
 import { UtilService } from 'src/utility/util/util.service';
 import * as bcrypt from 'bcryptjs';
 import { MasterRole } from 'src/enums/casl.enum';
 import { LoginMasterType } from 'src/enums/registration.enum';
+import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
 
 @Injectable()
 export class OrganizationsService {
@@ -26,22 +36,55 @@ export class OrganizationsService {
     private readonly utilService: UtilService,
   ) {}
 
-  async onboardOrganization(
-    dto: CreateOrganizationDto,
-    superAdminId: number,
-  ) {
+  private assertSuperAdmin(user: IDecodeUserDetails): void {
+    if (user?.roleId !== MasterRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Only Super Admin can perform this action');
+    }
+  }
+
+  private assertCanManageOrg(user: IDecodeUserDetails, orgId: number): void {
+    const isSuperAdmin = user?.roleId === MasterRole.SUPER_ADMIN;
+    const isOrgAdmin =
+      user?.roleId === MasterRole.ADMIN &&
+      Number(user?.organizationId) === Number(orgId);
+    if (!isSuperAdmin && !isOrgAdmin) {
+      throw new ForbiddenException('Access denied to this organization');
+    }
+  }
+
+  private resolveOrgScope(user: IDecodeUserDetails): number | undefined {
+    if (user?.roleId === MasterRole.SUPER_ADMIN) {
+      return undefined;
+    }
+    return user?.organizationId ? Number(user?.organizationId) : undefined;
+  }
+
+  async onboardOrganization(dto: CreateOrganizationDto, user: IDecodeUserDetails) {
+    this.assertSuperAdmin(user);
+    const superAdminId = user.id;
+
     // 1. Check if organization code or name already exists
-    const existingOrg = await this.organizationRepo.findOne({
-      where: [{ code: dto.code }, { name: dto.name }],
-    });
+    const existingOrg = await this.organizationRepo
+      .createQueryBuilder('org')
+      .select(['org.id', 'org.code', 'org.name'])
+      .where('org.code = :code OR org.name = :name', {
+        code: dto.code,
+        name: dto.name,
+      })
+      .getOne();
     if (existingOrg) {
       throw new ConflictException('Organization name or code already exists');
     }
 
     // 2. Check if admin email or username already exists
-    const existingUser = await this.userRepo.findOne({
-      where: [{ email: dto.adminEmail }, { userName: dto.adminUserName }],
-    });
+    const existingUser = await this.userRepo
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.email', 'user.userName'])
+      .where('user.email = :adminEmail OR user.userName = :adminUserName', {
+        adminEmail: dto.adminEmail,
+        adminUserName: dto.adminUserName,
+      })
+      .getOne();
     if (existingUser) {
       throw new ConflictException('Admin email or username already registered');
     }
@@ -76,16 +119,22 @@ export class OrganizationsService {
         isVerified: true,
         createdBy: superAdminId,
       });
-      const savedAdmin = await queryRunner.manager.save(UserDetails, adminEntity);
+      const savedAdmin = await queryRunner.manager.save(
+        UserDetails,
+        adminEntity,
+      );
 
       // Create Auth Details for Admin user
-      const authDetails = queryRunner.manager.create(UserAuthenticationDetails, {
-        userId: savedAdmin.id,
-        attemptedCount: 0,
-        isBlocked: false,
-        masterLoginTypeId: LoginMasterType.LOGIN,
-        createdBy: superAdminId,
-      });
+      const authDetails = queryRunner.manager.create(
+        UserAuthenticationDetails,
+        {
+          userId: savedAdmin.id,
+          attemptedCount: 0,
+          isBlocked: false,
+          masterLoginTypeId: LoginMasterType.LOGIN,
+          createdBy: superAdminId,
+        },
+      );
       await queryRunner.manager.save(UserAuthenticationDetails, authDetails);
 
       await queryRunner.commitTransaction();
@@ -105,37 +154,95 @@ export class OrganizationsService {
           organizationId: savedAdmin.organizationId,
         },
       };
-    } catch (error) {
+    } catch {
       await queryRunner.rollbackTransaction();
-      throw new BadRequestException(`Organization onboarding failed: ${error.message}`);
+      throw new BadRequestException(
+        'Organization onboarding failed. Please try again later.',
+      );
     } finally {
       await queryRunner.release();
     }
   }
 
-  async getAllOrganizations() {
-    return this.organizationRepo.find({
-      order: { id: 'ASC' },
-    });
+  async getAllOrganizations(user: IDecodeUserDetails) {
+    const orgId = this.resolveOrgScope(user);
+    const query = this.organizationRepo
+      .createQueryBuilder('org')
+      .select([
+        'org.id',
+        'org.name',
+        'org.code',
+        'org.contactEmail',
+        'org.emailDomain',
+        'org.phone',
+        'org.website',
+        'org.address',
+        'org.city',
+        'org.state',
+        'org.country',
+        'org.postalCode',
+        'org.taxId',
+        'org.industry',
+        'org.timezone',
+        'org.isActive',
+        'org.createdAt',
+        'org.updatedAt',
+      ])
+      .where('org.isActive = :isActive', { isActive: true });
+
+    if (orgId) {
+      query.andWhere('org.id = :orgId', { orgId });
+    }
+
+    return query.orderBy('org.id', 'ASC').getMany();
   }
 
-  async getOrganizationById(id: number) {
-    return this.organizationRepo.findOne({
-      where: { id },
-    });
+  async getOrganizationById(id: number, user: IDecodeUserDetails) {
+    this.assertCanManageOrg(user, id);
+    return this.organizationRepo
+      .createQueryBuilder('org')
+      .select([
+        'org.id',
+        'org.name',
+        'org.code',
+        'org.contactEmail',
+        'org.emailDomain',
+        'org.phone',
+        'org.website',
+        'org.address',
+        'org.city',
+        'org.state',
+        'org.country',
+        'org.postalCode',
+        'org.taxId',
+        'org.industry',
+        'org.timezone',
+        'org.isActive',
+        'org.createdAt',
+        'org.updatedAt',
+      ])
+      .where('org.id = :id', { id })
+      .andWhere('org.isActive = :isActive', { isActive: true })
+      .getOne();
   }
 
-  async updateOrganization(id: number, data: Partial<Organization>) {
-    const org = await this.getOrganizationById(id);
+  async updateOrganization(
+    id: number,
+    data: UpdateOrganizationDto,
+    user: IDecodeUserDetails,
+  ) {
+    this.assertCanManageOrg(user, id);
+    const org = await this.getOrganizationById(id, user);
     if (!org) {
       throw new BadRequestException('Organization not found');
     }
     await this.organizationRepo.update(id, data);
-    return this.getOrganizationById(id);
+    return this.getOrganizationById(id, user);
   }
 
-  async deleteOrganization(id: number) {
-    const org = await this.getOrganizationById(id);
+  async deactivateOrganization(id: number, user: IDecodeUserDetails) {
+    this.assertSuperAdmin(user);
+    const org = await this.getOrganizationById(id, user);
     if (!org) {
       throw new BadRequestException('Organization not found');
     }
@@ -143,16 +250,27 @@ export class OrganizationsService {
     return { message: 'Organization deactivated successfully', id };
   }
 
-  async getOrganizationFilterList(payload: CommonListPayloadDto) {
+  async getOrganizationFilterList(
+    payload: CommonListPayloadDto,
+    user: IDecodeUserDetails,
+  ) {
+    const orgId = this.resolveOrgScope(user);
     const tableName = 'org';
-    const tableSortCheck = ['id', 'name', 'code', 'contactEmail', 'isActive', 'createdOn'];
+    const tableSortCheck = [
+      'id',
+      'name',
+      'code',
+      'contactEmail',
+      'isActive',
+      'createdAt',
+    ];
     const sortFieldObject: ICommonSortFieldObject = {
       id: 'org.id',
       name: 'org.name',
       code: 'org.code',
       contactEmail: 'org.contactEmail',
       isActive: 'org.isActive',
-      createdOn: 'org.createdOn',
+      createdAt: 'org.createdAt',
     };
 
     const processedPayload = await this.utilService.processListPayload(
@@ -167,12 +285,37 @@ export class OrganizationsService {
     const { offSet, limit, sortField, sortOrder } = processedPayload;
     const { searchInput = '' } = payload || {};
 
-    const query = this.organizationRepo.createQueryBuilder(tableName);
+    const query = this.organizationRepo
+      .createQueryBuilder(tableName)
+      .select([
+        'org.id',
+        'org.name',
+        'org.code',
+        'org.contactEmail',
+        'org.emailDomain',
+        'org.phone',
+        'org.website',
+        'org.address',
+        'org.city',
+        'org.state',
+        'org.country',
+        'org.postalCode',
+        'org.taxId',
+        'org.industry',
+        'org.timezone',
+        'org.isActive',
+        'org.createdAt',
+        'org.updatedAt',
+      ]);
+
+    if (orgId) {
+      query.andWhere('org.id = :orgId', { orgId });
+    }
 
     if (searchInput && searchInput.trim()) {
       const term = `%${searchInput.trim().toLowerCase()}%`;
-      query.where(
-        'LOWER(org.name) LIKE :term OR LOWER(org.code) LIKE :term OR LOWER(org.contactEmail) LIKE :term',
+      query.andWhere(
+        '(LOWER(org.name) LIKE :term OR LOWER(org.code) LIKE :term OR LOWER(org.contactEmail) LIKE :term)',
         { term },
       );
     }
@@ -192,7 +335,9 @@ export class OrganizationsService {
   async getOrganizationUsersFilterList(
     orgId: number,
     payload: CommonListPayloadDto,
+    user: IDecodeUserDetails,
   ) {
+    this.assertCanManageOrg(user, orgId);
     const tableName = 'user';
     const tableSortCheck = [
       'id',
@@ -202,7 +347,7 @@ export class OrganizationsService {
       'userName',
       'roleId',
       'isActive',
-      'createdOn',
+      'createdAt',
     ];
     const sortFieldObject: ICommonSortFieldObject = {
       id: 'user.id',
@@ -212,7 +357,7 @@ export class OrganizationsService {
       userName: 'user.userName',
       roleId: 'user.roleId',
       isActive: 'user.isActive',
-      createdOn: 'user.createdOn',
+      createdAt: 'user.createdAt',
     };
 
     const processedPayload = await this.utilService.processListPayload(
@@ -229,6 +374,20 @@ export class OrganizationsService {
 
     const query = this.userRepo
       .createQueryBuilder(tableName)
+      .select([
+        'user.id',
+        'user.organizationId',
+        'user.firstName',
+        'user.lastName',
+        'user.userName',
+        'user.email',
+        'user.roleId',
+        'user.isVerified',
+        'user.profileImageKey',
+        'user.isActive',
+        'user.createdAt',
+        'user.updatedAt',
+      ])
       .where('user.organizationId = :orgId', { orgId });
 
     if (searchInput && searchInput.trim()) {
@@ -254,18 +413,27 @@ export class OrganizationsService {
   async addMemberToOrganization(
     orgId: number,
     dto: AddOrganizationMemberDto,
-    creatorId: number,
+    user: IDecodeUserDetails,
   ) {
-    const org = await this.getOrganizationById(orgId);
+    this.assertCanManageOrg(user, orgId);
+    const creatorId = user.id;
+    const org = await this.getOrganizationById(orgId, user);
     if (!org) {
       throw new BadRequestException('Organization not found');
     }
 
-    const existingUser = await this.userRepo.findOne({
-      where: [{ email: dto.email }, { userName: dto.userName }],
-    });
+    const existingUser = await this.userRepo
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.email', 'user.userName'])
+      .where('user.email = :email OR user.userName = :userName', {
+        email: dto.email,
+        userName: dto.userName,
+      })
+      .getOne();
     if (existingUser) {
-      throw new ConflictException('User with this email or username already exists');
+      throw new ConflictException(
+        'User with this email or username already exists',
+      );
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
@@ -297,19 +465,37 @@ export class OrganizationsService {
   async updateOrganizationMember(
     orgId: number,
     userId: number,
-    dto: Partial<AddOrganizationMemberDto>,
+    dto: UpdateOrganizationMemberDto,
+    user: IDecodeUserDetails,
   ) {
-    const user = await this.userRepo.findOne({ where: { id: userId, organizationId: orgId } });
-    if (!user) {
-      throw new BadRequestException(`User with ID ${userId} not found in this organization`);
+    this.assertCanManageOrg(user, orgId);
+    const userRecord = await this.userRepo
+      .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.organizationId',
+        'user.firstName',
+        'user.lastName',
+        'user.email',
+        'user.userName',
+        'user.roleId',
+        'user.isActive',
+      ])
+      .where('user.id = :userId', { userId })
+      .andWhere('user.organizationId = :orgId', { orgId })
+      .getOne();
+    if (!userRecord) {
+      throw new BadRequestException(
+        `User with ID ${userId} not found in this organization`,
+      );
     }
 
-    if (dto.firstName) user.firstName = dto.firstName;
-    if (dto.lastName) user.lastName = dto.lastName;
-    if (dto.email) user.email = dto.email;
-    if (dto.roleId) user.roleId = dto.roleId;
+    if (dto.firstName) userRecord.firstName = dto.firstName;
+    if (dto.lastName) userRecord.lastName = dto.lastName;
+    if (dto.email) userRecord.email = dto.email;
+    if (dto.roleId) userRecord.roleId = dto.roleId;
 
-    await this.userRepo.save(user);
-    return user;
+    await this.userRepo.save(userRecord);
+    return userRecord;
   }
 }

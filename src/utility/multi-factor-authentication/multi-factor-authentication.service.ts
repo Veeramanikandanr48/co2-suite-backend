@@ -29,9 +29,16 @@ export class MultiFactorAuthenticationService {
     try {
       const encryptionKey = process.env.CRYPTO_SECRET_KEY;
 
-      const record = await this.userDetailsRepository.findOne({
-        where: { id, isActive: true },
-      });
+      const record = await this.userDetailsRepository
+        .createQueryBuilder('user')
+        .select([
+          'user.id',
+          'user.twoFactorAuthenticationSecret',
+          'user.isActive',
+        ])
+        .where('user.id = :id', { id })
+        .andWhere('user.isActive = :isActive', { isActive: true })
+        .getOne();
 
       if (!record?.isActive) {
         return {
@@ -60,9 +67,19 @@ export class MultiFactorAuthenticationService {
 
   public async getMfaRecordById(id: number): Promise<MfaResponse<UserDetails>> {
     try {
-      const record = await this.userDetailsRepository.findOne({
-        where: { id, isActive: true },
-      });
+      const record = await this.userDetailsRepository
+        .createQueryBuilder('user')
+        .select([
+          'user.id',
+          'user.email',
+          'user.userName',
+          'user.isTwoFactorAuthenticationEnabled',
+          'user.twoFactorAuthenticationSecret',
+          'user.isActive',
+        ])
+        .where('user.id = :id', { id })
+        .andWhere('user.isActive = :isActive', { isActive: true })
+        .getOne();
 
       if (!record) {
         return {
@@ -116,7 +133,11 @@ export class MultiFactorAuthenticationService {
 
   public async generateQRcode(email: string): Promise<IQRGnerateResponse> {
     const secretKey: string = generateSecret({ length: this.numberOfBytes });
-    const qrUri: string = generateURI({ label: email, issuer: this.issuer, secret: secretKey });
+    const qrUri: string = generateURI({
+      label: email,
+      issuer: this.issuer,
+      secret: secretKey,
+    });
     const qrcode: string = await QRCode.toDataURL(qrUri);
     const data: IQRGnerateResponse = {
       secretKey,

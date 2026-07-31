@@ -30,7 +30,44 @@ export class ApprovalService {
     private readonly approvalMatrixRepository: Repository<ApprovalMatrix>,
     @InjectRepository(UserApprovalRemarksMapping)
     private readonly userApprovalRemarksMappingRepository: Repository<UserApprovalRemarksMapping>,
-  ) {}
+  ) { }
+
+  private validateSqlIdentifier(value: string, fieldName: string): string {
+    const valid = value
+      .split('.')
+      .every((part) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(part));
+    if (!valid) {
+      throw new Error(`Invalid approval module ${fieldName}`);
+    }
+    return value
+      .split('.')
+      .map((part) => `"${part}"`)
+      .join('.');
+  }
+
+  private validateConditionName(conditionName: string): string {
+    const clause = '("[a-zA-Z_][a-zA-Z0-9_]*"|[a-zA-Z_][a-zA-Z0-9_]*)';
+    const operator = '(=|!=|<>|>|>=|<|<=|IS NULL|IS NOT NULL|LIKE)';
+    const literal = "('[^']*'|\\d+(\\.\\d+)?|true|false|NULL)";
+    const singleCondition = new RegExp(
+      `^\\s*${clause}\\s*${operator}(\\s+${literal})?\\s*$`,
+      'i',
+    );
+
+    if (singleCondition.test(conditionName)) {
+      return conditionName;
+    }
+
+    const conditions = conditionName.split(/\s+(AND|OR)\s+/i);
+    if (
+      conditions.length > 1 &&
+      conditions.every((part) => singleCondition.test(part))
+    ) {
+      return conditionName;
+    }
+
+    throw new Error('Invalid approval matrix condition');
+  }
 
   async insertUserApprovalWithQueryRunner(
     data: IApprovalData,
@@ -67,10 +104,18 @@ export class ApprovalService {
     }
 
     for (const matrix of approvalMatrix) {
-      const query = `SELECT COUNT(*) as "totalCount" FROM ${approvalModule.mappingTable} WHERE "${approvalModule.mappingColumn}" = ${approvalModuleUniqueId} AND ${matrix.conditionName} AND "isActive" = true`;
+      const mappingTable = this.validateSqlIdentifier(
+        approvalModule.mappingTable,
+        'mappingTable',
+      );
+      const mappingColumn = this.validateSqlIdentifier(
+        approvalModule.mappingColumn,
+        'mappingColumn',
+      );
+      const conditionName = this.validateConditionName(matrix.conditionName);
+      const query = `SELECT COUNT(*) as "totalCount" FROM ${mappingTable} WHERE ${mappingColumn} = $1 AND ${conditionName} AND "isActive" = true`;
 
-      // const result = await queryRunner.query(query, [approvalModuleUniqueId]);
-      const result = await queryRunner.query(query);
+      const result = await queryRunner.query(query, [approvalModuleUniqueId]);
 
       const totalCount = result?.[0]?.totalCount
         ? Number(result[0].totalCount)
@@ -101,8 +146,8 @@ export class ApprovalService {
     );
     const partiallyAppOrderList = currentUserMatrix
       ? tempDocApproval.filter(
-          (m) => m.approvalOrder < currentUserMatrix.approvalOrder,
-        )
+        (m) => m.approvalOrder < currentUserMatrix.approvalOrder,
+      )
       : [];
     logger?.info(
       `Partially approved order list: ${partiallyAppOrderList.map((m) => m.approvalOrder).join(', ')}`,
@@ -573,6 +618,17 @@ export class ApprovalService {
         this.getApprovalModuleDetails(approvalModuleId),
         this.approvalMatrixRepository
           .createQueryBuilder('matrix')
+          .select([
+            'matrix.id',
+            'matrix.approvalModuleId',
+            'matrix.fieldName',
+            'matrix.conditionName',
+            'matrix.approvalOrder',
+            'matrix.approvalGroup',
+            'matrix.isParallel',
+            'matrix.toRoleId',
+            'matrix.isActive',
+          ])
           .where('"approvalModuleId" = :approvalModuleId', { approvalModuleId })
           .andWhere('"fieldName" = :fieldName', { fieldName: 'None' })
           .andWhere('"isActive" = true')
@@ -588,18 +644,38 @@ export class ApprovalService {
 
       const conditionalMatrix = await this.approvalMatrixRepository
         .createQueryBuilder('matrix')
+        .select([
+          'matrix.id',
+          'matrix.approvalModuleId',
+          'matrix.fieldName',
+          'matrix.conditionName',
+          'matrix.approvalOrder',
+          'matrix.approvalGroup',
+          'matrix.isParallel',
+          'matrix.toRoleId',
+          'matrix.isActive',
+        ])
         .where('"approvalModuleId" = :approvalModuleId', { approvalModuleId })
         .andWhere('"fieldName" != :fieldName', { fieldName: 'None' })
         .andWhere('"isActive" = true')
         .getMany();
 
       for (const matrix of conditionalMatrix) {
-        const query = `SELECT COUNT(*) as "countOfVal" FROM ${approvalModule.mappingTable} 
-                    WHERE "${approvalModule.mappingColumn}" = ${primaryId} 
-                    AND ${matrix.conditionName} 
+        const mappingTable = this.validateSqlIdentifier(
+          approvalModule.mappingTable,
+          'mappingTable',
+        );
+        const mappingColumn = this.validateSqlIdentifier(
+          approvalModule.mappingColumn,
+          'mappingColumn',
+        );
+        const conditionName = this.validateConditionName(matrix.conditionName);
+        const query = `SELECT COUNT(*) as "countOfVal" FROM ${mappingTable} 
+                    WHERE ${mappingColumn} = $1 
+                    AND ${conditionName} 
                     AND "isActive" = true`;
 
-        const result = await this.dataSource.query(query);
+        const result = await this.dataSource.query(query, [primaryId]);
         const countOfVal = result?.[0]?.countOfVal
           ? Number(result[0].countOfVal)
           : 0;
@@ -623,8 +699,8 @@ export class ApprovalService {
       );
       const partiallyAppOrderList = currentUserMatrix
         ? tempApprovalMatrix.filter(
-            (m) => m.approvalOrder < currentUserMatrix.approvalOrder,
-          )
+          (m) => m.approvalOrder < currentUserMatrix.approvalOrder,
+        )
         : [];
 
       const isMaxApprove = maxApprovalOrderRole === userRoleId;
@@ -682,19 +758,33 @@ export class ApprovalService {
     remarks?: string,
     // notify?: NotificationInsertViewModel
   ): Promise<boolean> {
-    const logger = { info: (_msg: string) => {}, error: (_msg: string) => {} };
+    const logger = { info: (_msg: string) => { }, error: (_msg: string) => { } };
     const roleId = 1;
     const userId = 1;
 
     try {
       const [allApproverData] = await Promise.all([
-        this.userApprovalRepository.find({
-          where: {
+        this.userApprovalRepository
+          .createQueryBuilder('ua')
+          .select([
+            'ua.id',
+            'ua.approvalModuleId',
+            'ua.approvalModuleUniqueId',
+            'ua.approvalOrder',
+            'ua.approvalGroup',
+            'ua.isParallel',
+            'ua.toRoleId',
+            'ua.approvalStatusId',
+            'ua.isNextApprover',
+            'ua.isCurrApprover',
+            'ua.isActive',
+          ])
+          .where('ua.approvalModuleId = :approvalModuleId', {
             approvalModuleId,
-            approvalModuleUniqueId: primaryId,
-            isActive: true,
-          },
-        }),
+          })
+          .andWhere('ua.approvalModuleUniqueId = :primaryId', { primaryId })
+          .andWhere('ua.isActive = :isActive', { isActive: true })
+          .getMany(),
         // this.getCurrentUserRoleId(), // You'll need to implement this method
         // this.getCurrentUserId(), // You'll need to implement this method
       ]);
@@ -710,17 +800,35 @@ export class ApprovalService {
         { isCurrApprover: false },
       );
 
-      const changeStatus = await this.userApprovalRepository.findOne({
-        where: {
-          approvalModuleUniqueId: primaryId,
+      const changeStatus = await this.userApprovalRepository
+        .createQueryBuilder('ua')
+        .select([
+          'ua.id',
+          'ua.approvalModuleId',
+          'ua.approvalModuleUniqueId',
+          'ua.approvalOrder',
+          'ua.approvalGroup',
+          'ua.isParallel',
+          'ua.toRoleId',
+          'ua.approvalStatusId',
+          'ua.isNextApprover',
+          'ua.isCurrApprover',
+          'ua.isActive',
+        ])
+        .where('ua.approvalModuleUniqueId = :primaryId', { primaryId })
+        .andWhere('ua.approvalModuleId = :approvalModuleId', {
           approvalModuleId,
-          isActive: true,
-          toRoleId: roleId,
-          approvalStatusId: ApprovalStatusEnum.PENDING,
+        })
+        .andWhere('ua.isActive = :isActive', { isActive: true })
+        .andWhere('ua.toRoleId = :roleId', { roleId })
+        .andWhere('ua.approvalStatusId = :status', {
+          status: ApprovalStatusEnum.PENDING,
+        })
+        .andWhere('ua.isNextApprover = :isNextApprover', {
           isNextApprover: true,
-        },
-        order: { approvalOrder: 'ASC' },
-      });
+        })
+        .orderBy('ua.approvalOrder', 'ASC')
+        .getOne();
 
       if (!changeStatus) {
         logger.error('ChangeStatus is null');

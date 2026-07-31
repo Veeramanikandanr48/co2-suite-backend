@@ -9,7 +9,7 @@ import {
 } from 'src/entities/user.entity';
 import { UtilService } from 'src/utility/util/util.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule, JwtService } from '@nestjs/jwt';
+import { JwtModule } from '@nestjs/jwt';
 import { EmailService } from 'src/utility/email/email.service';
 import { MultiFactorAuthenticationService } from 'src/utility/multi-factor-authentication/multi-factor-authentication.service';
 import { JwtStrategy } from 'src/auth/jwt.strategy';

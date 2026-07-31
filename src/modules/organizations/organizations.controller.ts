@@ -1,10 +1,9 @@
 import {
   Body,
   Controller,
-  Delete,
-  ForbiddenException,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Put,
   Req,
@@ -12,13 +11,23 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
-import { CreateOrganizationDto, AddOrganizationMemberDto } from 'src/dto/organization.dto';
+import {
+  CreateOrganizationDto,
+  AddOrganizationMemberDto,
+  UpdateOrganizationDto,
+  UpdateOrganizationMemberDto,
+} from 'src/dto/organization.dto';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { UtilService } from 'src/utility/util/util.service';
-import { MasterRole } from 'src/enums/casl.enum';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
 
 @ApiTags('Organizations')
@@ -37,41 +46,41 @@ export class OrganizationsController {
     description:
       'Creates a new Organization and provisions its initial Admin user (roleId: 2). Restricted strictly to Super Admin.',
   })
+  @ApiResponse({
+    status: 200,
+    description: 'Organization onboarded successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Failed to onboard organization' })
   async onboardOrganization(
     @Req() req: Request,
     @Res() res: Response,
     @Body() dto: CreateOrganizationDto,
   ) {
-    const logger = this.utilService.createLogger(OrganizationsController.name, req);
-    logger.info('Method Start: onboardOrganization');
+    const logger = this.utilService.createLogger(
+      OrganizationsController.name,
+      req,
+    );
+    logger.info('Method started: onboardOrganization');
     try {
       const user = req['user'] as IDecodeUserDetails;
-
-      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
-        throw new ForbiddenException(
-          'Only Super Admin can onboard organizations and create organization Admins',
-        );
-      }
-
       const result = await this.organizationsService.onboardOrganization(
         dto,
-        user.id,
+        user,
       );
-
-      logger.info(
-        `Organization onboarded successfully: ID ${result.organization.id}, Admin ID ${result.adminUser.id}`,
-      );
-      this.utilService.sendSuccessResponse(
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
         res,
-        'Organization onboarded successfully with Admin user',
+        'Organization onboarded successfully',
         result,
       );
     } catch (error) {
-      logger.error(`Error in onboardOrganization: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to onboard organization. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: onboardOrganization');
-      res.end();
+      logger.info('Method ended: onboardOrganization');
     }
   }
 
@@ -79,22 +88,33 @@ export class OrganizationsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all active organizations' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched organizations',
+  })
   async getAllOrganizations(@Req() req: Request, @Res() res: Response) {
-    const logger = this.utilService.createLogger(OrganizationsController.name, req);
-    logger.info('Method Start: getAllOrganizations');
+    const logger = this.utilService.createLogger(
+      OrganizationsController.name,
+      req,
+    );
+    logger.info('Method started: getAllOrganizations');
     try {
-      const orgs = await this.organizationsService.getAllOrganizations();
-      this.utilService.sendSuccessResponse(
+      const user = req['user'] as IDecodeUserDetails;
+      const result = await this.organizationsService.getAllOrganizations(user);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
         res,
         'Successfully fetched organizations',
-        orgs,
+        result,
       );
     } catch (error) {
-      logger.error(`Error in getAllOrganizations: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch organizations. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getAllOrganizations');
-      res.end();
+      logger.info('Method ended: getAllOrganizations');
     }
   }
 
@@ -102,26 +122,41 @@ export class OrganizationsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get organization details by ID' })
+  @ApiParam({ name: 'id', type: Number, description: 'Organization ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched organization details',
+  })
   async getOrganizationById(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
   ) {
-    const logger = this.utilService.createLogger(OrganizationsController.name, req);
-    logger.info('Method Start: getOrganizationById');
+    const logger = this.utilService.createLogger(
+      OrganizationsController.name,
+      req,
+    );
+    logger.info('Method started: getOrganizationById');
     try {
-      const org = await this.organizationsService.getOrganizationById(id);
-      this.utilService.sendSuccessResponse(
+      const user = req['user'] as IDecodeUserDetails;
+      const result = await this.organizationsService.getOrganizationById(
+        id,
+        user,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
         res,
         'Successfully fetched organization details',
-        org,
+        result,
       );
     } catch (error) {
-      logger.error(`Error in getOrganizationById: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch organization. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getOrganizationById');
-      res.end();
+      logger.info('Method ended: getOrganizationById');
     }
   }
 
@@ -129,60 +164,85 @@ export class OrganizationsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update organization details' })
+  @ApiParam({ name: 'id', type: Number, description: 'Organization ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully updated organization',
+  })
   async updateOrganization(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
-    @Body() body: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateOrganizationDto,
   ) {
-    const logger = this.utilService.createLogger(OrganizationsController.name, req);
-    logger.info('Method Start: updateOrganization');
+    const logger = this.utilService.createLogger(
+      OrganizationsController.name,
+      req,
+    );
+    logger.info('Method started: updateOrganization');
     try {
-      const updated = await this.organizationsService.updateOrganization(id, body);
-      this.utilService.sendSuccessResponse(
+      const user = req['user'] as IDecodeUserDetails;
+      const result = await this.organizationsService.updateOrganization(
+        id,
+        dto,
+        user,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
         res,
         'Successfully updated organization',
-        updated,
+        result,
       );
     } catch (error) {
-      logger.error(`Error in updateOrganization: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to update organization. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: updateOrganization');
-      res.end();
+      logger.info('Method ended: updateOrganization');
     }
   }
 
-  @Delete(':id')
+  @Post(':id/deactivate')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Deactivate organization (Super Admin only)' })
-  async deleteOrganization(
+  @ApiParam({ name: 'id', type: Number, description: 'Organization ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully deactivated organization',
+  })
+  async deactivateOrganization(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
   ) {
-    const logger = this.utilService.createLogger(OrganizationsController.name, req);
-    logger.info('Method Start: deleteOrganization');
+    const logger = this.utilService.createLogger(
+      OrganizationsController.name,
+      req,
+    );
+    logger.info('Method started: deactivateOrganization');
     try {
       const user = req['user'] as IDecodeUserDetails;
-
-      if (user?.roleId !== MasterRole.SUPER_ADMIN && user?.id !== 1) {
-        throw new ForbiddenException('Only Super Admin can deactivate organizations');
-      }
-
-      const result = await this.organizationsService.deleteOrganization(id);
-      this.utilService.sendSuccessResponse(
+      const result = await this.organizationsService.deactivateOrganization(
+        id,
+        user,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
         res,
         'Successfully deactivated organization',
         result,
       );
     } catch (error) {
-      logger.error(`Error in deleteOrganization: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to deactivate organization. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: deleteOrganization');
-      res.end();
+      logger.info('Method ended: deactivateOrganization');
     }
   }
 
@@ -190,88 +250,133 @@ export class OrganizationsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get paginated and filtered organization list' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched organizations',
+  })
   async getOrganizationFilterList(
     @Req() req: Request,
     @Res() res: Response,
     @Body() payload: CommonListPayloadDto,
   ) {
-    const logger = this.utilService.createLogger(OrganizationsController.name, req);
-    logger.info('Method Start: getOrganizationFilterList');
+    const logger = this.utilService.createLogger(
+      OrganizationsController.name,
+      req,
+    );
+    logger.info('Method started: getOrganizationFilterList');
     try {
-      const result = await this.organizationsService.getOrganizationFilterList(payload);
-      this.utilService.sendSuccessResponse(
+      const user = req['user'] as IDecodeUserDetails;
+      const result = await this.organizationsService.getOrganizationFilterList(
+        payload,
+        user,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
         res,
         'Successfully fetched organizations',
         result,
       );
     } catch (error) {
-      logger.error(`Error in getOrganizationFilterList: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch organizations. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getOrganizationFilterList');
-      res.end();
+      logger.info('Method ended: getOrganizationFilterList');
     }
   }
 
   @Post(':id/users/filter')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get paginated and filtered users for an organization' })
+  @ApiOperation({
+    summary: 'Get paginated and filtered users for an organization',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Organization ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched organization users',
+  })
   async getOrganizationUsersFilterList(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Body() payload: CommonListPayloadDto,
   ) {
-    const logger = this.utilService.createLogger(OrganizationsController.name, req);
-    logger.info('Method Start: getOrganizationUsersFilterList');
+    const logger = this.utilService.createLogger(
+      OrganizationsController.name,
+      req,
+    );
+    logger.info('Method started: getOrganizationUsersFilterList');
     try {
-      const result = await this.organizationsService.getOrganizationUsersFilterList(id, payload);
-      this.utilService.sendSuccessResponse(
+      const user = req['user'] as IDecodeUserDetails;
+      const result =
+        await this.organizationsService.getOrganizationUsersFilterList(
+          id,
+          payload,
+          user,
+        );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
         res,
         'Successfully fetched organization users',
         result,
       );
     } catch (error) {
-      logger.error(`Error in getOrganizationUsersFilterList: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch organization users. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: getOrganizationUsersFilterList');
-      res.end();
+      logger.info('Method ended: getOrganizationUsersFilterList');
     }
   }
 
   @Post(':id/users')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Add a new Admin or User member to an organization' })
+  @ApiOperation({
+    summary: 'Add a new Admin or User member to an organization',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'Organization ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Member user added to organization successfully',
+  })
   async addMemberToOrganization(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: AddOrganizationMemberDto,
   ) {
-    const logger = this.utilService.createLogger(OrganizationsController.name, req);
-    logger.info('Method Start: addMemberToOrganization');
+    const logger = this.utilService.createLogger(
+      OrganizationsController.name,
+      req,
+    );
+    logger.info('Method started: addMemberToOrganization');
     try {
       const user = req['user'] as IDecodeUserDetails;
-
-      if (user?.roleId !== MasterRole.SUPER_ADMIN && (user?.roleId !== MasterRole.ADMIN || Number(user?.organizationId) !== Number(id))) {
-        throw new ForbiddenException('Only Organization Admin or Super Admin can add members to this organization');
-      }
-
-      const result = await this.organizationsService.addMemberToOrganization(id, dto, user.id);
-      this.utilService.sendSuccessResponse(
+      const result = await this.organizationsService.addMemberToOrganization(
+        id,
+        dto,
+        user,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
         res,
-        'Member user added to organization successfully',
+        'Member added to organization successfully',
         result,
       );
     } catch (error) {
-      logger.error(`Error in addMemberToOrganization: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to add member. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: addMemberToOrganization');
-      res.end();
+      logger.info('Method ended: addMemberToOrganization');
     }
   }
 
@@ -279,28 +384,43 @@ export class OrganizationsController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update organization member user details' })
+  @ApiParam({ name: 'id', type: Number, description: 'Organization ID' })
+  @ApiParam({ name: 'userId', type: Number, description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'Member user updated successfully' })
   async updateOrganizationMember(
     @Req() req: Request,
     @Res() res: Response,
-    @Param('id') id: number,
-    @Param('userId') userId: number,
-    @Body() dto: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body() dto: UpdateOrganizationMemberDto,
   ) {
-    const logger = this.utilService.createLogger(OrganizationsController.name, req);
-    logger.info('Method Start: updateOrganizationMember');
+    const logger = this.utilService.createLogger(
+      OrganizationsController.name,
+      req,
+    );
+    logger.info('Method started: updateOrganizationMember');
     try {
-      const result = await this.organizationsService.updateOrganizationMember(id, userId, dto);
-      this.utilService.sendSuccessResponse(
+      const user = req['user'] as IDecodeUserDetails;
+      const result = await this.organizationsService.updateOrganizationMember(
+        id,
+        userId,
+        dto,
+        user,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
         res,
-        'Member user updated successfully',
+        'Member updated successfully',
         result,
       );
     } catch (error) {
-      logger.error(`Error in updateOrganizationMember: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, error.message);
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to update member. Please try again later.',
+      );
     } finally {
-      logger.info('Method end: updateOrganizationMember');
-      res.end();
+      logger.info('Method ended: updateOrganizationMember');
     }
   }
 }

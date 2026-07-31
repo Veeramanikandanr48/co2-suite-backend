@@ -6,13 +6,16 @@ import {
   UseGuards,
   Req,
   Res,
-  HttpStatus,
   Put,
   Param,
-  Delete,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { UtilService } from 'src/utility/util/util.service';
@@ -48,6 +51,11 @@ export class NotificationsController {
   @Get('getNotificationHistoryByUserId')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get notification history for the current user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification history fetched successfully',
+  })
   async getNotificationHistoryByUserId(
     @Req() req: Request,
     @Res() res: Response,
@@ -58,51 +66,41 @@ export class NotificationsController {
       req,
     );
     try {
-      logger.info(`Method Start: getNotificationHistoryByUserId`);
+      logger.info(`Method started: getNotificationHistoryByUserId`);
       const notificationHistory =
         await this.notificationsService.getNotificationHistory(userId);
       const unreadNotificationCount =
         await this.notificationsService.getUnreadNotificationCount(userId);
-      logger.info(`Successfully fetched notification history`);
-
-      const notificationHistoryWithIST = notificationHistory.map(
-        (notification) => {
-          return {
-            ...notification,
-            createdOn: notification.createdOn
-              ? new Date(notification.createdOn).toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true,
-                })
-              : null,
-          };
-        },
-      );
-
-      logger.info(`Method End: getNotificationHistoryByUserId`);
+      logger.info(`Operation successful`);
       this.utilService.sendSuccessResponse(
         res,
         'Notification history fetched successfully',
         {
-          notificationHistory: notificationHistoryWithIST,
+          notificationHistory,
           unreadNotificationCount,
         },
       );
     } catch (error) {
-      logger.error(`Error in fetching notification history`, error);
+      logger.error(`Error occurred`, error);
       this.utilService.sendErrorResponse(
         res,
         'Error in fetching notification history',
       );
     } finally {
-      logger.info(`Method End: getNotificationHistoryByUserId`);
+      logger.info(`Method ended: getNotificationHistoryByUserId`);
     }
   }
 
   @Post('toggleNotification')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Enable or disable push notification for the current user',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification preference updated successfully',
+  })
   async enableNotification(
     @Req() req: Request,
     @Res() res: Response,
@@ -114,79 +112,29 @@ export class NotificationsController {
       req,
     );
     try {
-      logger.info(`Method Start: enableNotification`);
-      const userNotificationData =
-        await this.notificationsService.getNotificationByUserIdWithDeviceType(
-          userId,
-          data.deviceType,
-        );
-      logger.info(`Successfully fetched notification by userId`);
-
-      if (userNotificationData.length && data.isActivate) {
-        for (const notification of userNotificationData) {
-          if (!notification.token) {
-            notification.token = data.token;
-            notification.deviceType = data.deviceType;
-            notification.enablePushNotification = true;
-            notification.isActive = true;
-            await this.notificationsService.updateNotification(
-              notification,
-              userId,
-            );
-          } else if (notification.token && notification.token === data.token) {
-            logger.info(`Notification already exists`);
-            return this.utilService.sendSuccessResponse(
-              res,
-              'Notification already enabled',
-            );
-          }
-        }
-        logger.info(`Successfully updated notification token.`);
-        return this.utilService.sendSuccessResponse(
-          res,
-          'Notification updated successfully',
-        );
-      }
-
-      if (!data.isActivate) {
-        for (const notification of userNotificationData) {
-          notification.enablePushNotification = false;
-          notification.isActive = false;
-          await this.notificationsService.updateNotification(
-            notification,
-            userId,
-          );
-        }
-        logger.info(`Successfully disabled previous device notification`);
-        return this.utilService.sendSuccessResponse(
-          res,
-          'Notification disabled successfully',
-        );
-      }
-
-      data['enablePushNotification'] = true;
-      data['userId'] = userId;
-      data['createdBy'] = userId;
-      data['updatedBy'] = userId;
-      const notification =
-        await this.notificationsService.saveNotification(data);
-      logger.info(`Successfully enabled notification`);
-      return this.utilService.sendSuccessResponse(
-        res,
-        'Notification enabled successfully',
+      logger.info(`Method started: enableNotification`);
+      const message = await this.notificationsService.toggleNotification(
+        data,
+        userId,
       );
+      logger.info(`Operation successful`);
+      this.utilService.sendSuccessResponse(res, message);
     } catch (error) {
-      logger.error(`Error in enabling notification`, error);
+      logger.error(`Error occurred`, error);
       return this.utilService.sendErrorResponse(
         res,
         'Error in enabling notification',
       );
+    } finally {
+      logger.info(`Method ended: enableNotification`);
     }
   }
 
   @Post('sendNotification')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Send a push notification to the current user' })
+  @ApiResponse({ status: 200, description: 'Notification sent successfully' })
   async sendNotification(
     @Req() req: Request,
     @Res() res: Response,
@@ -198,35 +146,33 @@ export class NotificationsController {
       req,
     );
     try {
-      logger.info(`Method Start: sendNotification`);
-      // Send notification logic
+      logger.info(`Method started: sendNotification`);
       const notificationData: INotificationPayload = {
         title: data.title,
         body: data.body,
         userId,
       };
-      // const notificationResponse = await this.notificationsService.sendPushNotification(notificationData);
       const notificationResponse =
         await this.notificationsService.sendNotification(notificationData);
-      logger.info(`Successfully sent notification`);
-
-      logger.info(`Method End: sendNotification`);
+      logger.info(`Operation successful`);
       this.utilService.sendSuccessResponse(
         res,
         'Notification sent successfully',
         notificationResponse,
       );
     } catch (error) {
-      logger.error(`Error in sending notification`, error);
+      logger.error(`Error occurred`, error);
       this.utilService.sendErrorResponse(res, 'Error in sending notification');
     } finally {
-      logger.info(`Method End: sendNotification`);
+      logger.info(`Method ended: sendNotification`);
     }
   }
 
   @Put('read/:id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mark a notification as read' })
+  @ApiResponse({ status: 200, description: 'Notification marked as read' })
   async markAsRead(
     @Req() req: Request,
     @Res() res: Response,
@@ -238,24 +184,29 @@ export class NotificationsController {
       req,
     );
     try {
-      logger.info(`Method Start: markAsRead`);
+      logger.info(`Method started: markAsRead`);
       await this.notificationsService.markAsRead(id, userId);
-      logger.info(`Successfully marked notification as read`);
+      logger.info(`Operation successful`);
       this.utilService.sendSuccessResponse(res, 'Notification marked as read');
     } catch (error) {
-      logger.error(`Error in marking notification as read`, error);
+      logger.error(`Error occurred`, error);
       this.utilService.sendErrorResponse(
         res,
         'Error in marking notification as read',
       );
     } finally {
-      logger.info(`Method End: markAsRead`);
+      logger.info(`Method ended: markAsRead`);
     }
   }
 
-  @Delete('deleteNotification/:id')
+  @Post('deleteNotification/:id')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Deactivate a notification' })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification deactivated successfully',
+  })
   async deleteNotification(
     @Req() req: Request,
     @Res() res: Response,
@@ -267,18 +218,21 @@ export class NotificationsController {
       req,
     );
     try {
-      logger.info(`Method Start: deleteNotification`);
+      logger.info(`Method started: deleteNotification`);
       await this.notificationsService.deleteNotification(id, userId);
-      logger.info(`Notification deleted successfully`);
+      logger.info(`Operation successful`);
       this.utilService.sendSuccessResponse(
         res,
-        'Notification deleted successfully',
+        'Notification deactivated successfully',
       );
     } catch (error) {
-      logger.error(`Error in deleting notification`, error);
-      this.utilService.sendErrorResponse(res, 'Error in deleting notification');
+      logger.error(`Error occurred`, error);
+      this.utilService.sendErrorResponse(
+        res,
+        'Error in deactivating notification',
+      );
     } finally {
-      logger.info(`Method End: deleteNotification`);
+      logger.info(`Method ended: deleteNotification`);
     }
   }
 }

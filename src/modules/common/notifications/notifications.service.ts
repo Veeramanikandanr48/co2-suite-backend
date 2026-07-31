@@ -6,7 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EnableNotificationDto } from './dto/create-notification.dto';
-import { DeviceTypes, NotificationType } from 'src/enums/notification.enum';
+import { DeviceTypes } from 'src/enums/notification.enum';
 import { INotificationPayload } from 'src/interfaces/notification.interface';
 import { NotificationGateway } from './notification.gateway';
 import { getMessaging } from 'firebase-admin/messaging';
@@ -42,15 +42,26 @@ export class NotificationsService {
   }
 
   async getNotificationHistory(userId: number): Promise<NotificationHistory[]> {
-    return await this.notificationHistoryRepository
+    const notificationHistory = await this.notificationHistoryRepository
       .createQueryBuilder('nh')
       .where('nh.userId = :userId and nh.isActive = true', { userId })
       .select(
-        `nh.title, nh.body, nh.userId, nh.createdOn, nh.id, nh.userNotificationId, nh.isRead`,
+        `nh.title, nh.body, nh.userId, nh.createdAt, nh.id, nh.userNotificationId, nh.isRead`,
       )
       .orderBy('nh.id', 'DESC')
       .limit(100)
       .getRawMany();
+
+    return notificationHistory.map((notification) => ({
+      ...notification,
+      createdAt: notification.createdAt
+        ? new Date(notification.createdAt).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          })
+        : null,
+    }));
   }
 
   async getUnreadNotificationCount(userId: number): Promise<number> {
@@ -69,6 +80,15 @@ export class NotificationsService {
   ): Promise<Notifications[]> {
     return await this.notificationRepository
       .createQueryBuilder('notification')
+      .select([
+        'notification.id',
+        'notification.userId',
+        'notification.token',
+        'notification.deviceType',
+        'notification.enablePushNotification',
+        'notification.enableInAppNotification',
+        'notification.isActive',
+      ])
       .where('notification.userId = :userId', { userId })
       .andWhere('notification.deviceType = :deviceType', { deviceType })
       .andWhere('notification.isActive = true')
@@ -110,24 +130,8 @@ export class NotificationsService {
       data.userNotificationId = userNotificationData[0].id;
       data.createdBy = data.userId;
       data.userId = data.userId;
-      const notification = await this.saveNotificationHistory(data);
+      await this.saveNotificationHistory(data);
 
-      // const deviceTokens = userNotificationData.map((item) => item.token);
-      // getMessaging().sendEachForMulticast({
-      //   notification: {
-      //     title: data.title,
-      //     body: data.body,
-      //   },
-      //   tokens: deviceTokens,
-      // })
-      //   .catch((error: any) => {
-      //     console.error(error);
-      //     return {
-      //       status: false,
-      //       message: error.message,
-      //       error,
-      //     }
-      //   });
       return {
         status: true,
         message: 'Notification sent successfully',
@@ -151,11 +155,11 @@ export class NotificationsService {
       return { notificationStatus, notification };
     }
     notification = await this.saveNotificationHistory(data);
-    // Format createdOn time before sending notification
+    // Format createdAt time before sending notification
     const formattedNotification = {
       ...notification,
-      createdOn: notification.createdOn
-        ? new Date(notification.createdOn).toLocaleTimeString('en-US', {
+      createdAt: notification.createdAt
+        ? new Date(notification.createdAt).toLocaleTimeString('en-US', {
             hour: 'numeric',
             minute: '2-digit',
             hour12: true,
@@ -200,5 +204,48 @@ export class NotificationsService {
       { id, userId },
       { isActive: false },
     );
+  }
+
+  async toggleNotification(
+    data: EnableNotificationDto,
+    userId: number,
+  ): Promise<string> {
+    const userNotificationData =
+      await this.getNotificationByUserIdWithDeviceType(userId, data.deviceType);
+
+    if (userNotificationData.length && data.isActivate) {
+      for (const notification of userNotificationData) {
+        if (!notification.token) {
+          notification.token = data.token;
+          notification.deviceType = data.deviceType;
+          notification.enablePushNotification = true;
+          notification.isActive = true;
+          await this.updateNotification(notification, userId);
+        } else if (notification.token && notification.token === data.token) {
+          return 'Notification already enabled';
+        }
+      }
+      return 'Notification updated successfully';
+    }
+
+    if (!data.isActivate) {
+      for (const notification of userNotificationData) {
+        notification.enablePushNotification = false;
+        notification.isActive = false;
+        await this.updateNotification(notification, userId);
+      }
+      return 'Notification disabled successfully';
+    }
+
+    const notificationData: Partial<Notifications> = {
+      deviceType: data.deviceType,
+      token: data.token,
+      enablePushNotification: true,
+      userId,
+      createdBy: userId,
+      updatedBy: userId,
+    };
+    await this.saveNotification(notificationData);
+    return 'Notification enabled successfully';
   }
 }

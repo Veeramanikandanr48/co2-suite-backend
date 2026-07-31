@@ -1,13 +1,8 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BaseColumns } from './base-columns.entity';
 
 @Entity({ name: 'emission_factors' })
-export class EmissionFactor {
+export class EmissionFactor extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -31,13 +26,4 @@ export class EmissionFactor {
 
   @Column({ default: '(amount * factor) / 1000' })
   formula: string;
-
-  @Column({ default: true })
-  isActive: boolean;
-
-  @CreateDateColumn()
-  createdOn: Date;
-
-  @UpdateDateColumn()
-  updatedOn: Date;
 }

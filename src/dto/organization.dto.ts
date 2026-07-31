@@ -97,3 +97,91 @@ export class AddOrganizationMemberDto {
   @IsNotEmpty()
   roleId: number;
 }
+
+export class UpdateOrganizationDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  contactEmail?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  emailDomain?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  website?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  postalCode?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  taxId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  industry?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  timezone?: string;
+}
+
+export class UpdateOrganizationMemberDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  roleId?: number;
+}

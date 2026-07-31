@@ -1,13 +1,8 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BaseColumns } from './base-columns.entity';
 
 @Entity({ name: 'inventory_entries' })
-export class InventoryEntry {
+export class InventoryEntry extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -58,13 +53,4 @@ export class InventoryEntry {
 
   @Column({ nullable: true })
   documentPath: string;
-
-  @Column({ nullable: true })
-  createdBy: number;
-
-  @CreateDateColumn()
-  createdOn: Date;
-
-  @UpdateDateColumn()
-  updatedOn: Date;
 }

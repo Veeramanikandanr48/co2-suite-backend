@@ -1,19 +1,16 @@
-import {
-  Controller,
-  Get,
-  HttpStatus,
-  Param,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
 import { MastersService } from './masters.service';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
-import { IResponse } from 'src/utility/base-interface.interface';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { UtilService } from 'src/utility/util/util.service';
 import { Request, Response } from 'express';
 
+@ApiTags('Masters')
 @Controller('masters')
 export class MastersController {
   constructor(
@@ -24,44 +21,60 @@ export class MastersController {
   @Get('getMasterRoles')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get master roles' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched master roles',
+  })
   async getMasterRoles(@Req() req: Request, @Res() res: Response) {
     const logger = this.utilService.createLogger(MastersController.name, req);
-    logger.info('Method Start: getMasterRoles');
+    logger.info('Method started: getMasterRoles');
     try {
-      const masterData = await this.mastersService.getMasterRoles();
-      this.utilService.sendSuccessResponse(
+      const result = await this.mastersService.getMasterRoles();
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
         res,
         'Successfully fetched master roles',
-        masterData,
+        result,
       );
     } catch (error) {
-      logger.error(`Error in getMasterRoles: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, 'Error in fetching master roles');
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch master roles',
+      );
     } finally {
-      logger.info('Method end: getMasterRoles');
-      res.end();
+      logger.info('Method ended: getMasterRoles');
     }
   }
 
   @Get('getMasterApprovalStatuses')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get master approval statuses' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched master approval statuses',
+  })
   async getMasterApprovalStatuses(@Req() req: Request, @Res() res: Response) {
     const logger = this.utilService.createLogger(MastersController.name, req);
-    logger.info('Method Start: getMasterApprovalStatuses');
+    logger.info('Method started: getMasterApprovalStatuses');
     try {
-      const masterData = await this.mastersService.getMasterApprovalStatuses();
-      this.utilService.sendSuccessResponse(
+      const result = await this.mastersService.getMasterApprovalStatuses();
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
         res,
         'Successfully fetched master approval statuses',
-        masterData,
+        result,
       );
     } catch (error) {
-      logger.error(`Error in getMasterApprovalStatuses: ${error.message}`, error);
-      this.utilService.sendErrorResponse(res, 'Error in fetching approval statuses');
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch approval statuses',
+      );
     } finally {
-      logger.info('Method end: getMasterApprovalStatuses');
-      res.end();
+      logger.info('Method ended: getMasterApprovalStatuses');
     }
   }
 }

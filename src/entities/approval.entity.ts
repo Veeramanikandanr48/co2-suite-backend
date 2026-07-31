@@ -1,42 +1,13 @@
 import {
   Column,
-  CreateDateColumn,
-  DeleteDateColumn,
   Entity,
   Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-  UpdateDateColumn,
 } from 'typeorm';
+import { BaseColumns } from './base-columns.entity';
 import { MasterApprovalStatus } from './master.entity';
-import { UserDetails } from './user.entity';
-
-export class BaseColumns {
-  @Column({ default: true })
-  isActive: boolean;
-
-  @ManyToOne(() => UserDetails, (user) => user.id)
-  @JoinColumn({ name: 'createdBy' })
-  createdBy: number;
-
-  @ManyToOne(() => UserDetails, (user) => user.id, { nullable: true })
-  @JoinColumn({ name: 'updatedBy' })
-  updatedBy: number;
-
-  @ManyToOne(() => UserDetails, (user) => user.id, { nullable: true })
-  @JoinColumn({ name: 'deletedBy' })
-  deletedBy: number;
-
-  @CreateDateColumn()
-  createdOn: Date;
-
-  @UpdateDateColumn()
-  updatedOn: Date;
-
-  @DeleteDateColumn({ nullable: true })
-  deletedOn: Date;
-}
 
 @Entity({ name: 'approval_modules' })
 export class ApprovalModules extends BaseColumns {
