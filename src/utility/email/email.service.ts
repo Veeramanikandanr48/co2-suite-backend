@@ -1,5 +1,5 @@
 import { MailerService } from '@nestjs-modules/mailer';
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { IMailDetails } from '../base-interface.interface';
 
 @Injectable()
@@ -25,7 +25,9 @@ export class EmailService {
       });
     } catch (err) {
       this.logger.error(`Failed to send email to ${obj.email}`, err.stack);
-      throw err; // Re-throw to allow proper error handling upstream
+      throw new BadRequestException(
+        'Failed to send email. Please try again later.',
+      );
     }
   }
 }

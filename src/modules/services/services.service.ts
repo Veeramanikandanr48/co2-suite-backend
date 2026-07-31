@@ -34,6 +34,7 @@ import {
   SEED_EMISSION_FACTORS,
   SEED_INVENTORY_ENTRIES,
 } from 'src/seeds/initial-data.seed';
+import { CalculationEngine } from './engine/calculation-engine';
 
 @Injectable()
 export class ServicesService implements OnApplicationBootstrap {
@@ -50,6 +51,7 @@ export class ServicesService implements OnApplicationBootstrap {
     @InjectRepository(InventoryEntry)
     private readonly inventoryRepo: Repository<InventoryEntry>,
     private readonly utilService: UtilService,
+    private readonly calculationEngine: CalculationEngine,
   ) {}
 
   private assertSuperAdmin(user: IDecodeUserDetails): void {
@@ -217,7 +219,9 @@ export class ServicesService implements OnApplicationBootstrap {
           .andWhere('service.isActive = :isActive', { isActive: true })
           .getOne();
         if (!service) {
-          throw new BadRequestException(`Service with ID ${serviceId} not found`);
+          throw new BadRequestException(
+            `Service with ID ${serviceId} not found`,
+          );
         }
 
         const existing = await manager
@@ -463,7 +467,8 @@ export class ServicesService implements OnApplicationBootstrap {
         'ef.description',
         'ef.isActive',
         'ef.createdAt',
-      ]);
+      ])
+      .andWhere('ef.isActive = :isActive', { isActive: true });
 
     if (additionalFilter && typeof additionalFilter === 'object') {
       const { category, source, isActive } = additionalFilter as Record<
@@ -523,6 +528,7 @@ export class ServicesService implements OnApplicationBootstrap {
         'ef.isActive',
       ])
       .where('ef.id = :id', { id })
+      .andWhere('ef.isActive = :isActive', { isActive: true })
       .getOne();
     if (!existing) {
       throw new BadRequestException(`Emission factor with ID ${id} not found`);
@@ -541,6 +547,7 @@ export class ServicesService implements OnApplicationBootstrap {
       .createQueryBuilder('ef')
       .select(['ef.id', 'ef.isActive'])
       .where('ef.id = :id', { id })
+      .andWhere('ef.isActive = :isActive', { isActive: true })
       .getOne();
     if (!existing) {
       throw new BadRequestException('Emission factor not found');
@@ -935,6 +942,7 @@ export class ServicesService implements OnApplicationBootstrap {
       ])
       .where('entry.id = :id', { id })
       .andWhere('entry.organizationId = :orgId', { orgId })
+      .andWhere('entry.isActive = :isActive', { isActive: true })
       .getOne();
     if (!existing) {
       throw new BadRequestException(`Inventory entry with ID ${id} not found`);
@@ -978,6 +986,7 @@ export class ServicesService implements OnApplicationBootstrap {
       .select(['entry.id', 'entry.organizationId', 'entry.isActive'])
       .where('entry.id = :id', { id })
       .andWhere('entry.organizationId = :orgId', { orgId })
+      .andWhere('entry.isActive = :isActive', { isActive: true })
       .getOne();
     if (!existing) {
       throw new BadRequestException('Inventory entry not found');
@@ -985,5 +994,199 @@ export class ServicesService implements OnApplicationBootstrap {
     existing.isActive = false;
     await this.inventoryRepo.save(existing);
     return { message: 'Inventory entry deactivated successfully' };
+  }
+
+  /**
+   * Activity code to Category Name mapping dictionary
+   */
+  private readonly activityToCategoryMap: Record<string, string> = {
+    // Scope 1
+    SC: 'Stationary Combustion',
+    MC: 'Mobile Combustion',
+    FE: 'Fugitive Emissions',
+    DPE: 'Process Emissions',
+    PE_S1: 'Process Emissions',
+
+    // Scope 2
+    PE: 'Purchased Electricity',
+    PHC: 'Purchased Heating & Steam',
+
+    // Scope 3
+    PGS: 'Purchased Goods and Services',
+    CG: 'Capital Goods',
+    FERA: 'Energy and Fuel Related Activities',
+    UTD: 'Upstream Transportation',
+    WGB: 'Waste Generated in Operations',
+    BT: 'Business Travel',
+    EC: 'Employee Commuting',
+    DTD: 'Downstream Transportation',
+    PSP: 'Processing of Sold Products',
+    USP: 'Use of Sold Products',
+    EOL: 'EOL Treatment of Sold Products',
+    FR: 'Franchise',
+    INV: 'Investments',
+  };
+
+  /**
+   * Fetch scope calculation result matching enterprise API payload format dynamically from DB tables
+   */
+  async getScopeResultByActivity(
+    user: IDecodeUserDetails,
+    scopeId: string,
+    activityCode: string,
+    queryParams?: {
+      based_option?: string;
+      company_uuid?: string;
+      year?: string;
+      facility?: string;
+    },
+  ) {
+    const orgId = this.resolveOrgId(user);
+    const codeUpper = (activityCode || '').toUpperCase().trim();
+
+    // Dynamically resolve category from DB scopeItemRepo first
+    const scopeItem = await this.scopeItemRepo
+      .createQueryBuilder('item')
+      .select(['item.name', 'item.code', 'item.scope', 'item.scopeCode'])
+      .where('UPPER(item.code) = :codeUpper', { codeUpper })
+      .orWhere('UPPER(item.scopeCode) = :codeUpper', { codeUpper })
+      .getOne();
+
+    const categoryName = scopeItem
+      ? scopeItem.name
+      : this.activityToCategoryMap[codeUpper] || codeUpper;
+
+    const query = this.inventoryRepo
+      .createQueryBuilder('entry')
+      .select([
+        'entry.id',
+        'entry.organizationId',
+        'entry.serviceCode',
+        'entry.category',
+        'entry.name',
+        'entry.amount',
+        'entry.unit',
+        'entry.ef',
+        'entry.efSource',
+        'entry.dateFrom',
+        'entry.dateTo',
+        'entry.facility',
+        'entry.emission',
+        'entry.status',
+        'entry.comment',
+        'entry.createdAt',
+      ])
+      .where('entry.organizationId = :orgId', { orgId })
+      .andWhere('entry.isActive = :isActive', { isActive: true });
+
+    if (categoryName) {
+      query.andWhere('LOWER(entry.category) = LOWER(:categoryName)', {
+        categoryName,
+      });
+    }
+
+    if (
+      queryParams?.facility &&
+      queryParams.facility !== 'all' &&
+      queryParams.facility !== 'All Facilities'
+    ) {
+      query.andWhere('LOWER(entry.facility) = LOWER(:facility)', {
+        facility: queryParams.facility.trim(),
+      });
+    }
+
+    const entries = await query.orderBy('entry.id', 'DESC').getMany();
+
+    const body = this.calculationEngine.processResults(
+      entries,
+      scopeId,
+      codeUpper,
+      orgId,
+      (queryParams?.based_option as 'activity' | 'spend') || 'activity',
+    );
+
+    return {
+      statusCode: 200,
+      body,
+      itemCount: body.length,
+    };
+  }
+
+  /**
+   * Dynamically fetch factor signature rule metadata from DB tables: /factor-signature
+   */
+  async getFactorSignature(
+    scopeId: string,
+    activityCode: string,
+    basedOption?: string,
+  ) {
+    const codeUpper = (activityCode || '').toUpperCase().trim();
+
+    // 1. Query scope item dynamically from DB
+    const scopeItem = await this.scopeItemRepo
+      .createQueryBuilder('item')
+      .select(['item.name', 'item.code', 'item.scope', 'item.scopeCode'])
+      .where('UPPER(item.code) = :codeUpper', { codeUpper })
+      .getOne();
+
+    const categoryName = scopeItem
+      ? scopeItem.name
+      : this.activityToCategoryMap[codeUpper] || codeUpper;
+
+    // 2. Query distinct emission factors dynamically from DB
+    const efRecords = await this.efRepo
+      .createQueryBuilder('ef')
+      .select(['ef.source', 'ef.version', 'ef.unit', 'ef.formula'])
+      .where('LOWER(ef.category) = LOWER(:categoryName)', { categoryName })
+      .andWhere('ef.isActive = :isActive', { isActive: true })
+      .getMany();
+
+    const sourcesSet = new Set<string>();
+    const versionsSet = new Set<string>();
+    const unitsSet = new Set<string>();
+    let defaultFormula = '(amount * factor) / 1000';
+
+    efRecords.forEach((ef) => {
+      if (ef.source) sourcesSet.add(ef.source);
+      if (ef.version) versionsSet.add(ef.version);
+      if (ef.unit) unitsSet.add(ef.unit);
+      if (ef.formula) defaultFormula = ef.formula;
+    });
+
+    if (sourcesSet.size === 0)
+      sourcesSet.add('IPCC (Commercial & Institutional Use)');
+    if (versionsSet.size === 0) versionsSet.add('AR6');
+    if (unitsSet.size === 0) unitsSet.add('sm3');
+
+    return {
+      statusCode: 200,
+      scope: String(
+        scopeId ||
+          (scopeItem?.scope ? scopeItem.scope.replace(/\D/g, '') : '1'),
+      ),
+      activity: codeUpper,
+      based_option: basedOption || 'activity',
+      available_sources: Array.from(sourcesSet),
+      versions: Array.from(versionsSet),
+      supported_units: Array.from(unitsSet),
+      default_formula: defaultFormula,
+    };
+  }
+
+  /**
+   * Fetch all supported scope activity codes dynamically from DB table
+   */
+  async getAllActivityCodes() {
+    const scopeItems = await this.scopeItemRepo.find({
+      where: { isActive: true },
+      order: { sortOrder: 'ASC' },
+    });
+
+    return scopeItems.map((item) => ({
+      code: item.code,
+      name: item.name,
+      scope: item.scope ? item.scope.replace(/\D/g, '') : '1',
+      scopeCode: item.scopeCode,
+    }));
   }
 }

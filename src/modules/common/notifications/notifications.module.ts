@@ -9,6 +9,7 @@ import {
 import { UtilService } from 'src/utility/util/util.service';
 import { EmailService } from 'src/utility/email/email.service';
 import { NotificationGateway } from './notification.gateway';
+import { FirebaseService } from './firebase.service';
 import { ConfigModule } from '@nestjs/config';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -31,6 +32,7 @@ import { JwtModule } from '@nestjs/jwt';
     UtilService,
     EmailService,
     NotificationGateway,
+    FirebaseService,
   ],
 })
 export class NotificationsModule {}

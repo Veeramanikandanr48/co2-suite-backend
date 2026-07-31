@@ -16,6 +16,7 @@ import { ServicesService } from './services.service';
 import { SummaryService } from './summary.service';
 import { ServicesController } from './services.controller';
 import { UtilService } from 'src/utility/util/util.service';
+import { CalculationEngine } from './engine/calculation-engine';
 
 @Module({
   imports: [
@@ -51,7 +52,7 @@ import { UtilService } from 'src/utility/util/util.service';
     }),
   ],
   controllers: [ServicesController],
-  providers: [ServicesService, SummaryService, UtilService],
-  exports: [ServicesService, SummaryService],
+  providers: [ServicesService, SummaryService, UtilService, CalculationEngine],
+  exports: [ServicesService, SummaryService, CalculationEngine],
 })
 export class ServicesModule {}

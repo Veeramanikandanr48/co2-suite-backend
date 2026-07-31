@@ -35,10 +35,10 @@ export class NotificationHistory extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   title: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   body: string;
 
   @Column({ nullable: true })

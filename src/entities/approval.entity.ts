@@ -14,16 +14,16 @@ export class ApprovalModules extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   moduleName: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   moduleShortName: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   mappingTable: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   mappingColumn: string;
 }
 
@@ -37,16 +37,16 @@ export class ApprovalMatrix extends BaseColumns {
   @JoinColumn({ name: 'approvalModuleId' })
   approvalModuleId: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   conditionName: string;
 
-  @Column()
+  @Column({ type: 'int' })
   toRoleId: number;
 
-  @Column()
+  @Column({ type: 'int' })
   approvalOrder: number;
 
-  @Column()
+  @Column({ type: 'int' })
   approvalGroup: number;
 
   @Column({ default: false })
@@ -63,19 +63,19 @@ export class UserApproval extends BaseColumns {
   @JoinColumn({ name: 'approvalModuleId' })
   approvalModuleId: number;
 
-  @Column()
+  @Column({ type: 'int' })
   approvalModuleUniqueId: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   toRoleId: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'int', nullable: true })
   toUserId: number;
 
-  @Column()
+  @Column({ type: 'int' })
   approvalOrder: number;
 
-  @Column()
+  @Column({ type: 'int' })
   approvalGroup: number;
 
   @ManyToOne(() => MasterApprovalStatus, (status) => status.id, {
@@ -93,7 +93,7 @@ export class UserApproval extends BaseColumns {
   @Column({ default: false })
   isNextApprover: boolean;
 
-  @Column()
+  @Column({ type: 'int' })
   userRoleId: number;
 }
 

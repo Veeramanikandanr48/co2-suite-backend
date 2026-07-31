@@ -32,7 +32,7 @@ export class UserDetails extends BaseColumns {
   @Column({ nullable: true })
   lastName: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   email: string;
 
   @Column({ nullable: true })
@@ -81,7 +81,7 @@ export class UserEmailVerification extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   email: string;
 
   @Column({ nullable: true })

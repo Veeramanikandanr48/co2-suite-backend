@@ -6,16 +6,16 @@ export class Service extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', unique: true })
   code: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   description: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   category: string;
 
   /**
@@ -24,6 +24,6 @@ export class Service extends BaseColumns {
   @Column({ type: 'simple-json', nullable: true })
   tags: string[];
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   demoUrl: string;
 }

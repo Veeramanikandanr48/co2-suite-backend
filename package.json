@@ -103,9 +103,16 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1",
+      "^otplib$": "<rootDir>/../test/mocks/otplib.js"
+    },
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(@otplib|@scure)/)"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],

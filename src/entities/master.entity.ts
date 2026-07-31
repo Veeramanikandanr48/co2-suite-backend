@@ -6,7 +6,7 @@ export class MasterRoles extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   roleName: string;
 
   @Column({ nullable: true })
@@ -18,6 +18,6 @@ export class MasterApprovalStatus extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string; // need to change
 }

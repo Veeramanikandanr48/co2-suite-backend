@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsArray,
-  IsBoolean,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -22,6 +22,7 @@ export class AssignServicesDto {
 export class CreateServiceDto {
   @ApiProperty({ example: 'CARBON', description: 'Service code' })
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   @IsNotEmpty()
   code: string;
 
@@ -30,6 +31,7 @@ export class CreateServiceDto {
     description: 'Service display name',
   })
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   @IsNotEmpty()
   name: string;
 
@@ -39,6 +41,7 @@ export class CreateServiceDto {
     required: false,
   })
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   @IsOptional()
   description?: string;
 
@@ -48,6 +51,7 @@ export class CreateServiceDto {
     required: false,
   })
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   @IsOptional()
   category?: string;
 
@@ -62,6 +66,7 @@ export class CreateServiceDto {
     required: false,
   })
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   @IsOptional()
   demoUrl?: string;
 }
@@ -69,6 +74,7 @@ export class CreateServiceDto {
 export class CreateScopeItemDto {
   @ApiProperty({ example: 'CARBON', description: 'Service code e.g. CARBON' })
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   @IsNotEmpty()
   serviceCode: string;
 
@@ -77,11 +83,13 @@ export class CreateScopeItemDto {
     description: 'Scope display label e.g. Scope 1',
   })
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   @IsNotEmpty()
   scope: string;
 
   @ApiProperty({ example: 'SCOPE_1', description: 'Scope code e.g. SCOPE_1' })
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   @IsNotEmpty()
   scopeCode: string;
 
@@ -90,6 +98,7 @@ export class CreateScopeItemDto {
     description: 'Scope item name',
   })
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   @IsNotEmpty()
   name: string;
 
@@ -98,6 +107,7 @@ export class CreateScopeItemDto {
     description: 'Scope item code',
   })
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   @IsNotEmpty()
   code: string;
 
@@ -107,6 +117,7 @@ export class CreateScopeItemDto {
     required: false,
   })
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   @IsOptional()
   description?: string;
 

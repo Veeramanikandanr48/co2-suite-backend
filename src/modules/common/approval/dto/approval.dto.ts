@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsNumber, IsOptional, IsString, IsNotEmpty } from 'class-validator';
 
 export class GetNextApprovarDetailsDto {
@@ -66,5 +67,6 @@ export class UpdateUserApprovalDto {
   @ApiProperty()
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
   reason: string;
 }

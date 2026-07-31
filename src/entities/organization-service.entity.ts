@@ -14,20 +14,20 @@ export class OrganizationService extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'int' })
   organizationId: number;
 
-  @Column()
+  @Column({ type: 'int' })
   serviceId: number;
 
   @Column({ nullable: true })
   subscribedBy: number;
 
-  @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Organization)
   @JoinColumn({ name: 'organizationId' })
   organization: Organization;
 
-  @ManyToOne(() => Service, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Service)
   @JoinColumn({ name: 'serviceId' })
   service: Service;
 }

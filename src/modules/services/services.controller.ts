@@ -877,4 +877,168 @@ export class ServicesController {
       logger.info('Method ended: removeOrgService');
     }
   }
+
+  @Get('services/result/:scope/:activity')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Get scope calculation activity result items matching enterprise API payload format',
+  })
+  @ApiParam({
+    name: 'scope',
+    type: String,
+    description: 'Scope ID e.g. 1, 2, or 3',
+  })
+  @ApiParam({
+    name: 'activity',
+    type: String,
+    description: 'Activity code e.g. SC, MC, FE, PE, PGS',
+  })
+  @ApiQuery({ name: 'based_option', type: String, required: false })
+  @ApiQuery({ name: 'facility', type: String, required: false })
+  @ApiQuery({ name: 'year', type: String, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched activity results',
+  })
+  async getScopeResultByActivity(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('scope') scope: string,
+    @Param('activity') activity: string,
+    @Query('based_option') basedOption?: string,
+    @Query('facility') facility?: string,
+    @Query('year') year?: string,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method started: getScopeResultByActivity');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      const result = await this.servicesService.getScopeResultByActivity(
+        user,
+        scope,
+        activity,
+        { based_option: basedOption, facility, year },
+      );
+      return res.status(200).json(result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch activity results',
+      );
+    } finally {
+      logger.info('Method ended: getScopeResultByActivity');
+    }
+  }
+
+  @Get('services/factor-signature')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get factor signature metadata for activity code',
+  })
+  @ApiQuery({ name: 'scope', type: String, required: false })
+  @ApiQuery({ name: 'activity', type: String, required: true })
+  @ApiQuery({ name: 'based_option', type: String, required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched factor signature',
+  })
+  async getFactorSignature(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('scope') scope: string,
+    @Query('activity') activity: string,
+    @Query('based_option') basedOption?: string,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method started: getFactorSignature');
+    try {
+      const result = await this.servicesService.getFactorSignature(
+        scope || '1',
+        activity,
+        basedOption,
+      );
+      return res.status(200).json(result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch factor signature',
+      );
+    } finally {
+      logger.info('Method ended: getFactorSignature');
+    }
+  }
+
+  @Get('services/results/activity/:activity')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get calculation results for a specific activity code',
+  })
+  @ApiParam({
+    name: 'activity',
+    type: String,
+    description: 'Activity code (e.g. SC, MC, FE, PE, PGS)',
+  })
+  async getResultsByActivityCode(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('activity') activity: string,
+    @Query('based_option') basedOption?: string,
+    @Query('facility') facility?: string,
+    @Query('year') year?: string,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method started: getResultsByActivityCode');
+    try {
+      const user = req['user'] as IDecodeUserDetails;
+      const result = await this.servicesService.getScopeResultByActivity(
+        user,
+        '1',
+        activity,
+        { based_option: basedOption, facility, year },
+      );
+      return res.status(200).json(result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch activity results',
+      );
+    } finally {
+      logger.info('Method ended: getResultsByActivityCode');
+    }
+  }
+
+  @Get('services/activities')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Get list of all supported enterprise activity codes dynamically from DB',
+  })
+  async getAllActivityCodes(@Req() req: Request, @Res() res: Response) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method started: getAllActivityCodes');
+    try {
+      const activities = await this.servicesService.getAllActivityCodes();
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched activities',
+        activities,
+      );
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch activities',
+      );
+    } finally {
+      logger.info('Method ended: getAllActivityCodes');
+    }
+  }
 }

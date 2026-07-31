@@ -59,7 +59,10 @@ export class OrganizationsService {
     return user?.organizationId ? Number(user?.organizationId) : undefined;
   }
 
-  async onboardOrganization(dto: CreateOrganizationDto, user: IDecodeUserDetails) {
+  async onboardOrganization(
+    dto: CreateOrganizationDto,
+    user: IDecodeUserDetails,
+  ) {
     this.assertSuperAdmin(user);
     const superAdminId = user.id;
 

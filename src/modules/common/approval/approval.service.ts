@@ -1,4 +1,5 @@
 import {
+  ApprovalAccessResult,
   ApprovalDetailsResponse,
   IApprovalData,
   IApprovalRemarksData,
@@ -15,7 +16,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILoggerMethods } from 'src/utility/base-interface.interface';
 import { MasterApprovalStatus, MasterRoles } from 'src/entities/master.entity';
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ApprovalStatusEnum } from 'src/enums/approval.enum';
 
 @Injectable()
@@ -30,7 +31,7 @@ export class ApprovalService {
     private readonly approvalMatrixRepository: Repository<ApprovalMatrix>,
     @InjectRepository(UserApprovalRemarksMapping)
     private readonly userApprovalRemarksMappingRepository: Repository<UserApprovalRemarksMapping>,
-  ) { }
+  ) {}
 
   private validateSqlIdentifier(value: string, fieldName: string): string {
     const valid = value
@@ -146,8 +147,8 @@ export class ApprovalService {
     );
     const partiallyAppOrderList = currentUserMatrix
       ? tempDocApproval.filter(
-        (m) => m.approvalOrder < currentUserMatrix.approvalOrder,
-      )
+          (m) => m.approvalOrder < currentUserMatrix.approvalOrder,
+        )
       : [];
     logger?.info(
       `Partially approved order list: ${partiallyAppOrderList.map((m) => m.approvalOrder).join(', ')}`,
@@ -209,6 +210,51 @@ export class ApprovalService {
     await queryRunner.manager.insert(UserApproval, userApprovalData);
     logger.info('User approval inserted successfully with query runner');
     return true;
+  }
+
+  async updateUserApproval(
+    data: IApprovalData,
+    logger: ILoggerMethods,
+  ): Promise<boolean> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const result = await this.updateUserApprovalWithQueryRunner(
+        data,
+        queryRunner,
+      );
+      if (!result) {
+        await queryRunner.rollbackTransaction();
+        throw new BadRequestException(
+          'Role is not the current approver for this approval module',
+        );
+      }
+      await queryRunner.commitTransaction();
+      logger.info('Approval updated successfully');
+      if (data.approvalStatusId === ApprovalStatusEnum.APPROVE) {
+        const nextApprovalDetail = await this.getNextApprovarDetails(
+          data.approvalModuleUniqueId,
+          data.approvalModuleId,
+        );
+        if (nextApprovalDetail) {
+          logger.info(
+            `Next approvar role: ${nextApprovalDetail.toRoleId}, order: ${nextApprovalDetail.approvalOrder}`,
+          );
+        } else {
+          logger.info('No next approvar found');
+        }
+      }
+      return true;
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      logger.error('Error occurred while updating user approval', error);
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async updateUserApprovalWithQueryRunner(
@@ -326,6 +372,7 @@ export class ApprovalService {
       })
       .andWhere('"approvalModuleId" = :approvalModuleId', { approvalModuleId })
       .andWhere('"isNextApprover" = true')
+      .andWhere('"isActive" = true')
       .getRawOne();
   }
 
@@ -349,6 +396,7 @@ export class ApprovalService {
       })
       .andWhere('"approvalModuleId" = :approvalModuleId', { approvalModuleId })
       .andWhere('"isNextApprover" = true')
+      .andWhere('"isActive" = true')
       .getRawOne();
   }
 
@@ -363,6 +411,7 @@ export class ApprovalService {
         approvalModuleUniqueId,
       })
       .andWhere('"approvalModuleId" = :approvalModuleId', { approvalModuleId })
+      .andWhere('"isActive" = true')
       .getRawOne<{ maxApprovalOrder: number }>();
   }
 
@@ -377,6 +426,7 @@ export class ApprovalService {
         approvalModuleUniqueId,
       })
       .andWhere('"toRoleId" = :toRoleId', { toRoleId })
+      .andWhere('"isActive" = true')
       .getRawOne();
   }
 
@@ -495,8 +545,8 @@ export class ApprovalService {
     approvalModuleId: number,
     userRoleId: number,
     approvalModuleUniqueId: number,
-  ) {
-    return await this.userApprovalRepository
+  ): Promise<ApprovalAccessResult> {
+    const result = await this.userApprovalRepository
       .createQueryBuilder('userApproval')
       .select('"isNextApprover" as "hasAccess"')
       .where('"approvalModuleUniqueId" = :approvalModuleUniqueId', {
@@ -504,7 +554,24 @@ export class ApprovalService {
       })
       .andWhere('"approvalModuleId" = :approvalModuleId', { approvalModuleId })
       .andWhere('"toRoleId" = :userRoleId', { userRoleId })
+      .andWhere('"isActive" = true')
       .getRawOne();
+
+    if (!result) {
+      return {
+        hasAccess: false,
+        message: 'No approval record found for the given user role',
+      };
+    }
+
+    if (result.hasAccess) {
+      return { hasAccess: true, message: 'User has access to approve' };
+    }
+
+    return {
+      hasAccess: false,
+      message: 'User does not have access to approve',
+    };
   }
 
   async checkApprovalExist(
@@ -517,6 +584,7 @@ export class ApprovalService {
         '("approvalModuleUniqueId" =:approvalModuleUniqueId and "approvalModuleId" =:approvalModuleId)',
         { approvalModuleUniqueId, approvalModuleId },
       )
+      .andWhere('"isActive" = true')
       .getExists();
   }
 
@@ -538,6 +606,7 @@ export class ApprovalService {
           approvalStatusId: ApprovalStatusEnum.REJECT,
         },
       )
+      .andWhere('"isActive" = true')
       .select('"id"')
       .getRawOne();
   }
@@ -571,6 +640,7 @@ export class ApprovalService {
       .andWhere('"approvalStatusId" = :approvalStatusId', {
         approvalStatusId: ApprovalStatusEnum.APPROVE,
       })
+      .andWhere('"isActive" = true')
       .getExists();
   }
 
@@ -587,6 +657,7 @@ export class ApprovalService {
       .andWhere('"approvalStatusId" = :approvalStatusId', {
         approvalStatusId: ApprovalStatusEnum.REJECT,
       })
+      .andWhere('"isActive" = true')
       .getExists();
   }
 
@@ -699,8 +770,8 @@ export class ApprovalService {
       );
       const partiallyAppOrderList = currentUserMatrix
         ? tempApprovalMatrix.filter(
-          (m) => m.approvalOrder < currentUserMatrix.approvalOrder,
-        )
+            (m) => m.approvalOrder < currentUserMatrix.approvalOrder,
+          )
         : [];
 
       const isMaxApprove = maxApprovalOrderRole === userRoleId;
@@ -755,16 +826,54 @@ export class ApprovalService {
     approvalModuleId: number,
     primaryId: number,
     status: number,
-    remarks?: string,
-    // notify?: NotificationInsertViewModel
+    remarks: string | undefined,
+    roleId: number,
+    userId: number,
+    branchId: number,
+    logger?: ILoggerMethods,
   ): Promise<boolean> {
-    const logger = { info: (_msg: string) => { }, error: (_msg: string) => { } };
-    const roleId = 1;
-    const userId = 1;
-
     try {
-      const [allApproverData] = await Promise.all([
-        this.userApprovalRepository
+      const result = await this.dataSource.transaction(async (manager) => {
+        const userApprovalRepository = manager.getRepository(UserApproval);
+        const userApprovalRemarksMappingRepository = manager.getRepository(
+          UserApprovalRemarksMapping,
+        );
+
+        const [allApproverData] = await Promise.all([
+          userApprovalRepository
+            .createQueryBuilder('ua')
+            .select([
+              'ua.id',
+              'ua.approvalModuleId',
+              'ua.approvalModuleUniqueId',
+              'ua.approvalOrder',
+              'ua.approvalGroup',
+              'ua.isParallel',
+              'ua.toRoleId',
+              'ua.approvalStatusId',
+              'ua.isNextApprover',
+              'ua.isCurrApprover',
+              'ua.isActive',
+            ])
+            .where('ua.approvalModuleId = :approvalModuleId', {
+              approvalModuleId,
+            })
+            .andWhere('ua.approvalModuleUniqueId = :primaryId', { primaryId })
+            .andWhere('ua.isActive = :isActive', { isActive: true })
+            .getMany(),
+        ]);
+
+        if (!allApproverData.length) {
+          logger?.error('User approval data is null');
+          return false;
+        }
+
+        await userApprovalRepository.update(
+          { approvalModuleId, approvalModuleUniqueId: primaryId },
+          { isCurrApprover: false },
+        );
+
+        const changeStatus = await userApprovalRepository
           .createQueryBuilder('ua')
           .select([
             'ua.id',
@@ -779,138 +888,106 @@ export class ApprovalService {
             'ua.isCurrApprover',
             'ua.isActive',
           ])
-          .where('ua.approvalModuleId = :approvalModuleId', {
+          .where('ua.approvalModuleUniqueId = :primaryId', { primaryId })
+          .andWhere('ua.approvalModuleId = :approvalModuleId', {
             approvalModuleId,
           })
-          .andWhere('ua.approvalModuleUniqueId = :primaryId', { primaryId })
           .andWhere('ua.isActive = :isActive', { isActive: true })
-          .getMany(),
-        // this.getCurrentUserRoleId(), // You'll need to implement this method
-        // this.getCurrentUserId(), // You'll need to implement this method
-      ]);
+          .andWhere('ua.toRoleId = :roleId', { roleId })
+          .andWhere('ua.approvalStatusId = :status', {
+            status: ApprovalStatusEnum.PENDING,
+          })
+          .andWhere('ua.isNextApprover = :isNextApprover', {
+            isNextApprover: true,
+          })
+          .orderBy('ua.approvalOrder', 'ASC')
+          .getOne();
 
-      if (!allApproverData.length) {
-        logger.error('User approval data is null');
-        return false;
-      }
+        if (!changeStatus) {
+          logger?.error('ChangeStatus is null');
+          return false;
+        }
 
-      // Reset all current approvers
-      await this.userApprovalRepository.update(
-        { approvalModuleId, approvalModuleUniqueId: primaryId },
-        { isCurrApprover: false },
-      );
+        const secondMinApprovalData = allApproverData.filter(
+          (a) =>
+            a.approvalOrder !== changeStatus.approvalOrder &&
+            !a.isCurrApprover &&
+            a.approvalOrder > changeStatus.approvalOrder,
+        );
 
-      const changeStatus = await this.userApprovalRepository
-        .createQueryBuilder('ua')
-        .select([
-          'ua.id',
-          'ua.approvalModuleId',
-          'ua.approvalModuleUniqueId',
-          'ua.approvalOrder',
-          'ua.approvalGroup',
-          'ua.isParallel',
-          'ua.toRoleId',
-          'ua.approvalStatusId',
-          'ua.isNextApprover',
-          'ua.isCurrApprover',
-          'ua.isActive',
-        ])
-        .where('ua.approvalModuleUniqueId = :primaryId', { primaryId })
-        .andWhere('ua.approvalModuleId = :approvalModuleId', {
-          approvalModuleId,
-        })
-        .andWhere('ua.isActive = :isActive', { isActive: true })
-        .andWhere('ua.toRoleId = :roleId', { roleId })
-        .andWhere('ua.approvalStatusId = :status', {
-          status: ApprovalStatusEnum.PENDING,
-        })
-        .andWhere('ua.isNextApprover = :isNextApprover', {
-          isNextApprover: true,
-        })
-        .orderBy('ua.approvalOrder', 'ASC')
-        .getOne();
+        const secondMinApproval =
+          secondMinApprovalData.length > 0
+            ? Math.min(...secondMinApprovalData.map((a) => a.approvalOrder))
+            : 0;
 
-      if (!changeStatus) {
-        logger.error('ChangeStatus is null');
-        return false;
-      }
+        if (status === ApprovalStatusEnum.APPROVE && secondMinApproval !== 0) {
+          await userApprovalRepository.update(
+            {
+              approvalModuleId,
+              approvalModuleUniqueId: primaryId,
+              approvalOrder: In([
+                secondMinApproval,
+                changeStatus.approvalOrder,
+              ]),
+            },
+            {
+              isNextApprover: false,
+              isCurrApprover: false,
+              approvalStatusId: ApprovalStatusEnum.PENDING,
+            },
+          );
 
-      const secondMinApprovalData = allApproverData.filter(
-        (a) =>
-          a.approvalOrder !== changeStatus.approvalOrder &&
-          !a.isCurrApprover &&
-          a.approvalOrder > changeStatus.approvalOrder,
-      );
+          await userApprovalRepository.update(
+            { approvalOrder: secondMinApproval },
+            { isNextApprover: true },
+          );
 
-      const secondMinApproval =
-        secondMinApprovalData.length > 0
-          ? Math.min(...secondMinApprovalData.map((a) => a.approvalOrder))
-          : 0;
+          await userApprovalRepository.update(
+            { approvalOrder: changeStatus.approvalOrder },
+            {
+              approvalStatusId: ApprovalStatusEnum.APPROVE,
+              isCurrApprover: true,
+            },
+          );
+        } else if (status === ApprovalStatusEnum.APPROVE) {
+          await userApprovalRepository.update(
+            { approvalOrder: changeStatus.approvalOrder },
+            {
+              isNextApprover: false,
+              isCurrApprover: true,
+              approvalStatusId: ApprovalStatusEnum.APPROVE,
+            },
+          );
+        } else {
+          await userApprovalRepository.update(
+            { approvalOrder: changeStatus.approvalOrder },
+            {
+              approvalStatusId: ApprovalStatusEnum.REJECT,
+              isNextApprover: false,
+              isCurrApprover: true,
+            },
+          );
+        }
 
-      if (status === ApprovalStatusEnum.APPROVE && secondMinApproval !== 0) {
-        await this.userApprovalRepository.update(
-          {
+        if (status !== ApprovalStatusEnum.APPROVE && remarks) {
+          await userApprovalRemarksMappingRepository.save({
             approvalModuleId,
             approvalModuleUniqueId: primaryId,
-            approvalOrder: In([secondMinApproval, changeStatus.approvalOrder]),
-          },
-          {
-            isNextApprover: false,
-            isCurrApprover: false,
-            approvalStatusId: ApprovalStatusEnum.PENDING,
-          },
-        );
+            remarks,
+            createdBy: userId,
+            statusId: status,
+            isActive: true,
+            branchId,
+          });
+        }
 
-        // Update specific records
-        await this.userApprovalRepository.update(
-          { approvalOrder: secondMinApproval },
-          { isNextApprover: true },
-        );
+        return true;
+      });
 
-        await this.userApprovalRepository.update(
-          { approvalOrder: changeStatus.approvalOrder },
-          {
-            approvalStatusId: ApprovalStatusEnum.APPROVE,
-            isCurrApprover: true,
-          },
-        );
-      } else if (status === ApprovalStatusEnum.APPROVE) {
-        await this.userApprovalRepository.update(
-          { approvalOrder: changeStatus.approvalOrder },
-          {
-            isNextApprover: false,
-            isCurrApprover: true,
-            approvalStatusId: ApprovalStatusEnum.APPROVE,
-          },
-        );
-      } else {
-        await this.userApprovalRepository.update(
-          { approvalOrder: changeStatus.approvalOrder },
-          {
-            approvalStatusId: ApprovalStatusEnum.REJECT,
-            isNextApprover: false,
-            isCurrApprover: true,
-          },
-        );
-      }
-
-      // Save remarks if status is not approve
-      if (status !== ApprovalStatusEnum.APPROVE && remarks) {
-        await this.userApprovalRemarksMappingRepository.save({
-          approvalModuleId,
-          approvalModuleUniqueId: primaryId,
-          remarks: remarks || '',
-          createdBy: userId,
-          statusId: status,
-          isActive: true,
-          branchId: 1, // You'll need to implement this
-        });
-      }
-
-      logger.info('Method End');
-      return true;
+      logger?.info('Method ended: updateApproval');
+      return result;
     } catch (error) {
-      logger.error(`Exception occurred: ${error.message}`);
+      logger?.error(`Exception occurred in updateApproval: ${error.message}`);
       return false;
     }
   }

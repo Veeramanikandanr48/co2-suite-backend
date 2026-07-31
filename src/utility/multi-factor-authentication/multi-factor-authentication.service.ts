@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserDetails } from 'src/entities/user.entity';
 import { Repository } from 'typeorm';
@@ -18,6 +18,7 @@ export interface MfaResponse<T = unknown> {
 
 @Injectable()
 export class MultiFactorAuthenticationService {
+  private readonly logger = new Logger(MultiFactorAuthenticationService.name);
   private issuer: string = 'kaynes-mes';
   private numberOfBytes: number = 20;
   constructor(
@@ -57,10 +58,10 @@ export class MultiFactorAuthenticationService {
         success: true,
       };
     } catch (error) {
+      this.logger.error('Failed to retrieve OTP secret', error);
       return {
-        message: (error as Error).message,
+        message: 'Failed to retrieve MFA secret. Please try again later.',
         success: false,
-        data: error as string,
       };
     }
   }
@@ -93,8 +94,9 @@ export class MultiFactorAuthenticationService {
         data: record,
       };
     } catch (error) {
+      this.logger.error('Failed to retrieve MFA record', error);
       return {
-        message: (error as Error).message,
+        message: 'Failed to retrieve MFA record. Please try again later.',
         success: false,
       };
     }

@@ -13,6 +13,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
+      whitelist: true,
       transformOptions: { enableImplicitConversion: true },
     }),
   );
@@ -37,7 +38,9 @@ async function bootstrap() {
   SwaggerModule.setup('api-doc', app, document);
   app.enableCors({
     credentials: true,
-    origin: true,
+    origin: process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',').map((origin) => origin.trim())
+      : true,
   });
   await app.listen(process.env.PORT || 3000, () => {
     logger.log(`Server running on port ${process.env.PORT || 3000}`);

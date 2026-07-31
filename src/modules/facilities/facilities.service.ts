@@ -122,7 +122,9 @@ export class FacilitiesService implements OnApplicationBootstrap {
       .andWhere('facility.isActive = :isActive', { isActive: true });
 
     if (targetOrgId) {
-      query.andWhere('facility.organizationId = :orgId', { orgId: targetOrgId });
+      query.andWhere('facility.organizationId = :orgId', {
+        orgId: targetOrgId,
+      });
     }
 
     const facility = await query.getOne();

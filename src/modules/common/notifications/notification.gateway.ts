@@ -26,13 +26,15 @@ export class NotificationGateway
   private connectedClients: Map<string, Socket> = new Map();
 
   async handleConnection(client: Socket) {
-    let token = client.handshake.auth.headers;
-    token = token.split(' ')[1];
-    if (token) {
-      const decoded = await this.jwtService.verify(token, {
-        secret: process.env.JWT_SECRET,
-      });
-      const userId = decoded.id;
+    try {
+      let token = client.handshake.auth.headers;
+      token = typeof token === 'string' ? token.split(' ')[1] : undefined;
+      if (!token) {
+        this.logger.error('No token provided');
+        return;
+      }
+      const decoded = await this.jwtService.verifyAsync(token);
+      const userId = decoded?.id;
       if (userId) {
         if (!this.userSocketMap.has(Number(userId))) {
           this.userSocketMap.set(Number(userId), new Set());
@@ -40,8 +42,9 @@ export class NotificationGateway
         this.userSocketMap.get(Number(userId)).add(client.id);
         this.logger.log(`User ${userId} connected with socket ${client.id}`);
       }
-    } else {
-      this.logger.error('No token provided');
+    } catch (error) {
+      this.logger.error('WebSocket authentication failed', error);
+      client.disconnect(true);
     }
   }
 

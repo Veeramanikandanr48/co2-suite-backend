@@ -4,8 +4,11 @@ import {
   Notifications,
 } from 'src/entities/notification.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { EnableNotificationDto } from './dto/create-notification.dto';
+import { DataSource, Repository } from 'typeorm';
+import {
+  EnableNotificationDto,
+  SendNotificationDto,
+} from './dto/create-notification.dto';
 import { DeviceTypes } from 'src/enums/notification.enum';
 import { INotificationPayload } from 'src/interfaces/notification.interface';
 import { NotificationGateway } from './notification.gateway';
@@ -16,6 +19,7 @@ import { getMessaging } from 'firebase-admin/messaging';
 export class NotificationsService {
   constructor(
     private notificationGateway: NotificationGateway,
+    private readonly dataSource: DataSource,
     @InjectRepository(Notifications)
     private readonly notificationRepository: Repository<Notifications>,
     @InjectRepository(NotificationHistory)
@@ -139,22 +143,25 @@ export class NotificationsService {
     } catch (error) {
       return {
         status: false,
-        message: error.message,
-        error,
+        message: 'Failed to send notification. Please try again later.',
       };
     }
   }
 
-  async sendNotification(data: INotificationPayload) {
+  async sendNotification(userId: number, data: SendNotificationDto) {
     const notificationStatus = false;
     let notification = null;
-    const userNotificationData = await this.getNotificationDetailByUserId(
-      data.userId,
-    );
+    const userNotificationData =
+      await this.getNotificationDetailByUserId(userId);
     if (!userNotificationData) {
       return { notificationStatus, notification };
     }
-    notification = await this.saveNotificationHistory(data);
+    const payload: INotificationPayload = {
+      title: data.title,
+      body: data.body,
+      userId,
+    };
+    notification = await this.saveNotificationHistory(payload);
     // Format createdAt time before sending notification
     const formattedNotification = {
       ...notification,
@@ -167,7 +174,7 @@ export class NotificationsService {
         : null,
     };
     this.notificationGateway.sendNotificationToUser(
-      data.userId,
+      userId,
       formattedNotification,
     );
 
@@ -214,27 +221,39 @@ export class NotificationsService {
       await this.getNotificationByUserIdWithDeviceType(userId, data.deviceType);
 
     if (userNotificationData.length && data.isActivate) {
-      for (const notification of userNotificationData) {
-        if (!notification.token) {
-          notification.token = data.token;
-          notification.deviceType = data.deviceType;
-          notification.enablePushNotification = true;
-          notification.isActive = true;
-          await this.updateNotification(notification, userId);
-        } else if (notification.token && notification.token === data.token) {
-          return 'Notification already enabled';
+      return this.dataSource.transaction(async (manager) => {
+        for (const notification of userNotificationData) {
+          if (!notification.token) {
+            notification.token = data.token;
+            notification.deviceType = data.deviceType;
+            notification.enablePushNotification = true;
+            notification.isActive = true;
+            await manager.update(
+              Notifications,
+              { id: notification.id },
+              notification,
+            );
+          } else if (notification.token && notification.token === data.token) {
+            return 'Notification already enabled';
+          }
         }
-      }
-      return 'Notification updated successfully';
+        return 'Notification updated successfully';
+      });
     }
 
     if (!data.isActivate) {
-      for (const notification of userNotificationData) {
-        notification.enablePushNotification = false;
-        notification.isActive = false;
-        await this.updateNotification(notification, userId);
-      }
-      return 'Notification disabled successfully';
+      return this.dataSource.transaction(async (manager) => {
+        for (const notification of userNotificationData) {
+          notification.enablePushNotification = false;
+          notification.isActive = false;
+          await manager.update(
+            Notifications,
+            { id: notification.id },
+            notification,
+          );
+        }
+        return 'Notification disabled successfully';
+      });
     }
 
     const notificationData: Partial<Notifications> = {

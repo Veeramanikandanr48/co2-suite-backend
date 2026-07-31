@@ -6,22 +6,22 @@ export class ServiceScopeItem extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   serviceCode: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   scope: string; // e.g. 'Scope 1', 'Scope 2', 'Scope 3'
 
-  @Column()
+  @Column({ type: 'varchar' })
   scopeCode: string; // e.g. 'SCOPE_1', 'SCOPE_2', 'SCOPE_3'
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string; // e.g. 'Stationary Combustion'
 
-  @Column()
+  @Column({ type: 'varchar' })
   code: string; // e.g. 'STATIONARY_COMBUSTION'
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   description: string;
 
   @Column({ default: 0 })

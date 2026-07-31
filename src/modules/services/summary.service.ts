@@ -881,6 +881,7 @@ export class SummaryService {
         'entry.createdAt',
       ])
       .where('entry.organizationId = :orgId', { orgId })
+      .andWhere('entry.isActive = :isActive', { isActive: true })
       .orderBy('entry.id', 'DESC')
       .getMany();
 

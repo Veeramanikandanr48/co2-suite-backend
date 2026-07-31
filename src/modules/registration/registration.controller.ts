@@ -280,7 +280,11 @@ export class RegistrationController {
 
   @Post('verify-email/:token')
   @ApiOperation({ summary: 'Verify email with token' })
-  @ApiParam({ name: 'token', type: String, description: 'Email verification token' })
+  @ApiParam({
+    name: 'token',
+    type: String,
+    description: 'Email verification token',
+  })
   @ApiResponse({ status: 200, description: 'Email verified successfully' })
   async verifyEmail(
     @Req() req: Request,
@@ -345,7 +349,11 @@ export class RegistrationController {
 
   @Post('reset-password/:token')
   @ApiOperation({ summary: 'Reset password with token' })
-  @ApiParam({ name: 'token', type: String, description: 'Password reset token' })
+  @ApiParam({
+    name: 'token',
+    type: String,
+    description: 'Password reset token',
+  })
   @ApiResponse({ status: 200, description: 'Password reset successful' })
   async resetPassword(
     @Req() req: Request,

@@ -10,7 +10,8 @@ import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { NotificationsModule } from './modules/common/notifications/notifications.module';
 import { RegistrationModule } from './modules/registration/registration.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
@@ -24,6 +25,7 @@ import { LogUploadCronService } from './utility/log-upload-cron/log-upload-cron.
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { FacilitiesModule } from './modules/facilities/facilities.module';
+import { ApprovalModule } from './modules/common/approval/approval.module';
 import { UtilService } from './utility/util/util.service';
 
 @Module({
@@ -102,6 +104,7 @@ import { UtilService } from './utility/util/util.service';
     MastersModule,
     ServicesModule,
     FacilitiesModule,
+    ApprovalModule,
   ],
   controllers: [AppController],
   providers: [
@@ -109,6 +112,10 @@ import { UtilService } from './utility/util/util.service';
     UtilService,
     MultiFactorAuthenticationService,
     LogUploadCronService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

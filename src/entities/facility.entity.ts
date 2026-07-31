@@ -9,7 +9,7 @@ export class Facility extends BaseColumns {
   @Column({ default: 1 })
   organizationId: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string; // e.g. 'WD Solutions Co. LLC'
 
   @Column({ type: 'float', nullable: true })
@@ -18,15 +18,15 @@ export class Facility extends BaseColumns {
   @Column({ type: 'float', nullable: true })
   longitude: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   address: string; // Installation location
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   unLocode: string; // UN/LOCODE
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   postCode: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   countryCode: string;
 }
