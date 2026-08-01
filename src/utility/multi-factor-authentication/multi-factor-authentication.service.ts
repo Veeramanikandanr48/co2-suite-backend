@@ -19,7 +19,7 @@ export interface MfaResponse<T = unknown> {
 @Injectable()
 export class MultiFactorAuthenticationService {
   private readonly logger = new Logger(MultiFactorAuthenticationService.name);
-  private issuer: string = 'kaynes-mes';
+  private issuer: string = 'CO2 Suite';
   private numberOfBytes: number = 20;
   constructor(
     @InjectRepository(UserDetails)

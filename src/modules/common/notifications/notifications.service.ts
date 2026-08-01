@@ -13,7 +13,6 @@ import { DeviceTypes } from 'src/enums/notification.enum';
 import { INotificationPayload } from 'src/interfaces/notification.interface';
 import { NotificationGateway } from './notification.gateway';
 import { getMessaging } from 'firebase-admin/messaging';
-// import { ServiceAccount } from 'firebase-admin';
 
 @Injectable()
 export class NotificationsService {
@@ -24,12 +23,7 @@ export class NotificationsService {
     private readonly notificationRepository: Repository<Notifications>,
     @InjectRepository(NotificationHistory)
     private readonly notificationHistoryRepository: Repository<NotificationHistory>,
-  ) {
-    // const serviceAccount: firebase.ServiceAccount = require('../../../../firebase-admin-private-key.json');
-    // firebase.initializeApp({
-    //   credential: firebase.credential.cert(serviceAccount),
-    // });
-  }
+  ) {}
 
   async saveNotification(data: Partial<Notifications> | EnableNotificationDto) {
     return await this.notificationRepository.save(data);
@@ -178,24 +172,27 @@ export class NotificationsService {
       formattedNotification,
     );
 
-    const deviceTokens = [];
+    const deviceTokens: string[] = [];
     userNotificationData.forEach((item) => {
-      if (item.enablePushNotification) {
+      if (item.enablePushNotification && item.token) {
         deviceTokens.push(item.token);
       }
     });
 
-    await getMessaging()
-      .sendEachForMulticast({
-        notification: {
-          title: data.title,
-          body: data.body,
-        },
-        tokens: deviceTokens,
-      })
-      .catch((error: unknown) => {
-        return error;
-      });
+    if (deviceTokens.length > 0) {
+      await getMessaging()
+        .sendEachForMulticast({
+          notification: {
+            title: data.title,
+            body: data.body,
+          },
+          tokens: deviceTokens,
+        })
+        .catch((error: unknown) => {
+          // Push delivery is best-effort; never fail the request on FCM errors.
+          return error;
+        });
+    }
     return notification;
   }
 

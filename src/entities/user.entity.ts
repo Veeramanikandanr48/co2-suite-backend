@@ -50,6 +50,9 @@ export class UserDetails extends BaseColumns {
   @Column({ nullable: true })
   twoFactorAuthenticationSecret: string;
 
+  @Column({ type: 'text', nullable: true })
+  mfaBackupCodes: string;
+
   @Column({ nullable: true })
   profileImageKey: string;
 }

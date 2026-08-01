@@ -20,6 +20,7 @@ import {
   IUserEmailVerificaiton,
 } from 'src/interfaces/registration.interface';
 import * as bcrypt from 'bcryptjs';
+import * as CryptoJS from 'crypto-js';
 import { JwtService } from '@nestjs/jwt';
 import { EmailService } from 'src/utility/email/email.service';
 import { MultiFactorAuthenticationService } from 'src/utility/multi-factor-authentication/multi-factor-authentication.service';
@@ -471,6 +472,161 @@ export class RegistrationService {
 
   async updateUser(id: number, user: Partial<UserDetails>) {
     return await this.userRepository.update(id, user);
+  }
+
+  async getProfile(id: number) {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.userName',
+        'user.email',
+        'user.firstName',
+        'user.lastName',
+        'user.roleId',
+        'user.organizationId',
+        'user.profileImageKey',
+        'user.isTwoFactorAuthenticationEnabled',
+        'user.isVerified',
+        'user.isActive',
+      ])
+      .where('user.id = :id and user.isActive = true', { id })
+      .getOne();
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    return user;
+  }
+
+  async updateProfile(
+    id: number,
+    dto: Partial<Pick<UserDetails, 'userName' | 'firstName' | 'lastName' | 'profileImageKey'>>,
+  ) {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.isActive'])
+      .where('user.id = :id and user.isActive = true', { id })
+      .getOne();
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const payload: Partial<UserDetails> = {};
+    if (dto.userName) payload.userName = dto.userName;
+    if (dto.firstName) payload.firstName = dto.firstName;
+    if (dto.lastName) payload.lastName = dto.lastName;
+    if (dto.profileImageKey) payload.profileImageKey = dto.profileImageKey;
+
+    if (Object.keys(payload).length === 0) {
+      throw new BadRequestException('Nothing to update');
+    }
+    await this.userRepository.update(id, payload);
+    return this.getProfile(id);
+  }
+
+  async changePassword(
+    id: number,
+    dto: { currentPassword: string; newPassword: string; confirmPassword: string },
+  ) {
+    if (dto.newPassword !== dto.confirmPassword) {
+      throw new BadRequestException('New password and confirmation do not match');
+    }
+
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.password', 'user.isActive'])
+      .where('user.id = :id and user.isActive = true', { id })
+      .getOne();
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (!user.password) {
+      throw new BadRequestException(
+        'This account uses single sign-on. Set a password through the forgot-password flow.',
+      );
+    }
+
+    const isCurrentValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.password,
+    );
+    if (!isCurrentValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    await this.updateUserPassword(id, hashedPassword);
+    return { message: 'Password changed successfully' };
+  }
+
+  async generateBackupCodes(userId: number) {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.isActive',
+        'user.isTwoFactorAuthenticationEnabled',
+      ])
+      .where('user.id = :userId and user.isActive = true', { userId })
+      .getOne();
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    if (!user.isTwoFactorAuthenticationEnabled) {
+      throw new BadRequestException(
+        'Enable two-factor authentication before generating backup codes',
+      );
+    }
+
+    const codeCount = 8;
+    const codes: string[] = [];
+    for (let i = 0; i < codeCount; i += 1) {
+      codes.push(await this.mfa.generateBackupCode(8));
+    }
+
+    const hashedCodes = codes.map((code) =>
+      CryptoJS.SHA256(code).toString(CryptoJS.enc.Hex),
+    );
+    await this.userRepository.update(userId, {
+      mfaBackupCodes: JSON.stringify(hashedCodes),
+    });
+
+    return { codes, message: 'Backup codes generated successfully' };
+  }
+
+  async recoverWithBackupCode(userId: number, code: string) {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.mfaBackupCodes', 'user.isActive'])
+      .where('user.id = :userId and user.isActive = true', { userId })
+      .getOne();
+    if (!user || !user.mfaBackupCodes) {
+      throw new BadRequestException('No backup codes available');
+    }
+
+    let storedCodes: string[] = [];
+    try {
+      storedCodes = JSON.parse(user.mfaBackupCodes);
+    } catch {
+      throw new BadRequestException('Backup codes could not be read');
+    }
+
+    const hashedInput = CryptoJS.SHA256(code.trim()).toString(
+      CryptoJS.enc.Hex,
+    );
+    const index = storedCodes.indexOf(hashedInput);
+    if (index === -1) {
+      throw new BadRequestException('Invalid backup code');
+    }
+
+    storedCodes.splice(index, 1);
+    await this.userRepository.update(userId, {
+      mfaBackupCodes: JSON.stringify(storedCodes),
+    });
+
+    return { message: 'Backup code accepted' };
   }
 
   async login(

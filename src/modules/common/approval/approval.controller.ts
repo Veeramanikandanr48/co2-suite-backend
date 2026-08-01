@@ -26,6 +26,7 @@ export class ApprovalController {
     private readonly utilService: UtilService,
   ) {}
 
+  @Post('getNextApproverDetails')
   @Post('getNextApprovarDetails')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()

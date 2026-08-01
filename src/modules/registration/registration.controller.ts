@@ -1,20 +1,25 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Post,
+  Put,
   Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import { RegistrationService } from './registration.service';
 import {
+  BackupCodeRecoveryDto,
+  ChangePasswordDto,
   CreateUserDto,
   ForgotPasswordDto,
   GoogleLoginDto,
   LoginDto,
   ResetMFADto,
   ResetPasswordDto,
+  UpdateUserDto,
   ValidateMFADto,
   VerifyMFADto,
 } from 'src/dto/user.dto';
@@ -381,6 +386,180 @@ export class RegistrationController {
       );
     } finally {
       logger.info('Method ended: resetPassword');
+    }
+  }
+
+  @Get('profile')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
+  async getProfile(
+    @Req() req: Request,
+    @Res() res: Response,
+    @UserId() userId: number,
+  ) {
+    const logger = this.utilService.createLogger(
+      RegistrationController.name,
+      req,
+    );
+    logger.info('Method started: getProfile');
+    try {
+      const result = await this.registrationService.getProfile(userId);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Profile retrieved successfully',
+        result,
+      );
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to retrieve profile.',
+      );
+    } finally {
+      logger.info('Method ended: getProfile');
+    }
+  }
+
+  @Put('profile')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  async updateProfile(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() data: UpdateUserDto,
+    @UserId() userId: number,
+  ) {
+    const logger = this.utilService.createLogger(
+      RegistrationController.name,
+      req,
+    );
+    logger.info('Method started: updateProfile');
+    try {
+      const result = await this.registrationService.updateProfile(userId, data);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Profile updated successfully',
+        result,
+      );
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to update profile.',
+      );
+    } finally {
+      logger.info('Method ended: updateProfile');
+    }
+  }
+
+  @Post('change-password')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change current user password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  async changePassword(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() data: ChangePasswordDto,
+    @UserId() userId: number,
+  ) {
+    const logger = this.utilService.createLogger(
+      RegistrationController.name,
+      req,
+    );
+    logger.info('Method started: changePassword');
+    try {
+      const result = await this.registrationService.changePassword(userId, data);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, result.message);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to change password.',
+      );
+    } finally {
+      logger.info('Method ended: changePassword');
+    }
+  }
+
+  @Post('mfa/backup-codes')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate one-time MFA backup codes' })
+  @ApiResponse({
+    status: 200,
+    description: 'Backup codes generated successfully',
+  })
+  async generateBackupCodes(
+    @Req() req: Request,
+    @Res() res: Response,
+    @UserId() userId: number,
+  ) {
+    const logger = this.utilService.createLogger(
+      RegistrationController.name,
+      req,
+    );
+    logger.info('Method started: generateBackupCodes');
+    try {
+      const result = await this.registrationService.generateBackupCodes(userId);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        result.message,
+        { codes: result.codes },
+      );
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to generate backup codes.',
+      );
+    } finally {
+      logger.info('Method ended: generateBackupCodes');
+    }
+  }
+
+  @Post('mfa/recover')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Recover MFA access with a backup code' })
+  @ApiResponse({
+    status: 200,
+    description: 'Backup code accepted',
+  })
+  async recoverWithBackupCode(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() data: BackupCodeRecoveryDto,
+    @UserId() userId: number,
+  ) {
+    const logger = this.utilService.createLogger(
+      RegistrationController.name,
+      req,
+    );
+    logger.info('Method started: recoverWithBackupCode');
+    try {
+      const result = await this.registrationService.recoverWithBackupCode(
+        userId,
+        data.code,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, result.message);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Invalid backup code.',
+      );
+    } finally {
+      logger.info('Method ended: recoverWithBackupCode');
     }
   }
 }

@@ -464,7 +464,6 @@ export class ServicesService implements OnApplicationBootstrap {
         'ef.factor',
         'ef.version',
         'ef.formula',
-        'ef.description',
         'ef.isActive',
         'ef.createdAt',
       ])

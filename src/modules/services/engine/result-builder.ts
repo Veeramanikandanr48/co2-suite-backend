@@ -1,8 +1,24 @@
+import { createHash } from 'crypto';
 import { ActivityResultDto, InputEfDto } from 'src/dto/calculation-result.dto';
 import { InventoryEntry } from 'src/entities/inventory-entry.entity';
 import { FormulaEngine } from './formula-engine';
 
 export class ResultBuilder {
+  /**
+   * Builds a deterministic UUID from the org and facility so results stay
+   * stable per facility without relying on a hardcoded value.
+   */
+  private static resolveFacilityUuid(orgId: number, facility: string): string {
+    const hash = createHash('sha256')
+      .update(`${orgId}:${facility}`)
+      .digest('hex')
+      .slice(0, 32);
+    return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(
+      13,
+      16,
+    )}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
+  }
+
   /**
    * Constructs exact 1:1 CageSuite result payload object
    */
@@ -41,13 +57,15 @@ export class ResultBuilder {
     const pk = `COMPANY#${orgId}`;
     const sk = `RESULT#${scopeId}#${activityCode}#${entry.id}`;
 
+    const facilityName = entry.facility || `Facility ${orgId}`;
+
     return {
       based_option: basedOption,
       input_ef,
       comment: entry.comment || '',
       PK: pk,
-      facility_name: entry.facility || 'Manchester Facility',
-      facility_uuid: `4e1559a1-4bf2-4f41-abf6-eddc8b089ecd`,
+      facility_name: facilityName,
+      facility_uuid: ResultBuilder.resolveFacilityUuid(orgId, facilityName),
       from_date: entry.dateFrom || new Date().toISOString(),
       source: entry.efSource || 'IPCC',
       to_date: entry.dateTo || new Date().toISOString(),

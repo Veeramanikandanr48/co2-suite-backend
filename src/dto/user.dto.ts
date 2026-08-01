@@ -151,9 +151,55 @@ export class ResetMFADto {
 export class UpdateUserDto {
   @ApiProperty()
   @IsString()
+  @IsOptional()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  userName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  firstName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  lastName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  profileImageKey?: string;
+}
+
+export class ChangePasswordDto {
+  @ApiProperty()
+  @IsString()
   @IsNotEmpty()
-  @Transform(({ value }) => (value ? value.trim() : null))
-  userName: string;
+  @Transform(({ value }) => (value ? value.trim() : value))
+  currentPassword: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  newPassword: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  confirmPassword: string;
+}
+
+export class BackupCodeRecoveryDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  code: string;
 }
 
 export class CheckCurrentPasswordDto {
