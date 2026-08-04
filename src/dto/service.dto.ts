@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsArray,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -125,4 +126,104 @@ export class CreateScopeItemDto {
   @IsNumber()
   @IsOptional()
   sortOrder?: number;
+}
+
+export class GetSummaryQueryDto {
+  @ApiProperty({ example: '2025', required: false })
+  @IsString()
+  @IsOptional()
+  year?: string;
+
+  @ApiProperty({ example: 'Manchester Facility', required: false })
+  @IsString()
+  @IsOptional()
+  facility?: string;
+}
+
+export class GetEmissionFactorsQueryDto {
+  @ApiProperty({ example: 'Stationary Combustion', required: false })
+  @IsString()
+  @IsOptional()
+  category?: string;
+}
+
+export class GetInventoryEntriesQueryDto {
+  @ApiProperty({ example: 'Stationary Combustion', required: false })
+  @IsString()
+  @IsOptional()
+  category?: string;
+
+  @ApiProperty({ example: 'Natural Gas', required: false })
+  @IsString()
+  @IsOptional()
+  search?: string;
+
+  @ApiProperty({ example: 'Manchester Facility', required: false })
+  @IsString()
+  @IsOptional()
+  facility?: string;
+
+  @ApiProperty({ example: 'completed', required: false })
+  @IsString()
+  @IsOptional()
+  status?: string;
+
+  @ApiProperty({ example: 'name', required: false })
+  @IsString()
+  @IsOptional()
+  sortField?: string;
+
+  @ApiProperty({ example: 'DESC', enum: ['ASC', 'DESC'], required: false })
+  @IsIn(['ASC', 'DESC'])
+  @IsOptional()
+  sortOrder?: 'ASC' | 'DESC';
+
+  @ApiProperty({ example: 1, required: false })
+  @IsNumber()
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  page?: number;
+
+  @ApiProperty({ example: 10, required: false })
+  @IsNumber()
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  limit?: number;
+}
+
+export class GetActivityResultQueryDto {
+  @ApiProperty({
+    example: 'activity',
+    enum: ['activity', 'spend'],
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  based_option?: string;
+
+  @ApiProperty({ example: 'Manchester Facility', required: false })
+  @IsString()
+  @IsOptional()
+  facility?: string;
+
+  @ApiProperty({ example: '2025', required: false })
+  @IsString()
+  @IsOptional()
+  year?: string;
+}
+
+export class GetFactorSignatureQueryDto {
+  @ApiProperty({ example: '1', required: false })
+  @IsString()
+  @IsOptional()
+  scope?: string;
+
+  @ApiProperty({ example: 'SC' })
+  @IsString()
+  activity: string;
+
+  @ApiProperty({ example: 'activity', required: false })
+  @IsString()
+  @IsOptional()
+  based_option?: string;
 }

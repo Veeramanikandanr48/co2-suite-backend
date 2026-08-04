@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { CommonListPayloadDto } from './common-list.dto';
 
 export class CreateFacilityDto {
   @ApiProperty({ example: 1, required: false })
@@ -50,3 +51,11 @@ export class CreateFacilityDto {
 }
 
 export class UpdateFacilityDto extends CreateFacilityDto {}
+
+export class GetFacilitiesQueryDto extends CommonListPayloadDto {
+  @ApiProperty({ example: 1, required: false })
+  @IsNumber()
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  organizationId?: number;
+}

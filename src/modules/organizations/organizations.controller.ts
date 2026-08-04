@@ -6,6 +6,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -29,6 +30,7 @@ import {
 import { Request, Response } from 'express';
 import { UtilService } from 'src/utility/util/util.service';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
+import { CurrentUser } from 'src/utility/decorators/current-user.decorator';
 
 @ApiTags('Organizations')
 @Controller('organizations')
@@ -54,6 +56,7 @@ export class OrganizationsController {
   async onboardOrganization(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Body() dto: CreateOrganizationDto,
   ) {
     const logger = this.utilService.createLogger(
@@ -62,7 +65,6 @@ export class OrganizationsController {
     );
     logger.info('Method started: onboardOrganization');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.organizationsService.onboardOrganization(
         dto,
         user,
@@ -92,15 +94,22 @@ export class OrganizationsController {
     status: 200,
     description: 'Successfully fetched organizations',
   })
-  async getAllOrganizations(@Req() req: Request, @Res() res: Response) {
+  async getAllOrganizations(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Query() payload: CommonListPayloadDto,
+  ) {
     const logger = this.utilService.createLogger(
       OrganizationsController.name,
       req,
     );
     logger.info('Method started: getAllOrganizations');
     try {
-      const user = req['user'] as IDecodeUserDetails;
-      const result = await this.organizationsService.getAllOrganizations(user);
+      const result = await this.organizationsService.getAllOrganizations(
+        user,
+        payload,
+      );
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
         res,
@@ -130,6 +139,7 @@ export class OrganizationsController {
   async getOrganizationById(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(
@@ -138,7 +148,6 @@ export class OrganizationsController {
     );
     logger.info('Method started: getOrganizationById');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.organizationsService.getOrganizationById(
         id,
         user,
@@ -172,6 +181,7 @@ export class OrganizationsController {
   async updateOrganization(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateOrganizationDto,
   ) {
@@ -181,7 +191,6 @@ export class OrganizationsController {
     );
     logger.info('Method started: updateOrganization');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.organizationsService.updateOrganization(
         id,
         dto,
@@ -216,6 +225,7 @@ export class OrganizationsController {
   async deactivateOrganization(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(
@@ -224,7 +234,6 @@ export class OrganizationsController {
     );
     logger.info('Method started: deactivateOrganization');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.organizationsService.deactivateOrganization(
         id,
         user,
@@ -257,6 +266,7 @@ export class OrganizationsController {
   async getOrganizationFilterList(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Body() payload: CommonListPayloadDto,
   ) {
     const logger = this.utilService.createLogger(
@@ -265,7 +275,6 @@ export class OrganizationsController {
     );
     logger.info('Method started: getOrganizationFilterList');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.organizationsService.getOrganizationFilterList(
         payload,
         user,
@@ -301,6 +310,7 @@ export class OrganizationsController {
   async getOrganizationUsersFilterList(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
     @Body() payload: CommonListPayloadDto,
   ) {
@@ -310,7 +320,6 @@ export class OrganizationsController {
     );
     logger.info('Method started: getOrganizationUsersFilterList');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result =
         await this.organizationsService.getOrganizationUsersFilterList(
           id,
@@ -348,6 +357,7 @@ export class OrganizationsController {
   async addMemberToOrganization(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AddOrganizationMemberDto,
   ) {
@@ -357,7 +367,6 @@ export class OrganizationsController {
     );
     logger.info('Method started: addMemberToOrganization');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.organizationsService.addMemberToOrganization(
         id,
         dto,
@@ -390,6 +399,7 @@ export class OrganizationsController {
   async updateOrganizationMember(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
     @Param('userId', ParseIntPipe) userId: number,
     @Body() dto: UpdateOrganizationMemberDto,
@@ -400,7 +410,6 @@ export class OrganizationsController {
     );
     logger.info('Method started: updateOrganizationMember');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.organizationsService.updateOrganizationMember(
         id,
         userId,

@@ -21,10 +21,15 @@ import {
 } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { FacilitiesService } from './facilities.service';
-import { CreateFacilityDto, UpdateFacilityDto } from 'src/dto/facility.dto';
+import {
+  CreateFacilityDto,
+  GetFacilitiesQueryDto,
+  UpdateFacilityDto,
+} from 'src/dto/facility.dto';
 import { UtilService } from 'src/utility/util/util.service';
 import { Facility } from 'src/entities/facility.entity';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
+import { CurrentUser } from 'src/utility/decorators/current-user.decorator';
 
 @ApiTags('Facilities')
 @Controller('facilities')
@@ -47,6 +52,7 @@ export class FacilitiesController {
   async create(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Body() dto: CreateFacilityDto,
   ) {
     const logger = this.utilService.createLogger(
@@ -55,7 +61,6 @@ export class FacilitiesController {
     );
     logger.info('Method started: create');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.facilitiesService.createFacility(dto, user);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -87,7 +92,8 @@ export class FacilitiesController {
   async findAll(
     @Req() req: Request,
     @Res() res: Response,
-    @Query('orgId') orgId?: number,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Query() query: GetFacilitiesQueryDto,
   ) {
     const logger = this.utilService.createLogger(
       FacilitiesController.name,
@@ -95,11 +101,7 @@ export class FacilitiesController {
     );
     logger.info('Method started: findAll');
     try {
-      const user = req['user'] as IDecodeUserDetails;
-      const result = await this.facilitiesService.getAllFacilities(
-        user,
-        orgId ? Number(orgId) : undefined,
-      );
+      const result = await this.facilitiesService.getAllFacilities(user, query);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
         res,
@@ -131,6 +133,7 @@ export class FacilitiesController {
   async findOne(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(
@@ -139,7 +142,6 @@ export class FacilitiesController {
     );
     logger.info('Method started: findOne');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.facilitiesService.getFacilityById(id, user);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -172,6 +174,7 @@ export class FacilitiesController {
   async update(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateFacilityDto,
   ) {
@@ -181,7 +184,6 @@ export class FacilitiesController {
     );
     logger.info('Method started: update');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.facilitiesService.updateFacility(id, dto, user);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -213,6 +215,7 @@ export class FacilitiesController {
   async deactivate(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(
@@ -221,7 +224,6 @@ export class FacilitiesController {
     );
     logger.info('Method started: deactivate');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.facilitiesService.deactivateFacility(id, user);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(

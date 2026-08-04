@@ -7,16 +7,23 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Facility } from 'src/entities/facility.entity';
-import { CreateFacilityDto, UpdateFacilityDto } from 'src/dto/facility.dto';
+import {
+  CreateFacilityDto,
+  GetFacilitiesQueryDto,
+  UpdateFacilityDto,
+} from 'src/dto/facility.dto';
 import { SEED_FACILITIES } from 'src/seeds/initial-data.seed';
 import { MasterRole } from 'src/enums/casl.enum';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
+import { ICommonSortFieldObject } from 'src/utility/base-interface.interface';
+import { UtilService } from 'src/utility/util/util.service';
 
 @Injectable()
 export class FacilitiesService implements OnApplicationBootstrap {
   constructor(
     @InjectRepository(Facility)
     private readonly facilityRepo: Repository<Facility>,
+    private readonly utilService: UtilService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -62,13 +69,42 @@ export class FacilitiesService implements OnApplicationBootstrap {
 
   async getAllFacilities(
     user: IDecodeUserDetails,
-    orgId?: number,
-  ): Promise<Facility[]> {
+    payload: GetFacilitiesQueryDto,
+  ) {
     const targetOrgId =
-      user?.roleId === MasterRole.SUPER_ADMIN ? orgId : user?.organizationId;
+      user?.roleId === MasterRole.SUPER_ADMIN
+        ? payload?.organizationId
+        : user?.organizationId;
+
+    const tableName = 'facility';
+    const tableSortCheck = [
+      'id',
+      'name',
+      'countryCode',
+      'isActive',
+      'createdAt',
+    ];
+    const sortFieldObject: ICommonSortFieldObject = {
+      id: 'facility.id',
+      name: 'facility.name',
+      countryCode: 'facility.countryCode',
+      isActive: 'facility.isActive',
+      createdAt: 'facility.createdAt',
+    };
+
+    const processedPayload = await this.utilService.processListPayload(
+      payload || {},
+      tableName,
+      tableSortCheck,
+      sortFieldObject,
+      10,
+      'id',
+    );
+
+    const { offSet, limit, sortField, sortOrder } = processedPayload;
 
     const query = this.facilityRepo
-      .createQueryBuilder('facility')
+      .createQueryBuilder(tableName)
       .select([
         'facility.id',
         'facility.organizationId',
@@ -91,7 +127,16 @@ export class FacilitiesService implements OnApplicationBootstrap {
       });
     }
 
-    return query.orderBy('facility.id', 'ASC').getMany();
+    const orderDirection = sortOrder === -1 ? 'DESC' : 'ASC';
+    query.orderBy(sortField, orderDirection);
+    query.skip(offSet).take(limit);
+
+    const [listData, dataCount] = await query.getManyAndCount();
+
+    return {
+      listData,
+      dataCount,
+    };
   }
 
   async getFacilityById(

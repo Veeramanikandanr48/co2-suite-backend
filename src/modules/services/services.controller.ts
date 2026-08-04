@@ -32,6 +32,11 @@ import {
   AssignServicesDto,
   CreateScopeItemDto,
   CreateServiceDto,
+  GetActivityResultQueryDto,
+  GetEmissionFactorsQueryDto,
+  GetFactorSignatureQueryDto,
+  GetInventoryEntriesQueryDto,
+  GetSummaryQueryDto,
 } from 'src/dto/service.dto';
 import {
   CreateEmissionFactorDto,
@@ -42,6 +47,7 @@ import {
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import { UtilService } from 'src/utility/util/util.service';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
+import { CurrentUser } from 'src/utility/decorators/current-user.decorator';
 
 @ApiTags('Services')
 @Controller()
@@ -57,11 +63,15 @@ export class ServicesController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all available master services from DB' })
   @ApiResponse({ status: 200, description: 'Successfully fetched services' })
-  async getAllServices(@Req() req: Request, @Res() res: Response) {
+  async getAllServices(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query() payload: CommonListPayloadDto,
+  ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: getAllServices');
     try {
-      const result = await this.servicesService.getAllServices();
+      const result = await this.servicesService.getAllServices(payload);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
         res,
@@ -89,12 +99,12 @@ export class ServicesController {
   async createService(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Body() dto: CreateServiceDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: createService');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.createService(dto, user);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -168,17 +178,16 @@ export class ServicesController {
   async getCarbonSummary(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('code') code: string,
-    @Query('year') year?: string,
-    @Query('facility') facility?: string,
+    @Query() query: GetSummaryQueryDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: getCarbonSummary');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.summaryService.getCarbonSummary(user, code, {
-        year,
-        facility,
+        year: query.year,
+        facility: query.facility,
       });
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -213,16 +222,15 @@ export class ServicesController {
   async getExecutiveDashboardSummary(
     @Req() req: Request,
     @Res() res: Response,
-    @Query('year') year?: string,
-    @Query('facility') facility?: string,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Query() query: GetSummaryQueryDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: getExecutiveDashboardSummary');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.summaryService.getExecutiveDashboardSummary(
         user,
-        { year, facility },
+        { year: query.year, facility: query.facility },
       );
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -251,12 +259,12 @@ export class ServicesController {
   async createScopeItem(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Body() dto: CreateScopeItemDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: createScopeItem');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.createScopeItem(dto, user);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -287,12 +295,12 @@ export class ServicesController {
   async deactivateScopeItem(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: deactivateScopeItem');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.deactivateScopeItem(id, user);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -327,12 +335,14 @@ export class ServicesController {
   async getEmissionFactors(
     @Req() req: Request,
     @Res() res: Response,
-    @Query('category') category?: string,
+    @Query() query: GetEmissionFactorsQueryDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: getEmissionFactors');
     try {
-      const result = await this.servicesService.getEmissionFactors(category);
+      const result = await this.servicesService.getEmissionFactors(
+        query.category,
+      );
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
         res,
@@ -361,12 +371,12 @@ export class ServicesController {
   async createEmissionFactor(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Body() dto: CreateEmissionFactorDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: createEmissionFactor');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.createEmissionFactor(dto, user);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -434,13 +444,13 @@ export class ServicesController {
   async updateEmissionFactor(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateEmissionFactorDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: updateEmissionFactor');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.updateEmissionFactor(
         id,
         dto,
@@ -475,12 +485,12 @@ export class ServicesController {
   async deactivateEmissionFactor(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: deactivateEmissionFactor');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.deactivateEmissionFactor(
         id,
         user,
@@ -526,28 +536,21 @@ export class ServicesController {
   async getInventoryEntries(
     @Req() req: Request,
     @Res() res: Response,
-    @Query('category') category?: string,
-    @Query('search') search?: string,
-    @Query('facility') facility?: string,
-    @Query('status') status?: string,
-    @Query('sortField') sortField?: string,
-    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Query() query: GetInventoryEntriesQueryDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: getInventoryEntries');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.getInventoryEntries(user, {
-        category,
-        search,
-        facility,
-        status,
-        sortField,
-        sortOrder,
-        page,
-        limit,
+        category: query.category,
+        search: query.search,
+        facility: query.facility,
+        status: query.status,
+        sortField: query.sortField,
+        sortOrder: query.sortOrder,
+        page: query.page,
+        limit: query.limit,
       });
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -579,12 +582,12 @@ export class ServicesController {
   async getInventoryFilterList(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Body() payload: CommonListPayloadDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: getInventoryFilterList');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.getInventoryFilterList(
         payload,
         user,
@@ -619,12 +622,12 @@ export class ServicesController {
   async createInventoryEntry(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Body() dto: CreateInventoryEntryDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: createInventoryEntry');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.createInventoryEntry(user, dto);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -697,13 +700,13 @@ export class ServicesController {
   async updateInventoryEntry(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateInventoryEntryDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: updateInventoryEntry');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.updateInventoryEntry(
         user,
         id,
@@ -738,12 +741,12 @@ export class ServicesController {
   async deactivateInventoryEntry(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: deactivateInventoryEntry');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.deactivateInventoryEntry(
         user,
         id,
@@ -777,12 +780,12 @@ export class ServicesController {
   async getOrgServices(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: getOrgServices');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.getOrgServices(id, user);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -812,13 +815,13 @@ export class ServicesController {
   async assignServices(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AssignServicesDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: assignServices');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.assignServices(id, dto, user);
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(
@@ -849,13 +852,13 @@ export class ServicesController {
   async removeOrgService(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('id', ParseIntPipe) id: number,
     @Param('serviceId', ParseIntPipe) serviceId: number,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: removeOrgService');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.removeOrgService(
         id,
         serviceId,
@@ -905,23 +908,30 @@ export class ServicesController {
   async getScopeResultByActivity(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('scope') scope: string,
     @Param('activity') activity: string,
-    @Query('based_option') basedOption?: string,
-    @Query('facility') facility?: string,
-    @Query('year') year?: string,
+    @Query() query: GetActivityResultQueryDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: getScopeResultByActivity');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.getScopeResultByActivity(
         user,
         scope,
         activity,
-        { based_option: basedOption, facility, year },
+        {
+          based_option: query.based_option,
+          facility: query.facility,
+          year: query.year,
+        },
       );
-      return res.status(200).json(result);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched activity results',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
       return this.utilService.sendErrorResponse(
@@ -949,19 +959,22 @@ export class ServicesController {
   async getFactorSignature(
     @Req() req: Request,
     @Res() res: Response,
-    @Query('scope') scope: string,
-    @Query('activity') activity: string,
-    @Query('based_option') basedOption?: string,
+    @Query() query: GetFactorSignatureQueryDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: getFactorSignature');
     try {
       const result = await this.servicesService.getFactorSignature(
-        scope || '1',
-        activity,
-        basedOption,
+        query.scope || '1',
+        query.activity,
+        query.based_option,
       );
-      return res.status(200).json(result);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched factor signature',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
       return this.utilService.sendErrorResponse(
@@ -987,22 +1000,29 @@ export class ServicesController {
   async getResultsByActivityCode(
     @Req() req: Request,
     @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
     @Param('activity') activity: string,
-    @Query('based_option') basedOption?: string,
-    @Query('facility') facility?: string,
-    @Query('year') year?: string,
+    @Query() query: GetActivityResultQueryDto,
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     logger.info('Method started: getResultsByActivityCode');
     try {
-      const user = req['user'] as IDecodeUserDetails;
       const result = await this.servicesService.getScopeResultByActivity(
         user,
         '1',
         activity,
-        { based_option: basedOption, facility, year },
+        {
+          based_option: query.based_option,
+          facility: query.facility,
+          year: query.year,
+        },
       );
-      return res.status(200).json(result);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched activity results',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
       return this.utilService.sendErrorResponse(

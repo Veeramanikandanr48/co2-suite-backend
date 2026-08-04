@@ -149,9 +149,38 @@ export class ServicesService implements OnApplicationBootstrap {
     return this.serviceRepo.save(entity);
   }
 
-  async getAllServices(): Promise<Service[]> {
-    return this.serviceRepo
-      .createQueryBuilder('service')
+  async getAllServices(payload: CommonListPayloadDto) {
+    const tableName = 'service';
+    const tableSortCheck = [
+      'id',
+      'code',
+      'name',
+      'category',
+      'isActive',
+      'createdAt',
+    ];
+    const sortFieldObject: ICommonSortFieldObject = {
+      id: 'service.id',
+      code: 'service.code',
+      name: 'service.name',
+      category: 'service.category',
+      isActive: 'service.isActive',
+      createdAt: 'service.createdAt',
+    };
+
+    const processedPayload = await this.utilService.processListPayload(
+      payload || {},
+      tableName,
+      tableSortCheck,
+      sortFieldObject,
+      10,
+      'id',
+    );
+
+    const { offSet, limit, sortField, sortOrder } = processedPayload;
+
+    const query = this.serviceRepo
+      .createQueryBuilder(tableName)
       .select([
         'service.id',
         'service.code',
@@ -164,9 +193,18 @@ export class ServicesService implements OnApplicationBootstrap {
         'service.createdAt',
         'service.updatedAt',
       ])
-      .where('service.isActive = :isActive', { isActive: true })
-      .orderBy('service.id', 'ASC')
-      .getMany();
+      .where('service.isActive = :isActive', { isActive: true });
+
+    const orderDirection = sortOrder === -1 ? 'DESC' : 'ASC';
+    query.orderBy(sortField, orderDirection);
+    query.skip(offSet).take(limit);
+
+    const [listData, dataCount] = await query.getManyAndCount();
+
+    return {
+      listData,
+      dataCount,
+    };
   }
 
   async getOrgServices(

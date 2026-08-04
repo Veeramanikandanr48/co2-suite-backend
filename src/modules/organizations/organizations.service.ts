@@ -167,10 +167,43 @@ export class OrganizationsService {
     }
   }
 
-  async getAllOrganizations(user: IDecodeUserDetails) {
+  async getAllOrganizations(
+    user: IDecodeUserDetails,
+    payload: CommonListPayloadDto,
+  ) {
     const orgId = this.resolveOrgScope(user);
+
+    const tableName = 'org';
+    const tableSortCheck = [
+      'id',
+      'name',
+      'code',
+      'contactEmail',
+      'isActive',
+      'createdAt',
+    ];
+    const sortFieldObject: ICommonSortFieldObject = {
+      id: 'org.id',
+      name: 'org.name',
+      code: 'org.code',
+      contactEmail: 'org.contactEmail',
+      isActive: 'org.isActive',
+      createdAt: 'org.createdAt',
+    };
+
+    const processedPayload = await this.utilService.processListPayload(
+      payload || {},
+      tableName,
+      tableSortCheck,
+      sortFieldObject,
+      10,
+      'id',
+    );
+
+    const { offSet, limit, sortField, sortOrder } = processedPayload;
+
     const query = this.organizationRepo
-      .createQueryBuilder('org')
+      .createQueryBuilder(tableName)
       .select([
         'org.id',
         'org.name',
@@ -197,7 +230,16 @@ export class OrganizationsService {
       query.andWhere('org.id = :orgId', { orgId });
     }
 
-    return query.orderBy('org.id', 'ASC').getMany();
+    const orderDirection = sortOrder === -1 ? 'DESC' : 'ASC';
+    query.orderBy(sortField, orderDirection);
+    query.skip(offSet).take(limit);
+
+    const [listData, dataCount] = await query.getManyAndCount();
+
+    return {
+      listData,
+      dataCount,
+    };
   }
 
   async getOrganizationById(id: number, user: IDecodeUserDetails) {
