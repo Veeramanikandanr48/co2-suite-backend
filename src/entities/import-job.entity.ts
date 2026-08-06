@@ -35,6 +35,21 @@ export class ImportJob extends BaseColumns {
   @Column({ type: 'boolean', default: false })
   isDryRun: boolean;
 
+  /** Idempotency key preventing duplicate job submissions */
+  @Column({ type: 'varchar', length: 128, nullable: true, unique: true })
+  idempotencyKey: string;
+
+  /** Retry policy counters */
+  @Column({ type: 'int', default: 0 })
+  retryCount: number;
+
+  @Column({ type: 'int', default: 3 })
+  maxRetries: number;
+
+  /** Dead Letter Queue (DLQ) reason if job permanently fails */
+  @Column({ type: 'text', nullable: true })
+  deadLetterReason: string;
+
   @OneToMany(() => ImportJobError, (err) => err.importJob, { cascade: true })
   errors: ImportJobError[];
 }
