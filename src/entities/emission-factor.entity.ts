@@ -22,9 +22,14 @@ import { EmissionFactorGas } from './emission-factor-gas.entity';
   ],
   { unique: true },
 )
+@Index(['lookupHash'])
 export class EmissionFactor extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
+
+  /** Precomputed SHA-256 hash of the composite lookup key for single-column B-tree queries */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  lookupHash: string;
 
   @Column({ type: 'int', nullable: true })
   organizationId: number;
