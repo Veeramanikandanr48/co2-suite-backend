@@ -1,7 +1,9 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 
 @Entity({ name: 'service_scope_items' })
+@Index(['serviceCode', 'isActive'])
+@Index(['scopeCode'])
 export class ServiceScopeItem extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
@@ -23,6 +25,20 @@ export class ServiceScopeItem extends BaseColumns {
 
   @Column({ type: 'varchar', nullable: true })
   description: string;
+
+  /**
+   * Default unit for activities in this scope item (e.g. 'kWh', 'litre', 'tonne').
+   * Required by SummaryService for unit-aware aggregation.
+   */
+  @Column({ type: 'varchar', nullable: true })
+  unit: string;
+
+  /**
+   * GHG category label used for grouping in reports (e.g. 'Stationary Combustion').
+   * Matches InventoryEntry.category for cross-referencing.
+   */
+  @Column({ type: 'varchar', nullable: true })
+  category: string;
 
   @Column({ default: 0 })
   sortOrder: number;

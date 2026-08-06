@@ -12,14 +12,27 @@ import { InventoryEntry } from 'src/entities/inventory-entry.entity';
 import { Facility } from 'src/entities/facility.entity';
 import { Organization } from 'src/entities/organization.entity';
 import { UserDetails } from 'src/entities/user.entity';
+import { CalculationSnapshot } from 'src/entities/calculation-snapshot.entity';
+import {
+  CalculationPolicy,
+  EmissionFactorRow,
+  EmissionFactorSet,
+  EmissionFactorValue,
+  FormulaVersion,
+  GasMultiplier,
+  GwpVersion,
+} from 'src/entities/master-config.entity';
 import { ServicesService } from './services.service';
 import { SummaryService } from './summary.service';
 import { ServicesController } from './services.controller';
 import { UtilService } from 'src/utility/util/util.service';
 import { CalculationEngine } from './engine/calculation-engine';
+import { CalculationDbService } from './engine/calculation-db.service';
+import { DataQualityModule } from 'src/modules/common/data-quality/data-quality.module';
 
 @Module({
   imports: [
+    DataQualityModule,
     TypeOrmModule.forFeature([
       Service,
       OrganizationService,
@@ -29,6 +42,14 @@ import { CalculationEngine } from './engine/calculation-engine';
       Facility,
       Organization,
       UserDetails,
+      CalculationSnapshot,
+      CalculationPolicy,
+      EmissionFactorSet,
+      EmissionFactorRow,
+      EmissionFactorValue,
+      GwpVersion,
+      GasMultiplier,
+      FormulaVersion,
     ]),
     MulterModule.register({
       storage: diskStorage({
@@ -52,7 +73,13 @@ import { CalculationEngine } from './engine/calculation-engine';
     }),
   ],
   controllers: [ServicesController],
-  providers: [ServicesService, SummaryService, UtilService, CalculationEngine],
-  exports: [ServicesService, SummaryService, CalculationEngine],
+  providers: [
+    ServicesService,
+    SummaryService,
+    UtilService,
+    CalculationEngine,
+    CalculationDbService,
+  ],
+  exports: [ServicesService, SummaryService, CalculationEngine, CalculationDbService],
 })
 export class ServicesModule {}

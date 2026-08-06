@@ -51,6 +51,19 @@ export class ApprovalMatrix extends BaseColumns {
 
   @Column({ default: false })
   isParallel: boolean;
+
+  /**
+   * SLA threshold in hours for this approval step.
+   * When exceeded, a sla.breached domain event is emitted for escalation.
+   */
+  @Column({ type: 'int', nullable: true })
+  slaHours: number;
+
+  /**
+   * Role ID to escalate to when slaHours is breached.
+   */
+  @Column({ type: 'int', nullable: true })
+  escalationRoleId: number;
 }
 
 @Entity({ name: 'user_approval' })
@@ -78,11 +91,23 @@ export class UserApproval extends BaseColumns {
   @Column({ type: 'int' })
   approvalGroup: number;
 
+  /**
+   * FK integer for the approval status.
+   * Set this directly in update() calls; use approvalStatus relation for reads.
+   */
+  @Column({ type: 'int', nullable: true })
+  approvalStatusId: number;
+
+  /**
+   * Fixed: relation properly separated from FK column.
+   * approvalStatusId (above) = settable FK integer for update() calls.
+   * approvalStatus (below) = eager-loadable relation object.
+   */
   @ManyToOne(() => MasterApprovalStatus, (status) => status.id, {
     nullable: true,
   })
   @JoinColumn({ name: 'approvalStatusId' })
-  approvalStatusId: number;
+  approvalStatus: MasterApprovalStatus;
 
   @Column({ default: false })
   isParallel: boolean;
@@ -109,7 +134,10 @@ export class UserApprovalRemarksMapping extends BaseColumns {
   @JoinColumn({ name: 'userApprovalId' })
   userApprovalId: number;
 
+  @Column({ type: 'int', nullable: true })
+  approvalStatusId: number;
+
   @ManyToOne(() => MasterApprovalStatus, (status) => status.id)
   @JoinColumn({ name: 'approvalStatusId' })
-  approvalStatusId: number;
+  approvalStatus: MasterApprovalStatus;
 }

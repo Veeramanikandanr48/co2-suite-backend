@@ -1,7 +1,7 @@
 import { Service } from 'src/entities/service.entity';
 import { ServiceScopeItem } from 'src/entities/service-scope-item.entity';
 import { EmissionFactor } from 'src/entities/emission-factor.entity';
-import { InventoryEntry } from 'src/entities/inventory-entry.entity';
+import { InventoryEntry, InventoryStatus } from 'src/entities/inventory-entry.entity';
 import { Facility } from 'src/entities/facility.entity';
 
 export const SEED_SERVICES: Partial<Service>[] = [
@@ -882,7 +882,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'WD Solutions Co. LLC',
     emission: 105.256,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
   {
     organizationId: 1,
@@ -897,7 +898,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'Manchester Facility',
     emission: 49.654,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
 
   // Scope 1: Mobile Combustion & Fugitives
@@ -914,7 +916,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'WD Solutions Co. LLC',
     emission: 33.058,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
   {
     organizationId: 1,
@@ -929,7 +932,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '15.03.2025',
     facility: 'Manchester Facility',
     emission: 40.04,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
 
   // Scope 2: Purchased Electricity
@@ -946,7 +950,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2024',
     facility: 'WD Solutions Co. LLC',
     emission: 14428.948,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
   {
     organizationId: 1,
@@ -961,7 +966,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'Manchester Facility',
     emission: 381.915,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
 
   // Scope 2: Purchased Heating & Steam
@@ -978,7 +984,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'WD Solutions Co. LLC',
     emission: 82.08,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
 
   // Scope 3: Purchased Goods
@@ -995,7 +1002,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'WD Solutions Co. LLC',
     emission: 1115.0,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
   {
     organizationId: 1,
@@ -1010,7 +1018,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'Manchester Facility',
     emission: 36.54,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
 
   // Scope 3: Capital Goods
@@ -1027,7 +1036,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '15.02.2025',
     facility: 'WD Solutions Co. LLC',
     emission: 148.75,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
 
   // Scope 3: Upstream & Downstream Transportation
@@ -1044,7 +1054,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'WD Solutions Co. LLC',
     emission: 101.64,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
   {
     organizationId: 1,
@@ -1059,7 +1070,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'Manchester Facility',
     emission: 67.2,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
 
   // Scope 3: Waste & Travel
@@ -1076,7 +1088,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'WD Solutions Co. LLC',
     emission: 64.699,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
   {
     organizationId: 1,
@@ -1091,7 +1104,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'WD Solutions Co. LLC',
     emission: 81.28,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
   {
     organizationId: 1,
@@ -1106,7 +1120,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'Manchester Facility',
     emission: 82.08,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
 
   // Scope 3: End of Life
@@ -1123,7 +1138,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'WD Solutions Co. LLC',
     emission: 544.935,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
   {
     organizationId: 1,
@@ -1138,7 +1154,8 @@ export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
     dateTo: '31.12.2025',
     facility: 'Manchester Facility',
     emission: 48.908,
-    status: 'Approved',
+    status: InventoryStatus.COMPLETED,
+    approvalStatus: 'Approved',
   },
 ];
 

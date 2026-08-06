@@ -11,6 +11,13 @@ export class MasterRoles extends BaseColumns {
 
   @Column({ nullable: true })
   roleShortName: string;
+
+  /**
+   * Human-readable description of what this role can do.
+   * Used for display in Admin Panel role management UI.
+   */
+  @Column({ type: 'varchar', nullable: true })
+  description: string;
 }
 
 @Entity({ name: 'master_approval_status' })
@@ -19,5 +26,5 @@ export class MasterApprovalStatus extends BaseColumns {
   id: number;
 
   @Column({ type: 'varchar' })
-  name: string; // need to change
+  name: string;
 }

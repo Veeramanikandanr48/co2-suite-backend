@@ -11,7 +11,7 @@ import { Service } from 'src/entities/service.entity';
 import { OrganizationService } from 'src/entities/organization-service.entity';
 import { ServiceScopeItem } from 'src/entities/service-scope-item.entity';
 import { EmissionFactor } from 'src/entities/emission-factor.entity';
-import { InventoryEntry } from 'src/entities/inventory-entry.entity';
+import { InventoryEntry, InventoryStatus } from 'src/entities/inventory-entry.entity';
 import {
   AssignServicesDto,
   CreateScopeItemDto,
@@ -35,6 +35,9 @@ import {
   SEED_INVENTORY_ENTRIES,
 } from 'src/seeds/initial-data.seed';
 import { CalculationEngine } from './engine/calculation-engine';
+import { evaluate as mathEvaluate } from 'mathjs';
+import { CalculationDbService } from './engine/calculation-db.service';
+import { DataQualityService } from 'src/modules/common/data-quality/data-quality.service';
 
 @Injectable()
 export class ServicesService implements OnApplicationBootstrap {
@@ -52,6 +55,8 @@ export class ServicesService implements OnApplicationBootstrap {
     private readonly inventoryRepo: Repository<InventoryEntry>,
     private readonly utilService: UtilService,
     private readonly calculationEngine: CalculationEngine,
+    private readonly calcDbService: CalculationDbService,
+    private readonly dataQualityService: DataQualityService,
   ) {}
 
   private assertSuperAdmin(user: IDecodeUserDetails): void {
@@ -843,8 +848,11 @@ export class ServicesService implements OnApplicationBootstrap {
   }
 
   /**
-   * Evaluates a mathematical formula expression safely with amount and factor variables.
-   * e.g. "(amount * factor) / 1000", "amount * factor", "amount * factor * 0.001"
+   * Evaluates a mathematical formula expression safely using mathjs.
+   * Supports variables: amount, factor, ef.
+   * Example expressions: "(amount * factor) / 1000", "amount * factor * 0.001"
+   *
+   * Uses mathjs.evaluate() instead of new Function() to eliminate code injection risk.
    */
   private evaluateFormulaExpression(
     formula: string,
@@ -854,24 +862,19 @@ export class ServicesService implements OnApplicationBootstrap {
     if (!formula || !formula.trim()) return null;
 
     try {
-      let expr = formula.toLowerCase().trim();
+      const scope: Record<string, number> = {
+        amount: Number(amount) || 0,
+        factor: Number(factor) || 0,
+        ef: Number(factor) || 0,
+      };
 
-      // Replace variable names with actual numeric values
-      expr = expr.replace(/\bamount\b/g, String(amount));
-      expr = expr.replace(/\bfactor\b/g, String(factor));
-      expr = expr.replace(/\bef\b/g, String(factor));
+      const result: unknown = mathEvaluate(formula.toLowerCase().trim(), scope);
 
-      // Sanitize: only allow numbers, whitespace, +, -, *, /, (, ), .
-      if (!/^[0-9\s\+\-\*\/\(\)\.]+$/.test(expr)) {
-        return null;
-      }
-
-      const result = new Function(`"use strict"; return (${expr})`)();
       if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
         return Number(result.toFixed(3));
       }
     } catch {
-      // Return null on parsing or evaluation error to fallback to standard formula rules
+      // Return null on parsing error to fall back to standard formula rules
     }
     return null;
   }
@@ -944,10 +947,30 @@ export class ServicesService implements OnApplicationBootstrap {
       createdBy: userId,
       ef: efVal,
       emission: calculatedEmission,
-      status: dto.status || 'completed',
+      status: (dto.status as InventoryStatus) || InventoryStatus.COMPLETED,
     });
 
-    return this.inventoryRepo.save(entity);
+    const savedEntity = await this.inventoryRepo.save(entity);
+
+    try {
+      const calcResult = await this.calcDbService.calculateAndSnapshot(
+        savedEntity,
+        dto.formula,
+        efVal,
+      );
+      if (calcResult?.totalCO2e > 0) {
+        savedEntity.emission = calcResult.totalCO2e;
+        await this.inventoryRepo.update(
+          { id: savedEntity.id },
+          { emission: calcResult.totalCO2e },
+        );
+      }
+      await this.dataQualityService.validateEntry(savedEntity.id);
+    } catch {
+      // Fallback to static calculation if snapshot error occurs
+    }
+
+    return savedEntity;
   }
 
   async updateInventoryEntry(
@@ -1010,7 +1033,27 @@ export class ServicesService implements OnApplicationBootstrap {
       existing.unit,
     );
 
-    return this.inventoryRepo.save(existing);
+    const updatedEntity = await this.inventoryRepo.save(existing);
+
+    try {
+      const calcResult = await this.calcDbService.calculateAndSnapshot(
+        updatedEntity,
+        dto.formula,
+        existing.ef,
+      );
+      if (calcResult?.totalCO2e > 0) {
+        updatedEntity.emission = calcResult.totalCO2e;
+        await this.inventoryRepo.update(
+          { id: updatedEntity.id },
+          { emission: calcResult.totalCO2e },
+        );
+      }
+      await this.dataQualityService.validateEntry(updatedEntity.id);
+    } catch {
+      // Fallback if snapshot error occurs
+    }
+
+    return updatedEntity;
   }
 
   async deactivateInventoryEntry(

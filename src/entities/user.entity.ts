@@ -1,12 +1,14 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import { Organization } from './organization.entity';
+import { MasterRoles } from './master.entity';
 
 @Entity({ name: 'user_details' })
 export class UserDetails extends BaseColumns {
@@ -16,10 +18,19 @@ export class UserDetails extends BaseColumns {
   @Column({ nullable: true })
   userName: string;
 
+  /**
+   * FK to MasterRoles. Default = 3 (USER role).
+   * @Index accelerates login and permission lookups.
+   */
   @Column({ default: 3 })
   roleId: number;
 
+  @ManyToOne(() => MasterRoles, { nullable: true })
+  @JoinColumn({ name: 'roleId' })
+  role: MasterRoles;
+
   @Column({ nullable: true })
+  @Index()
   organizationId: number;
 
   @ManyToOne(() => Organization, { nullable: true })
@@ -33,6 +44,7 @@ export class UserDetails extends BaseColumns {
   lastName: string;
 
   @Column({ type: 'varchar', nullable: true })
+  @Index()
   email: string;
 
   @Column({ nullable: true })

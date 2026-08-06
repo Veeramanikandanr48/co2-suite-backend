@@ -12,6 +12,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/adapters/handlebars.adapter';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { NotificationsModule } from './modules/common/notifications/notifications.module';
 import { RegistrationModule } from './modules/registration/registration.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
@@ -26,7 +27,13 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { FacilitiesModule } from './modules/facilities/facilities.module';
 import { ApprovalModule } from './modules/common/approval/approval.module';
+import { DataQualityModule } from './modules/common/data-quality/data-quality.module';
+import { AiModule } from './modules/common/ai/ai.module';
+import { ReportingModule } from './modules/common/reporting/reporting.module';
+import { AnalyticsModule } from './modules/common/analytics/analytics.module';
+import { EnterpriseModule } from './modules/common/enterprise/enterprise.module';
 import { UtilService } from './utility/util/util.service';
+import { RolesGuard } from './auth/roles.guard';
 
 @Module({
   imports: [
@@ -40,6 +47,7 @@ import { UtilService } from './utility/util/util.service';
       serveRoot: '/uploads',
     }),
     ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot({ wildcard: true, delimiter: '.' }),
     TypeOrmModule.forFeature([UserDetails, Organization]),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -105,6 +113,11 @@ import { UtilService } from './utility/util/util.service';
     ServicesModule,
     FacilitiesModule,
     ApprovalModule,
+    DataQualityModule,
+    AiModule,
+    ReportingModule,
+    AnalyticsModule,
+    EnterpriseModule,
   ],
   controllers: [AppController],
   providers: [
@@ -112,9 +125,15 @@ import { UtilService } from './utility/util/util.service';
     UtilService,
     MultiFactorAuthenticationService,
     LogUploadCronService,
+    // Rate limiting guard — applied first
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    // Role-based access guard — applied after JWT authentication
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })
