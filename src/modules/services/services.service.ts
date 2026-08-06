@@ -424,13 +424,26 @@ export class ServicesService implements OnApplicationBootstrap {
       .createQueryBuilder('ef')
       .select([
         'ef.id',
+        'ef.scope',
         'ef.category',
         'ef.source',
         'ef.version',
         'ef.fuelOrGasType',
         'ef.unit',
         'ef.factor',
+        'ef.co2',
+        'ef.ch4',
+        'ef.n2o',
+        'ef.co2e',
+        'ef.effectiveFrom',
+        'ef.effectiveTo',
         'ef.formula',
+        'ef.fuelGasTypeId',
+        'ef.activityCategoryId',
+        'ef.measurementUnitId',
+        'ef.scopeId',
+        'ef.factorSourceId',
+        'ef.factorVersionId',
         'ef.isActive',
         'ef.createdAt',
       ])
@@ -463,6 +476,7 @@ export class ServicesService implements OnApplicationBootstrap {
     const tableName = 'ef';
     const tableSortCheck = [
       'id',
+      'scope',
       'category',
       'source',
       'version',
@@ -474,6 +488,7 @@ export class ServicesService implements OnApplicationBootstrap {
     ];
     const sortFieldObject: ICommonSortFieldObject = {
       id: 'ef.id',
+      scope: 'ef.scope',
       category: 'ef.category',
       source: 'ef.source',
       version: 'ef.version',
@@ -500,13 +515,26 @@ export class ServicesService implements OnApplicationBootstrap {
       .createQueryBuilder(tableName)
       .select([
         'ef.id',
+        'ef.scope',
         'ef.category',
         'ef.source',
+        'ef.version',
         'ef.fuelOrGasType',
         'ef.unit',
         'ef.factor',
-        'ef.version',
+        'ef.co2',
+        'ef.ch4',
+        'ef.n2o',
+        'ef.co2e',
+        'ef.effectiveFrom',
+        'ef.effectiveTo',
         'ef.formula',
+        'ef.fuelGasTypeId',
+        'ef.activityCategoryId',
+        'ef.measurementUnitId',
+        'ef.scopeId',
+        'ef.factorSourceId',
+        'ef.factorVersionId',
         'ef.isActive',
         'ef.createdAt',
       ])
@@ -560,13 +588,26 @@ export class ServicesService implements OnApplicationBootstrap {
       .createQueryBuilder('ef')
       .select([
         'ef.id',
+        'ef.scope',
         'ef.category',
         'ef.source',
         'ef.version',
         'ef.fuelOrGasType',
         'ef.unit',
         'ef.factor',
+        'ef.co2',
+        'ef.ch4',
+        'ef.n2o',
+        'ef.co2e',
+        'ef.effectiveFrom',
+        'ef.effectiveTo',
         'ef.formula',
+        'ef.fuelGasTypeId',
+        'ef.activityCategoryId',
+        'ef.measurementUnitId',
+        'ef.scopeId',
+        'ef.factorSourceId',
+        'ef.factorVersionId',
         'ef.isActive',
       ])
       .where('ef.id = :id', { id })

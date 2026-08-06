@@ -2,17 +2,36 @@ import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } 
 import { BaseColumns } from './base-columns.entity';
 
 export enum MasterItemType {
-  FUEL_TYPE = 'FUEL_TYPE',
-  ACTIVITY_CATEGORY = 'ACTIVITY_CATEGORY',
-  UNIT = 'UNIT',
-  GAS_TYPE = 'GAS_TYPE',
+  ORGANIZATION = 'ORGANIZATION',
   SCOPE = 'SCOPE',
+  ACTIVITY_CATEGORY = 'ACTIVITY_CATEGORY',
+  FUEL_TYPE = 'FUEL_TYPE',
+  GAS_TYPE = 'GAS_TYPE',
+  UNIT = 'UNIT',
+  COUNTRY = 'COUNTRY',
+  REGION = 'REGION',
   FACTOR_SOURCE = 'FACTOR_SOURCE',
   FACTOR_VERSION = 'FACTOR_VERSION',
+  GWP_VERSION = 'GWP_VERSION',
+  FORMULA = 'FORMULA',
+  DATA_QUALITY = 'DATA_QUALITY',
+  CURRENCY = 'CURRENCY',
+  SUPPLIER = 'SUPPLIER',
+  EVIDENCE = 'EVIDENCE',
+  INDUSTRY = 'INDUSTRY',
+  REPORTING_FRAMEWORK = 'REPORTING_FRAMEWORK',
+}
+
+export enum MasterItemStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  DEPRECATED = 'DEPRECATED',
+  ARCHIVED = 'ARCHIVED',
 }
 
 @Entity({ name: 'master_items' })
-@Index(['type', 'isActive'])
+@Index(['type', 'status', 'isActive'])
+@Index(['effectiveFrom', 'effectiveTo'])
 export class MasterItem extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
@@ -28,6 +47,9 @@ export class MasterItem extends BaseColumns {
 
   @Column({ type: 'varchar', nullable: true })
   description: string;
+
+  @Column({ type: 'varchar', length: 50, default: MasterItemStatus.PUBLISHED })
+  status: MasterItemStatus;
 
   @Column({ type: 'int', default: 0 })
   sortOrder: number;
@@ -47,4 +69,37 @@ export class MasterItem extends BaseColumns {
   @ManyToOne(() => MasterItem, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'parentId' })
   parent: MasterItem;
+
+  @Column({ type: 'varchar', nullable: true })
+  path: string; // Materialized path for tree navigation e.g. /1/4/12/
+
+  @Column({ type: 'int', default: 1 })
+  level: number; // Tree depth level
+
+  @Column({ type: 'date', nullable: true })
+  effectiveFrom: string;
+
+  @Column({ type: 'date', nullable: true })
+  effectiveTo: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  tags: string[];
+
+  @Column({ type: 'jsonb', nullable: true })
+  translations: Record<string, { name?: string; description?: string }>;
+
+  @Column({ type: 'jsonb', nullable: true })
+  keywords: string[];
+
+  @Column({ type: 'int', nullable: true })
+  schemaId: number;
+
+  @Column({ type: 'int', nullable: true })
+  organizationId: number;
+
+  @Column({ type: 'int', default: 1 })
+  version: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  customAttributes: Record<string, any>;
 }

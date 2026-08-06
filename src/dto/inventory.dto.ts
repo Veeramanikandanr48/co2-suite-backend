@@ -3,13 +3,18 @@ import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateEmissionFactorDto {
+  @ApiProperty({ example: 'Scope 1', required: false })
+  @IsString()
+  @IsOptional()
+  scope?: string;
+
   @ApiProperty({ example: 'Stationary Combustion' })
   @IsString()
   @Transform(({ value }) => (value ? value.trim() : value))
   @IsNotEmpty()
   category: string;
 
-  @ApiProperty({ example: 'IPCC-AR6' })
+  @ApiProperty({ example: 'IPCC' })
   @IsString()
   @Transform(({ value }) => (value ? value.trim() : value))
   @IsNotEmpty()
@@ -38,55 +43,74 @@ export class CreateEmissionFactorDto {
   @IsNotEmpty()
   factor: number;
 
+  @ApiProperty({ example: 1.94, required: false })
+  @IsNumber()
+  @IsOptional()
+  co2?: number;
+
+  @ApiProperty({ example: 0.001, required: false })
+  @IsNumber()
+  @IsOptional()
+  ch4?: number;
+
+  @ApiProperty({ example: 0.0001, required: false })
+  @IsNumber()
+  @IsOptional()
+  n2o?: number;
+
+  @ApiProperty({ example: 1.942, required: false })
+  @IsNumber()
+  @IsOptional()
+  co2e?: number;
+
+  @ApiProperty({ example: '2024-01-01', required: false })
+  @IsString()
+  @IsOptional()
+  effectiveFrom?: string;
+
+  @ApiProperty({ example: '2024-12-31', required: false })
+  @IsString()
+  @IsOptional()
+  effectiveTo?: string;
+
   @ApiProperty({ example: '(amount * factor) / 1000', required: false })
   @IsString()
   @Transform(({ value }) => (value ? value.trim() : value))
   @IsOptional()
   formula?: string;
-}
 
-export class UpdateEmissionFactorDto {
-  @ApiProperty({ required: false })
-  @IsString()
-  @Transform(({ value }) => (value ? value.trim() : value))
-  @IsOptional()
-  category?: string;
-
-  @ApiProperty({ required: false })
-  @IsString()
-  @Transform(({ value }) => (value ? value.trim() : value))
-  @IsOptional()
-  source?: string;
-
-  @ApiProperty({ required: false })
-  @IsString()
-  @Transform(({ value }) => (value ? value.trim() : value))
-  @IsOptional()
-  version?: string;
-
-  @ApiProperty({ required: false })
-  @IsString()
-  @Transform(({ value }) => (value ? value.trim() : value))
-  @IsOptional()
-  fuelOrGasType?: string;
-
-  @ApiProperty({ required: false })
-  @IsString()
-  @Transform(({ value }) => (value ? value.trim() : value))
-  @IsOptional()
-  unit?: string;
-
-  @ApiProperty({ required: false })
+  @ApiProperty({ example: 1, required: false })
   @IsNumber()
   @IsOptional()
-  factor?: number;
+  fuelGasTypeId?: number;
 
-  @ApiProperty({ required: false })
-  @IsString()
-  @Transform(({ value }) => (value ? value.trim() : value))
+  @ApiProperty({ example: 2, required: false })
+  @IsNumber()
   @IsOptional()
-  formula?: string;
+  activityCategoryId?: number;
 
+  @ApiProperty({ example: 3, required: false })
+  @IsNumber()
+  @IsOptional()
+  measurementUnitId?: number;
+
+  @ApiProperty({ example: 4, required: false })
+  @IsNumber()
+  @IsOptional()
+  scopeId?: number;
+
+  @ApiProperty({ example: 5, required: false })
+  @IsNumber()
+  @IsOptional()
+  factorSourceId?: number;
+
+  @ApiProperty({ example: 6, required: false })
+  @IsNumber()
+  @IsOptional()
+  factorVersionId?: number;
+}
+
+export class UpdateEmissionFactorDto extends PartialType(CreateEmissionFactorDto) {
   @ApiProperty({ required: false })
   @IsOptional()
   isActive?: boolean;
