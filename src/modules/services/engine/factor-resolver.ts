@@ -1,14 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { EmissionFactor } from 'src/entities/emission-factor.entity';
 import { ActivityCode } from 'src/enums/activity-code.enum';
+import { SingleFlightGroup } from './single-flight';
+import { RedisFactorProvider, SimpleRedisClient } from './redis-factor-provider';
 import {
   IFactorProvider,
   FactorLookupKey,
   ResolvedFactor,
-  IUnitConverter,
-  IGwpProvider,
 } from './interfaces/factor-provider.interface';
 
 export interface GasSpeciesRatio {
@@ -31,21 +31,21 @@ export interface ResolverMetrics {
   l2HitRatio: number;
   overallHitRatio: number;
   avgResolutionMicros: number;
+  activeSingleFlightCount: number;
 }
 
 /**
- * Three-Tier Composite Factor Resolver (ADR-004)
+ * Three-Tier Composite Factor Resolver (ADR-004) — Production Grade
  *
  * Tier 1: L1 In-Memory LRU Cache (< 0.1 ms latency target)
  * Tier 2: L2 Redis Shared Cache (< 2.0 ms latency target)
- * Tier 3: L3 PostgreSQL B-Tree Index Scan (< 10.0 ms latency target)
+ * Tier 3: L3 PostgreSQL B-Tree Index-Only Scan (< 10.0 ms latency target)
  *
- * Implements Priority-Based Cascading Override Rules (ADR-002):
- * Priority 1: Facility / Organization Override
- * Priority 2: Supplier-Specific Factor
- * Priority 3: Regional / Grid Region Factor
- * Priority 4: Country / National Factor
- * Priority 5: Global IPCC AR6 Default Factor
+ * Features:
+ *   - Priority-based cascading override (1 = Facility, 2 = Supplier, 3 = Region, 4 = Country, 5 = Global)
+ *   - SingleFlight thundering herd protection (prevents DB stampedes on concurrent cache misses)
+ *   - Vectorized bulk SQL & Redis MGET batch resolution
+ *   - Cache invalidation and warmup APIs
  */
 @Injectable()
 export class CompositeFactorResolver implements IFactorProvider {
@@ -53,10 +53,16 @@ export class CompositeFactorResolver implements IFactorProvider {
 
   // L1 In-Memory LRU Store
   private readonly l1Cache = new Map<string, { factor: ResolvedFactor; expiresAt: number }>();
-  private readonly l1Capacity = 10000;
+  private readonly l1Capacity = 20000;
   private readonly l1TtlMs = 1000 * 60 * 15; // 15-minute TTL
 
-  // Performance telemetry counters
+  // L2 Redis Provider
+  private readonly redisProvider: RedisFactorProvider;
+
+  // SingleFlight stampede deduplicator
+  private readonly singleFlight = new SingleFlightGroup<ResolvedFactor | null>();
+
+  // Telemetry metrics
   private metrics = {
     totalLookups: 0,
     l1Hits: 0,
@@ -69,12 +75,22 @@ export class CompositeFactorResolver implements IFactorProvider {
   constructor(
     @InjectRepository(EmissionFactor)
     private readonly efRepo?: Repository<EmissionFactor>,
-  ) {}
+    redisClient?: SimpleRedisClient,
+  ) {
+    this.redisProvider = new RedisFactorProvider(redisClient);
+  }
+
+  /**
+   * Attaches or updates the active Redis client.
+   */
+  setRedisClient(client: SimpleRedisClient | null): void {
+    this.redisProvider.setClient(client);
+  }
 
   /**
    * Helper: Builds a deterministic cache hash key from lookup criteria.
    */
-  private buildCacheKey(key: FactorLookupKey): string {
+  public buildCacheKey(key: FactorLookupKey): string {
     return [
       key.organizationId ?? 0,
       key.scopeId,
@@ -91,7 +107,7 @@ export class CompositeFactorResolver implements IFactorProvider {
   }
 
   /**
-   * Primary Factor Lookup with Tier 1 → Tier 2 → Tier 3 Fallback
+   * Primary Factor Lookup with Tier 1 → Tier 2 → Tier 3 Fallback & Stampede Protection
    */
   async resolveFactor(key: FactorLookupKey): Promise<ResolvedFactor | null> {
     const start = process.hrtime.bigint();
@@ -109,100 +125,106 @@ export class CompositeFactorResolver implements IFactorProvider {
       return l1Entry.factor;
     }
 
-    // ── Tier 2: L2 Redis Cache (Stubbed for Redis Client pluggability) ──────
-    // If Redis is attached, check string key `ef:${cacheKey}`.
-    // Omitted network I/O here for standalone execution; falls through to L3.
-
-    // ── Tier 3: L3 PostgreSQL Index-Only Query ─────────────────────────────
-    let resolved: ResolvedFactor | null = null;
-
-    if (this.efRepo) {
-      try {
-        const query = this.efRepo
-          .createQueryBuilder('ef')
-          .leftJoinAndSelect('ef.gases', 'gas')
-          .leftJoinAndSelect('ef.formulaRevisionItem', 'formula')
-          .leftJoinAndSelect('ef.factorSourceItem', 'source')
-          .leftJoinAndSelect('ef.factorVersionItem', 'version')
-          .where('ef.isActive = :active', { active: true })
-          .andWhere('ef.scopeId = :scopeId', { scopeId: key.scopeId })
-          .andWhere('ef.activityCategoryId = :catId', { catId: key.activityCategoryId })
-          .andWhere('ef.fuelGasTypeId = :fuelId', { fuelId: key.fuelGasTypeId })
-          .andWhere('ef.measurementUnitId = :unitId', { unitId: key.measurementUnitId });
-
-        // Optional filtering by organization, country, region
-        if (key.organizationId) {
-          query.andWhere('(ef.organizationId = :orgId OR ef.organizationId IS NULL)', { orgId: key.organizationId });
-        } else {
-          query.andWhere('ef.organizationId IS NULL');
-        }
-
-        if (key.countryId) {
-          query.andWhere('(ef.countryId = :countryId OR ef.countryId IS NULL)', { countryId: key.countryId });
-        }
-
-        if (key.regionId) {
-          query.andWhere('(ef.regionId = :regionId OR ef.regionId IS NULL)', { regionId: key.regionId });
-        }
-
-        if (key.factorSourceId) {
-          query.andWhere('ef.factorSourceId = :sourceId', { sourceId: key.factorSourceId });
-        }
-
-        if (key.factorVersionId) {
-          query.andWhere('ef.factorVersionId = :versionId', { versionId: key.factorVersionId });
-        }
-
-        // Filter by effective date range if set
-        if (key.effectiveDate) {
-          query.andWhere('(ef.effectiveFrom <= :date OR ef.effectiveFrom IS NULL)', { date: key.effectiveDate });
-          query.andWhere('(ef.effectiveTo >= :date OR ef.effectiveTo IS NULL)', { date: key.effectiveDate });
-        }
-
-        // Priority ordering: Priority 1 (Facility) > 2 (Supplier) > 3 (Regional) > 4 (Country) > 5 (Global)
-        query.orderBy('ef.priority', 'ASC');
-
-        const ef = await query.getOne();
-
-        if (ef) {
-          resolved = {
-            factorId: ef.id,
-            factor: Number(ef.totalEmissionFactor),
-            co2: ef.co2 ? Number(ef.co2) : undefined,
-            ch4: ef.ch4 ? Number(ef.ch4) : undefined,
-            n2o: ef.n2o ? Number(ef.n2o) : undefined,
-            co2e: ef.co2e ? Number(ef.co2e) : Number(ef.totalEmissionFactor),
-            formula: ef.formulaRevisionItem?.expression || '(amount * factor) / 1000',
-            source: ef.factorSourceItem?.name || 'IPCC',
-            version: ef.factorVersionItem?.name || 'AR6',
-          };
-          this.metrics.dbHits++;
-        }
-      } catch (err) {
-        this.logger.warn(`L3 DB Factor lookup warning: ${(err as Error).message}`);
+    // ── Tier 2 & Tier 3 with SingleFlight Stampede Deduplication ────────────
+    const resolved = await this.singleFlight.do(cacheKey, async () => {
+      // Check L2 Redis Cache
+      const l2Factor = await this.redisProvider.resolveFactor(key);
+      if (l2Factor) {
+        this.metrics.l2Hits++;
+        return l2Factor;
       }
-    } else {
-      // Standalone/Offline mode when DB repository is not injected
-      resolved = {
-        factorId: 9999,
-        factor: 2.68,
-        co2: 2.657,
-        ch4: 0.00011,
-        n2o: 0.00021,
-        co2e: 2.68,
-        formula: '(amount * factor) / 1000',
-        source: 'IPCC',
-        version: 'AR6',
-      };
-      this.metrics.dbHits++;
-    }
+
+      // Check L3 PostgreSQL Database
+      if (this.efRepo) {
+        try {
+          const query = this.efRepo
+            .createQueryBuilder('ef')
+            .leftJoinAndSelect('ef.gases', 'gas')
+            .leftJoinAndSelect('ef.formulaRevisionItem', 'formula')
+            .leftJoinAndSelect('ef.factorSourceItem', 'source')
+            .leftJoinAndSelect('ef.factorVersionItem', 'version')
+            .where('ef.isActive = :active', { active: true })
+            .andWhere('ef.scopeId = :scopeId', { scopeId: key.scopeId })
+            .andWhere('ef.activityCategoryId = :catId', { catId: key.activityCategoryId })
+            .andWhere('ef.fuelGasTypeId = :fuelId', { fuelId: key.fuelGasTypeId })
+            .andWhere('ef.measurementUnitId = :unitId', { unitId: key.measurementUnitId });
+
+          if (key.organizationId) {
+            query.andWhere('(ef.organizationId = :orgId OR ef.organizationId IS NULL)', { orgId: key.organizationId });
+          } else {
+            query.andWhere('ef.organizationId IS NULL');
+          }
+
+          if (key.countryId) {
+            query.andWhere('(ef.countryId = :countryId OR ef.countryId IS NULL)', { countryId: key.countryId });
+          }
+
+          if (key.regionId) {
+            query.andWhere('(ef.regionId = :regionId OR ef.regionId IS NULL)', { regionId: key.regionId });
+          }
+
+          if (key.factorSourceId) {
+            query.andWhere('ef.factorSourceId = :sourceId', { sourceId: key.factorSourceId });
+          }
+
+          if (key.factorVersionId) {
+            query.andWhere('ef.factorVersionId = :versionId', { versionId: key.factorVersionId });
+          }
+
+          if (key.effectiveDate) {
+            query.andWhere('(ef.effectiveFrom <= :date OR ef.effectiveFrom IS NULL)', { date: key.effectiveDate });
+            query.andWhere('(ef.effectiveTo >= :date OR ef.effectiveTo IS NULL)', { date: key.effectiveDate });
+          }
+
+          query.orderBy('ef.priority', 'ASC');
+          const ef = await query.getOne();
+
+          if (ef) {
+            this.metrics.dbHits++;
+            const factorData: ResolvedFactor = {
+              factorId: ef.id,
+              factor: Number(ef.totalEmissionFactor),
+              co2: ef.co2 ? Number(ef.co2) : undefined,
+              ch4: ef.ch4 ? Number(ef.ch4) : undefined,
+              n2o: ef.n2o ? Number(ef.n2o) : undefined,
+              co2e: ef.co2e ? Number(ef.co2e) : Number(ef.totalEmissionFactor),
+              formula: ef.formulaRevisionItem?.expression || '(amount * factor) / 1000',
+              source: ef.factorSourceItem?.name || 'IPCC',
+              version: ef.factorVersionItem?.name || 'AR6',
+            };
+
+            // Write to L2 Redis asynchronously
+            this.redisProvider.setFactor(key, factorData).catch(() => {});
+            return factorData;
+          }
+        } catch (err) {
+          this.logger.warn(`L3 DB Factor lookup warning: ${(err as Error).message}`);
+        }
+      } else {
+        // Fallback for standalone / unit test mode without DB
+        this.metrics.dbHits++;
+        const fallback: ResolvedFactor = {
+          factorId: 9999,
+          factor: 2.68,
+          co2: 2.657,
+          ch4: 0.00011,
+          n2o: 0.00021,
+          co2e: 2.68,
+          formula: '(amount * factor) / 1000',
+          source: 'IPCC',
+          version: 'AR6',
+        };
+        return fallback;
+      }
+
+      return null;
+    });
 
     if (!resolved) {
       this.metrics.misses++;
     } else {
-      // Store in L1 Cache
+      // Store in L1 Memory LRU Cache
       if (this.l1Cache.size >= this.l1Capacity) {
-        // Evict oldest entry (first key in insertion-ordered Map)
         const firstKey = this.l1Cache.keys().next().value;
         if (firstKey) this.l1Cache.delete(firstKey);
       }
@@ -217,36 +239,153 @@ export class CompositeFactorResolver implements IFactorProvider {
   }
 
   /**
-   * Vectorized Batch Resolution — Resolves multiple lookup keys in parallel
+   * Vectorized Batch Resolution with Bulk Redis MGET & Bulk SQL Queries
    */
   async resolveFactorsBatch(keys: FactorLookupKey[]): Promise<Map<string, ResolvedFactor>> {
     const resultMap = new Map<string, ResolvedFactor>();
-    const promises = keys.map(async (k) => {
-      const hash = this.buildCacheKey(k);
-      const res = await this.resolveFactor(k);
-      if (res) resultMap.set(hash, res);
-    });
-    await Promise.all(promises);
+    if (keys.length === 0) return resultMap;
+
+    const missesForL2: FactorLookupKey[] = [];
+
+    // Step 1: Check L1 Memory LRU Cache
+    for (const key of keys) {
+      const cacheKey = this.buildCacheKey(key);
+      const l1Entry = this.l1Cache.get(cacheKey);
+      if (l1Entry && l1Entry.expiresAt > Date.now()) {
+        this.metrics.l1Hits++;
+        resultMap.set(cacheKey, l1Entry.factor);
+      } else {
+        missesForL2.push(key);
+      }
+    }
+
+    if (missesForL2.length === 0) return resultMap;
+
+    // Step 2: Check L2 Redis Cache via MGET
+    const redisResults = await this.redisProvider.resolveFactorsBatch(missesForL2);
+    const missesForL3: FactorLookupKey[] = [];
+
+    for (const key of missesForL2) {
+      const redisKey = this.redisProvider.buildKey(key);
+      const l2Factor = redisResults.get(redisKey);
+
+      if (l2Factor) {
+        this.metrics.l2Hits++;
+        const cacheKey = this.buildCacheKey(key);
+        resultMap.set(cacheKey, l2Factor);
+        // Populate L1 cache
+        this.l1Cache.set(cacheKey, { factor: l2Factor, expiresAt: Date.now() + this.l1TtlMs });
+      } else {
+        missesForL3.push(key);
+      }
+    }
+
+    if (missesForL3.length === 0 || !this.efRepo) {
+      if (missesForL3.length > 0 && !this.efRepo) {
+        // Standalone test fallback for remaining misses
+        for (const key of missesForL3) {
+          const cacheKey = this.buildCacheKey(key);
+          const fallback: ResolvedFactor = {
+            factorId: 9999, factor: 2.68, co2e: 2.68,
+            formula: '(amount * factor) / 1000', source: 'IPCC', version: 'AR6',
+          };
+          resultMap.set(cacheKey, fallback);
+          this.l1Cache.set(cacheKey, { factor: fallback, expiresAt: Date.now() + this.l1TtlMs });
+        }
+      }
+      return resultMap;
+    }
+
+    // Step 3: Bulk SQL query for remaining misses
+    try {
+      const scopeIds = Array.from(new Set(missesForL3.map((k) => k.scopeId)));
+      const categoryIds = Array.from(new Set(missesForL3.map((k) => k.activityCategoryId)));
+      const fuelIds = Array.from(new Set(missesForL3.map((k) => k.fuelGasTypeId)));
+
+      const dbFactors = await this.efRepo.find({
+        where: {
+          isActive: true,
+          scopeId: In(scopeIds),
+          activityCategoryId: In(categoryIds),
+          fuelGasTypeId: In(fuelIds),
+        },
+        relations: { gases: true, formulaRevisionItem: true, factorSourceItem: true, factorVersionItem: true },
+        order: { priority: 'ASC' },
+      });
+
+      for (const key of missesForL3) {
+        const cacheKey = this.buildCacheKey(key);
+        const match = dbFactors.find(
+          (ef) =>
+            ef.scopeId === key.scopeId &&
+            ef.activityCategoryId === key.activityCategoryId &&
+            ef.fuelGasTypeId === key.fuelGasTypeId &&
+            ef.measurementUnitId === key.measurementUnitId
+        );
+
+        if (match) {
+          this.metrics.dbHits++;
+          const factorData: ResolvedFactor = {
+            factorId: match.id,
+            factor: Number(match.totalEmissionFactor),
+            co2: match.co2 ? Number(match.co2) : undefined,
+            ch4: match.ch4 ? Number(match.ch4) : undefined,
+            n2o: match.n2o ? Number(match.n2o) : undefined,
+            co2e: match.co2e ? Number(match.co2e) : Number(match.totalEmissionFactor),
+            formula: match.formulaRevisionItem?.expression || '(amount * factor) / 1000',
+            source: match.factorSourceItem?.name || 'IPCC',
+            version: match.factorVersionItem?.name || 'AR6',
+          };
+
+          resultMap.set(cacheKey, factorData);
+          this.l1Cache.set(cacheKey, { factor: factorData, expiresAt: Date.now() + this.l1TtlMs });
+          this.redisProvider.setFactor(key, factorData).catch(() => {});
+        } else {
+          this.metrics.misses++;
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`L3 Bulk DB resolution error: ${(err as Error).message}`);
+    }
+
     return resultMap;
   }
 
   /**
-   * Invalidate specific key in cache (e.g. when factor is published or revised)
+   * Pre-warms L1 LRU & L2 Redis with hot global default emission factors
    */
-  invalidate(key: FactorLookupKey): void {
+  async warmCache(hotFactors: Array<{ key: FactorLookupKey; factor: ResolvedFactor }>): Promise<number> {
+    let count = 0;
+    for (const { key, factor } of hotFactors) {
+      const cacheKey = this.buildCacheKey(key);
+      this.l1Cache.set(cacheKey, { factor, expiresAt: Date.now() + this.l1TtlMs });
+      await this.redisProvider.setFactor(key, factor);
+      count++;
+    }
+    this.logger.log(`Warmed factor cache with ${count} hot entries`);
+    return count;
+  }
+
+  /**
+   * Evict a specific factor key from both L1 and L2 caches (Event-Driven Invalidation)
+   */
+  async invalidateKey(key: FactorLookupKey): Promise<void> {
     const hash = this.buildCacheKey(key);
     this.l1Cache.delete(hash);
+    await this.redisProvider.evictFactor(key);
   }
 
   /**
-   * Flush all cached factor values
+   * Clear all L1 and L2 factor caches
    */
-  clearAllCaches(): void {
+  async clearAllCaches(): Promise<void> {
     this.l1Cache.clear();
+    await this.redisProvider.evictAllFactors();
+    this.singleFlight.clear();
   }
 
   /**
-   * Telemetry metrics report for monitoring & benchmark assertions
+   * Returns telemetry metrics for observability and SLA assertions
    */
   getMetrics(): ResolverMetrics {
     const total = this.metrics.totalLookups || 1;
@@ -260,6 +399,7 @@ export class CompositeFactorResolver implements IFactorProvider {
       l2HitRatio: Math.round((this.metrics.l2Hits / total) * 10000) / 100,
       overallHitRatio: Math.round(((this.metrics.l1Hits + this.metrics.l2Hits) / total) * 10000) / 100,
       avgResolutionMicros: Math.round(this.metrics.totalMicros / total),
+      activeSingleFlightCount: this.singleFlight.activeCount,
     };
   }
 
@@ -268,7 +408,7 @@ export class CompositeFactorResolver implements IFactorProvider {
     this.metrics.totalMicros += Number(elapsed / 1000n);
   }
 
-  // ── Legacy static helpers maintained for backward compatibility ─────────────
+  // ── Legacy static resolution methods maintained for backward compatibility ──
 
   static resolveSupportedSources(activityCode: string): string[] {
     switch (activityCode.toUpperCase()) {
@@ -351,5 +491,4 @@ export class CompositeFactorResolver implements IFactorProvider {
   }
 }
 
-// Export FactorResolver alias for backward compatibility
 export const FactorResolver = CompositeFactorResolver;
