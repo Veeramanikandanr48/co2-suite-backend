@@ -76,66 +76,6 @@ export class ServicesService implements OnApplicationBootstrap {
    * Seeds initial DB tables from separate seed file on application startup.
    */
   async onApplicationBootstrap(): Promise<void> {
-    try {
-      await this.dataSource.query(`
-        DROP TABLE IF EXISTS 
-          activity_supplementary_values,
-          ai_capabilities,
-          ai_providers,
-          ai_suggestion_logs,
-          api_keys,
-          audit_logs,
-          benchmark_datasets,
-          calculation_snapshots,
-          data_quality,
-          data_quality_results,
-          data_quality_rules,
-          data_quality_scores,
-          emission_factor_gases,
-          emission_factor_metadata,
-          emission_factor_revisions,
-          emission_factor_rows,
-          emission_factor_sets,
-          emission_factor_values,
-          emission_summaries,
-          formula_library,
-          formula_revisions,
-          formula_versions,
-          formulas,
-          gas_multipliers,
-          gas_types,
-          gwp_values,
-          gwp_versions,
-          import_job_errors,
-          import_jobs,
-          master_categories,
-          master_change_requests,
-          master_configs,
-          master_item_versions,
-          master_items,
-          master_schemas,
-          master_type_schema_versions,
-          master_type_service_domains,
-          master_type_statistics,
-          master_types,
-          notification_history,
-          notification_templates,
-          reduced_targets,
-          report_definitions,
-          report_executions,
-          service_domains,
-          supplementary_field_definitions,
-          supplementary_fields,
-          tenants,
-          unit_conversions,
-          user_authentication_details,
-          user_email_verification,
-          webhook_deliveries,
-          webhook_endpoints CASCADE;
-      `);
-    } catch {
-      // Ignore if tables do not exist
-    }
     const serviceCount = await this.serviceRepo.count();
     if (serviceCount === 0) {
       await this.serviceRepo.save(
