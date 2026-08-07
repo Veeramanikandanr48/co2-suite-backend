@@ -9,6 +9,12 @@ import { ImportJob, ImportJobError, ImportJobStatus } from 'src/entities/import-
 import { PhysicalDimension, UnitConversion } from 'src/entities/unit-conversion.entity';
 import { EmissionFactor } from 'src/entities/emission-factor.entity';
 import { ServiceScopeItem } from 'src/entities/service-scope-item.entity';
+import { Service } from 'src/entities/service.entity';
+import { ServiceDomain } from 'src/entities/service-domain.entity';
+import { MasterCategory } from 'src/entities/master-category.entity';
+import { MasterType } from 'src/entities/master-type.entity';
+import { MasterTypeSchemaVersion } from 'src/entities/master-type-schema-version.entity';
+import { MasterTypeStatistics } from 'src/entities/master-type-statistics.entity';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import {
   CalculationPolicy,
@@ -23,7 +29,7 @@ import {
   NotificationTemplate,
   SupplementaryFieldDefinition,
 } from 'src/entities/master-config.entity';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import {
   SEED_GAS_TYPES,
   SEED_GWP_VERSIONS,
@@ -103,10 +109,31 @@ export class MastersService implements OnApplicationBootstrap {
     private readonly suppFieldRepo: Repository<SupplementaryFieldDefinition>,
     @InjectRepository(NotificationTemplate)
     private readonly notifTemplateRepo: Repository<NotificationTemplate>,
+    @InjectRepository(Service)
+    private readonly serviceRepo: Repository<Service>,
+    @InjectRepository(ServiceDomain)
+    private readonly serviceDomainRepo: Repository<ServiceDomain>,
+    @InjectRepository(MasterCategory)
+    private readonly categoryRepo: Repository<MasterCategory>,
+    @InjectRepository(MasterType)
+    private readonly masterTypeRepo: Repository<MasterType>,
+    @InjectRepository(MasterTypeSchemaVersion)
+    private readonly schemaVersionRepo: Repository<MasterTypeSchemaVersion>,
+    @InjectRepository(MasterTypeStatistics)
+    private readonly statisticsRepo: Repository<MasterTypeStatistics>,
   ) { }
 
   async onApplicationBootstrap() {
     try {
+      // Migrate any existing 'GLOBAL' or NULL serviceCode master items to 'CARBON'
+      await this.masterItemRepo.createQueryBuilder()
+        .update(MasterItem)
+        .set({ serviceCode: 'CARBON' })
+        .where('serviceCode = :oldCode OR serviceCode IS NULL', { oldCode: 'GLOBAL' })
+        .execute();
+
+      await this.seedMetadataEngine();
+      await this.seedServiceMasterTypeMappings();
       await this.seedMasterConfigs();
       await this.syncAllMasterItemsToScopeItems();
     } catch (err) {
@@ -222,6 +249,37 @@ export class MastersService implements OnApplicationBootstrap {
         { type: MasterItemType.ACTIVITY_CATEGORY, code: 'CAT_13_DOWNSTREAM_LEASE', name: 'Cat 13: Downstream Leased Assets', scope: 'Scope 3', parentId: scope3?.id, sortOrder: 26, isActive: true },
         { type: MasterItemType.ACTIVITY_CATEGORY, code: 'CAT_14_FRANCHISE', name: 'Cat 14: Franchises', scope: 'Scope 3', parentId: scope3?.id, sortOrder: 27, isActive: true },
         { type: MasterItemType.ACTIVITY_CATEGORY, code: 'CAT_15_INVESTMENT', name: 'Cat 15: Investments', scope: 'Scope 3', parentId: scope3?.id, sortOrder: 28, isActive: true },
+
+        // Seed CBAM Master Categories
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'CBAM_STEEL', name: 'Iron & Steel Direct Operations', scope: 'Scope 1', serviceCode: 'CBAM', sortOrder: 29, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'CBAM_ALUMINIUM', name: 'Aluminium Primary Smelting', scope: 'Scope 1', serviceCode: 'CBAM', sortOrder: 30, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'CBAM_FERTILIZER', name: 'Nitrogen Fertilizers & Ammonia', scope: 'Scope 1', serviceCode: 'CBAM', sortOrder: 31, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'CBAM_CEMENT', name: 'Cement Clinker Calcination', scope: 'Scope 1', serviceCode: 'CBAM', sortOrder: 32, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'CBAM_ELECTRICITY', name: 'CBAM Electricity Import Generation', scope: 'Scope 2', serviceCode: 'CBAM', sortOrder: 33, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'CBAM_HYDROGEN', name: 'Hydrogen Production Process', scope: 'Scope 1', serviceCode: 'CBAM', sortOrder: 34, isActive: true },
+
+        // Seed PEF Textiles Master Categories
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'PEF_FIBER_PROD', name: 'Fiber Cultivation & Polymerization', scope: 'Scope 3', serviceCode: 'PEF_TEXTILES', sortOrder: 35, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'PEF_YARN_SPINNING', name: 'Yarn Spinning & Weaving', scope: 'Scope 1', serviceCode: 'PEF_TEXTILES', sortOrder: 36, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'PEF_WET_PROCESSING', name: 'Wet Processing, Dyeing & Finishing', scope: 'Scope 1', serviceCode: 'PEF_TEXTILES', sortOrder: 37, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'PEF_GARMENT_ASSEMBLY', name: 'Garment Assembly & Cutting', scope: 'Scope 1', serviceCode: 'PEF_TEXTILES', sortOrder: 38, isActive: true },
+
+        // Seed LCA Plastics Master Categories
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'LCA_RESIN_SYNTHESIS', name: 'Polymer Resin Synthesis (PET/HDPE/PP)', scope: 'Scope 1', serviceCode: 'LCA_PLASTICS', sortOrder: 39, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'LCA_COMPOUNDING', name: 'Compounding & Additive Blending', scope: 'Scope 1', serviceCode: 'LCA_PLASTICS', sortOrder: 40, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'LCA_INJECTION_MOLDING', name: 'Injection Molding & Extrusion', scope: 'Scope 1', serviceCode: 'LCA_PLASTICS', sortOrder: 41, isActive: true },
+
+        // Seed LCA Metals Master Categories
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'LCA_ORE_SMELTING', name: 'Ore Smelting & Blast Furnace', scope: 'Scope 1', serviceCode: 'LCA_METALS', sortOrder: 42, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'LCA_SCRAP_REMELT', name: 'Secondary Scrap Remelting', scope: 'Scope 1', serviceCode: 'LCA_METALS', sortOrder: 43, isActive: true },
+
+        // Seed ESG Master Categories
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'ESG_CARBON_INTENSITY', name: 'GHG Intensity Metrics', scope: 'Scope 1', serviceCode: 'ESG', sortOrder: 44, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'ESG_ENERGY_WATER', name: 'Energy & Water Resource Usage', scope: 'Scope 1', serviceCode: 'ESG', sortOrder: 45, isActive: true },
+
+        // Seed EPD Cables Master Categories
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'EPD_CONDUCTOR_DRAWING', name: 'Copper/Aluminium Conductor Drawing', scope: 'Scope 1', serviceCode: 'EPD_CABLES', sortOrder: 46, isActive: true },
+        { type: MasterItemType.ACTIVITY_CATEGORY, code: 'EPD_INSULATION_EXTRUSION', name: 'XLPE/PVC Insulation Extrusion', scope: 'Scope 1', serviceCode: 'EPD_CABLES', sortOrder: 47, isActive: true },
       ]);
     }
 
@@ -403,6 +461,44 @@ export class MastersService implements OnApplicationBootstrap {
     }
   }
 
+  private async syncCategoryToScopeItems(cat: MasterItem) {
+    if (!cat || !cat.scope) return;
+    const targetScope = cat.scope;
+    const targetScopeCode = targetScope.toUpperCase().replace(/\s+/g, '_');
+    const targetServices = (!cat.serviceCode || cat.serviceCode === 'GLOBAL')
+      ? ['CARBON', 'CBAM', 'PEF_TEXTILES', 'LCA_PLASTICS', 'LCA_METALS', 'ESG', 'EPD_CABLES']
+      : [cat.serviceCode];
+
+    for (const svcCode of targetServices) {
+      const existingScope = await this.scopeItemRepo.findOne({
+        where: [
+          { serviceCode: svcCode, name: cat.name },
+          { serviceCode: svcCode, code: cat.code },
+        ],
+      });
+
+      if (existingScope) {
+        existingScope.scope = targetScope;
+        existingScope.scopeCode = targetScopeCode;
+        existingScope.name = cat.name;
+        existingScope.isActive = cat.isActive !== false;
+        await this.scopeItemRepo.save(existingScope);
+      } else {
+        const newScope = this.scopeItemRepo.create({
+          serviceCode: svcCode,
+          scope: targetScope,
+          scopeCode: targetScopeCode,
+          name: cat.name,
+          code: cat.code,
+          description: cat.description || `Dynamic category for ${cat.name}`,
+          sortOrder: cat.sortOrder || 99,
+          isActive: cat.isActive !== false,
+        });
+        await this.scopeItemRepo.save(newScope);
+      }
+    }
+  }
+
   private async syncAllMasterItemsToScopeItems() {
     try {
       const masterCategories = await this.masterItemRepo.find({
@@ -410,36 +506,7 @@ export class MastersService implements OnApplicationBootstrap {
       });
 
       for (const cat of masterCategories) {
-        if (!cat.scope) continue;
-        const targetScope = cat.scope;
-        const targetScopeCode = targetScope.toUpperCase().replace(/\s+/g, '_');
-
-        const existingScope = await this.scopeItemRepo.findOne({
-          where: [
-            { serviceCode: 'CARBON', name: cat.name },
-            { serviceCode: 'CARBON', code: cat.code },
-          ],
-        });
-
-        if (existingScope) {
-          existingScope.scope = targetScope;
-          existingScope.scopeCode = targetScopeCode;
-          existingScope.name = cat.name;
-          existingScope.isActive = true;
-          await this.scopeItemRepo.save(existingScope);
-        } else {
-          const newScope = this.scopeItemRepo.create({
-            serviceCode: 'CARBON',
-            scope: targetScope,
-            scopeCode: targetScopeCode,
-            name: cat.name,
-            code: cat.code,
-            description: cat.description || `Dynamic category for ${cat.name}`,
-            sortOrder: cat.sortOrder || 99,
-            isActive: true,
-          });
-          await this.scopeItemRepo.save(newScope);
-        }
+        await this.syncCategoryToScopeItems(cat);
       }
     } catch (err) {
       this.logger.error('Failed to sync master items to service scope items', err);
@@ -795,7 +862,13 @@ export class MastersService implements OnApplicationBootstrap {
   // GENERIC MASTER ITEM CRUD WITH AUDIT VERSIONING
   // ============================================================================
 
-  async getMasterItems(type?: string, parentId?: number, search?: string, organizationId?: number): Promise<MasterItem[]> {
+  async getMasterItems(
+    type?: string,
+    parentId?: number,
+    search?: string,
+    serviceCode?: string,
+    organizationId?: number,
+  ): Promise<MasterItem[]> {
     if ((await this.masterItemRepo.count()) === 0) {
       await this.seedMasterConfigs();
     }
@@ -814,6 +887,10 @@ export class MastersService implements OnApplicationBootstrap {
 
     if (parentId) {
       query.andWhere('item.parentId = :parentId', { parentId });
+    }
+
+    if (serviceCode && serviceCode !== 'ALL') {
+      query.andWhere('(item.serviceCode = :serviceCode OR item.isGlobal = true)', { serviceCode });
     }
 
     if (search) {
@@ -852,32 +929,10 @@ export class MastersService implements OnApplicationBootstrap {
     // Record initial version snapshot
     await this.recordVersion(saved.id, 'CREATE', saved, undefined, undefined, dto.changeReason || 'Initial Creation', userId);
 
-    // Auto-sync dynamic Activity Category to ServiceScopeItem so it appears under /services/carbon
+    // Auto-sync dynamic Activity Category to ServiceScopeItem
     if (saved.type === MasterItemType.ACTIVITY_CATEGORY || (saved.type as string) === 'ACTIVITY_CATEGORY') {
       try {
-        const targetScope = saved.scope || dto.scope || 'Scope 1';
-        const targetScopeCode = targetScope.toUpperCase().replace(/\s+/g, '_');
-        const existingScope = await this.scopeItemRepo.findOne({
-          where: { serviceCode: 'CARBON', name: saved.name },
-        });
-        if (!existingScope) {
-          const newScope = this.scopeItemRepo.create({
-            serviceCode: 'CARBON',
-            scope: targetScope,
-            scopeCode: targetScopeCode,
-            name: saved.name,
-            code: saved.code,
-            description: saved.description || `Dynamic category for ${saved.name}`,
-            sortOrder: saved.sortOrder || 99,
-            isActive: true,
-          });
-          await this.scopeItemRepo.save(newScope);
-        } else {
-          existingScope.scope = targetScope;
-          existingScope.scopeCode = targetScopeCode;
-          existingScope.isActive = true;
-          await this.scopeItemRepo.save(existingScope);
-        }
+        await this.syncCategoryToScopeItems(saved);
       } catch (err) {
         this.logger.error('Failed to sync master item to service scope items', err);
       }
@@ -916,36 +971,7 @@ export class MastersService implements OnApplicationBootstrap {
 
     if (updated && (updated.type === MasterItemType.ACTIVITY_CATEGORY || (updated.type as string) === 'ACTIVITY_CATEGORY')) {
       try {
-        const targetScope = updated.scope || 'Scope 1';
-        const targetScopeCode = targetScope.toUpperCase().replace(/\s+/g, '_');
-        const oldName = oldItem?.name || updated.name;
-
-        const existingScope = await this.scopeItemRepo.findOne({
-          where: [
-            { serviceCode: 'CARBON', name: oldName },
-            { serviceCode: 'CARBON', code: updated.code },
-          ],
-        });
-
-        if (existingScope) {
-          existingScope.name = updated.name;
-          existingScope.scope = targetScope;
-          existingScope.scopeCode = targetScopeCode;
-          existingScope.isActive = updated.isActive !== false;
-          await this.scopeItemRepo.save(existingScope);
-        } else {
-          const newScope = this.scopeItemRepo.create({
-            serviceCode: 'CARBON',
-            scope: targetScope,
-            scopeCode: targetScopeCode,
-            name: updated.name,
-            code: updated.code,
-            description: updated.description || `Dynamic category for ${updated.name}`,
-            sortOrder: updated.sortOrder || 99,
-            isActive: true,
-          });
-          await this.scopeItemRepo.save(newScope);
-        }
+        await this.syncCategoryToScopeItems(updated);
       } catch (err) {
         this.logger.error('Failed to sync updated master item to service scope items', err);
       }
@@ -976,6 +1002,36 @@ export class MastersService implements OnApplicationBootstrap {
         this.logger.error('Failed to deactivate corresponding scope item', err);
       }
     }
+  }
+
+  async bulkDeleteMasterItems(ids: (number | string)[], userId?: number): Promise<{ count: number }> {
+    const numericIds = (ids || []).map((id) => Number(id)).filter((id) => !isNaN(id) && id > 0);
+    if (!numericIds.length) return { count: 0 };
+
+    const items = await this.masterItemRepo.findBy({ id: In(numericIds) });
+
+    await this.masterItemRepo.update(
+      { id: In(numericIds) },
+      {
+        isActive: false,
+        deletedBy: userId || null,
+        deletedAt: new Date(),
+      },
+    );
+
+    const itemNames = items.map((i) => i.name).filter(Boolean);
+    if (itemNames.length > 0) {
+      try {
+        await this.scopeItemRepo.update(
+          { serviceCode: 'CARBON', name: In(itemNames) },
+          { isActive: false, deletedAt: new Date() },
+        );
+      } catch (err) {
+        this.logger.error('Failed to bulk deactivate corresponding scope items', err);
+      }
+    }
+
+    return { count: numericIds.length };
   }
 
   async getMasterItemHistory(masterItemId: number): Promise<MasterItemVersion[]> {
@@ -1338,6 +1394,10 @@ export class MastersService implements OnApplicationBootstrap {
       }
     }
 
+    if (additionalFilter?.serviceCode && additionalFilter.serviceCode !== 'ALL') {
+      query.andWhere('(item.serviceCode = :serviceCode OR item.isGlobal = true)', { serviceCode: additionalFilter.serviceCode });
+    }
+
     if (additionalFilter?.parentId) {
       query.andWhere('item.parentId = :parentId', { parentId: additionalFilter.parentId });
     }
@@ -1356,5 +1416,530 @@ export class MastersService implements OnApplicationBootstrap {
       .getManyAndCount();
 
     return { listData, dataCount };
+  }
+
+  private async seedServiceMasterTypeMappings() {
+    const globalShared = [
+      'ORGANIZATION', 'BUSINESS_UNIT', 'FACILITY', 'BUILDING', 'DEPARTMENT', 'METER',
+      'COUNTRY', 'REGION', 'CURRENCY', 'UNIT', 'UNIT_CONVERSION', 'FUEL_TYPE', 'GAS_TYPE',
+      'FACTOR_SOURCE', 'FACTOR_VERSION', 'FORMULA', 'DATA_QUALITY',
+    ];
+
+    const serviceTypeMappings: Record<string, string[]> = {
+      CARBON: [
+        ...globalShared,
+        'SCOPE', 'ACTIVITY_CATEGORY', 'EMISSION_FACTOR', 'CALCULATION_POLICY', 'REPORTING_PERIOD', 'GWP_VERSION',
+      ],
+      CBAM: [
+        ...globalShared,
+        'CBAM_PRODUCT', 'CN_CODE', 'PRODUCTION_ROUTE', 'INSTALLATION', 'PRECURSOR_MATERIAL', 'COUNTRY_OF_ORIGIN', 'EMBEDDED_EMISSION_METHOD', 'ELECTRICITY_SOURCE', 'CBAM_REPORTING_PERIOD', 'CBAM_DECLARATION_STATUS', 'GWP_VERSION',
+      ],
+      PEF_TEXTILES: [
+        ...globalShared,
+        'PRODUCT_CATEGORY', 'MATERIAL', 'FIBER_TYPE', 'FABRIC_TYPE', 'CHEMICAL', 'PACKAGING_MATERIAL', 'TRANSPORT_MODE', 'END_OF_LIFE_SCENARIO', 'IMPACT_CATEGORY', 'PEF_DATASET',
+      ],
+      LCA_PLASTICS: [
+        ...globalShared,
+        'PLASTIC_RESIN', 'POLYMER', 'ADDITIVE', 'TRANSPORT_MODE', 'END_OF_LIFE_SCENARIO', 'LIFECYCLE_STAGE', 'DATABASE_SOURCE',
+      ],
+      LCA_METALS: [
+        ...globalShared,
+        'METAL_ALLOY', 'ORE', 'SMELTING_PROCESS', 'CASTING_PROCESS', 'TRANSPORT_MODE', 'END_OF_LIFE_SCENARIO', 'LIFECYCLE_STAGE', 'DATABASE_SOURCE',
+      ],
+      ESG: [
+        ...globalShared,
+        'ESG_FRAMEWORK', 'ESG_INDICATOR', 'KPI', 'SDG_GOAL', 'MATERIAL_TOPIC', 'DISCLOSURE_REQUIREMENT', 'REPORTING_BOUNDARY', 'STAKEHOLDER', 'GWP_VERSION',
+      ],
+      EPD_CABLES: [
+        ...globalShared,
+        'PCR', 'PRODUCT_FAMILY', 'DECLARED_UNIT', 'LIFECYCLE_MODULE', 'IMPACT_CATEGORY', 'VERIFICATION_BODY', 'PROGRAM_OPERATOR', 'VALIDITY_PERIOD',
+      ],
+    };
+
+    for (const [code, allowedMasterTypes] of Object.entries(serviceTypeMappings)) {
+      await this.serviceRepo.update({ code }, { allowedMasterTypes });
+    }
+
+    await this.masterItemRepo.createQueryBuilder()
+      .update(MasterItem)
+      .set({ isGlobal: true })
+      .where('type IN (:...globalTypes)', { globalTypes: globalShared })
+      .execute();
+  }
+
+  async getSupportedTypesForService(serviceCode: string): Promise<string[]> {
+    const defaultCoreTypes = ['DASHBOARD', 'IMPORTS', 'HISTORY', 'VALIDATION'];
+    if (!serviceCode) {
+      return defaultCoreTypes;
+    }
+
+    const serviceRecord = await this.serviceRepo.findOne({ where: { code: serviceCode } });
+    if (serviceRecord && Array.isArray(serviceRecord.allowedMasterTypes) && serviceRecord.allowedMasterTypes.length > 0) {
+      return Array.from(new Set([...defaultCoreTypes, ...serviceRecord.allowedMasterTypes]));
+    }
+
+    const rawTypes = await this.masterItemRepo.createQueryBuilder('item')
+      .select('DISTINCT item.type', 'type')
+      .where('item.serviceCode = :serviceCode AND item.isActive = :isActive', { serviceCode, isActive: true })
+      .getRawMany();
+
+    const dbTypes = rawTypes.map((r) => r.type).filter(Boolean);
+
+    if (dbTypes.length > 0) {
+      return Array.from(new Set([...defaultCoreTypes, ...dbTypes]));
+    }
+
+    return Array.from(new Set([
+      ...defaultCoreTypes,
+      'ACTIVITY_CATEGORY', 'EMISSION_FACTOR', 'UNIT', 'DATA_QUALITY', 'REPORTING_FRAMEWORK',
+    ]));
+  }
+
+  async seedMetadataEngine() {
+    const serviceDomainsData = [
+      { code: 'CARBON', name: 'Carbon Management', icon: 'FlameKindling', color: '#10b981' },
+      { code: 'CBAM', name: 'CBAM Compliance', icon: 'Globe', color: '#3b82f6' },
+      { code: 'PEF_TEXTILES', name: 'PEF Textiles', icon: 'Layers', color: '#ec4899' },
+      { code: 'LCA_PLASTICS', name: 'LCA Plastics', icon: 'Database', color: '#8b5cf6' },
+      { code: 'LCA_METALS', name: 'LCA Metals', icon: 'Zap', color: '#f59e0b' },
+      { code: 'ESG', name: 'ESG Reporting', icon: 'FileCheck', color: '#06b6d4' },
+      { code: 'EPD_CABLES', name: 'EPD Cables', icon: 'Activity', color: '#6366f1' },
+    ];
+
+    for (const d of serviceDomainsData) {
+      const existing = await this.serviceDomainRepo.findOne({ where: { code: d.code } });
+      if (!existing) {
+        await this.serviceDomainRepo.save(this.serviceDomainRepo.create(d));
+      }
+    }
+
+    const categoriesData = [
+      { code: 'ORGANIZATION', name: 'Organization', icon: 'Building2', sortOrder: 1 },
+      { code: 'GEOGRAPHY', name: 'Geography', icon: 'Globe', sortOrder: 2 },
+      { code: 'TAXONOMY', name: 'Taxonomy', icon: 'Layers', sortOrder: 3 },
+      { code: 'REFERENCE', name: 'Reference', icon: 'Database', sortOrder: 4 },
+      { code: 'CARBON', name: 'Carbon Domain', icon: 'FlameKindling', sortOrder: 5 },
+      { code: 'CBAM', name: 'CBAM Domain', icon: 'Globe', sortOrder: 6 },
+      { code: 'PEF', name: 'PEF Domain', icon: 'Layers', sortOrder: 7 },
+      { code: 'LCA', name: 'LCA Domain', icon: 'Zap', sortOrder: 8 },
+      { code: 'ESG', name: 'ESG Domain', icon: 'FileCheck', sortOrder: 9 },
+      { code: 'EPD', name: 'EPD Domain', icon: 'Activity', sortOrder: 10 },
+      { code: 'GOVERNANCE', name: 'Governance', icon: 'Shield', sortOrder: 11 },
+    ];
+
+    for (const c of categoriesData) {
+      const existing = await this.categoryRepo.findOne({ where: { code: c.code } });
+      if (!existing) {
+        await this.categoryRepo.save(this.categoryRepo.create(c));
+      }
+    }
+
+    const allDomains = await this.serviceDomainRepo.find();
+    const carbonDomain = allDomains.find(d => d.code === 'CARBON');
+    const cbamDomain = allDomains.find(d => d.code === 'CBAM');
+    const pefDomain = allDomains.find(d => d.code === 'PEF_TEXTILES');
+    const plasticsDomain = allDomains.find(d => d.code === 'LCA_PLASTICS');
+    const metalsDomain = allDomains.find(d => d.code === 'LCA_METALS');
+    const esgDomain = allDomains.find(d => d.code === 'ESG');
+    const epdDomain = allDomains.find(d => d.code === 'EPD_CABLES');
+
+    const orgCategory = await this.categoryRepo.findOne({ where: { code: 'ORGANIZATION' } });
+    const geoCategory = await this.categoryRepo.findOne({ where: { code: 'GEOGRAPHY' } });
+    const taxCategory = await this.categoryRepo.findOne({ where: { code: 'TAXONOMY' } });
+    const refCategory = await this.categoryRepo.findOne({ where: { code: 'REFERENCE' } });
+    const carbonCategory = await this.categoryRepo.findOne({ where: { code: 'CARBON' } });
+    const cbamCategory = await this.categoryRepo.findOne({ where: { code: 'CBAM' } });
+    const pefCategory = await this.categoryRepo.findOne({ where: { code: 'PEF' } });
+    const lcaCategory = await this.categoryRepo.findOne({ where: { code: 'LCA' } });
+    const esgCategory = await this.categoryRepo.findOne({ where: { code: 'ESG' } });
+    const epdCategory = await this.categoryRepo.findOne({ where: { code: 'EPD' } });
+    const govCategory = await this.categoryRepo.findOne({ where: { code: 'GOVERNANCE' } });
+
+    const typesDefinition = [
+      { categoryId: orgCategory?.id, code: 'ORGANIZATION', name: 'Organization', icon: 'Building2', features: { hierarchy: true, bulkImport: true }, domains: [cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: orgCategory?.id, code: 'BUSINESS_UNIT', name: 'Business Unit', icon: 'Layers', features: { hierarchy: true, bulkImport: true }, domains: [cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: orgCategory?.id, code: 'FACILITY', name: 'Facility', icon: 'MapPin', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: orgCategory?.id, code: 'BUILDING', name: 'Building', icon: 'Building2', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: orgCategory?.id, code: 'DEPARTMENT', name: 'Department', icon: 'Layers', features: { hierarchy: true, bulkImport: true }, domains: [cbamDomain, esgDomain].filter(Boolean) },
+      { categoryId: orgCategory?.id, code: 'METER', name: 'Meter', icon: 'Zap', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain, esgDomain, epdDomain].filter(Boolean) },
+
+      { categoryId: geoCategory?.id, code: 'COUNTRY', name: 'Country', icon: 'Globe', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: geoCategory?.id, code: 'REGION', name: 'Grid Region', icon: 'MapPin', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain, esgDomain].filter(Boolean) },
+      { categoryId: geoCategory?.id, code: 'CURRENCY', name: 'Currency', icon: 'BarChart3', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain, esgDomain, epdDomain].filter(Boolean) },
+
+      { categoryId: taxCategory?.id, code: 'SCOPE', name: 'GHG Scopes', icon: 'Layers', features: { hierarchy: true, bulkImport: true }, domains: [carbonDomain, cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: taxCategory?.id, code: 'ACTIVITY_CATEGORY', name: 'Activity Categories', icon: 'Activity', features: { hierarchy: true, bulkImport: true }, domains: [carbonDomain, cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: taxCategory?.id, code: 'FUEL_TYPE', name: 'Fuel Types', icon: 'FlameKindling', features: { hierarchy: false, bulkImport: true }, domains: [carbonDomain, cbamDomain, plasticsDomain, metalsDomain].filter(Boolean) },
+      { categoryId: taxCategory?.id, code: 'GAS_TYPE', name: 'Gas Types', icon: 'FlaskConical', features: { hierarchy: false, bulkImport: true }, domains: [carbonDomain, cbamDomain].filter(Boolean) },
+      { categoryId: taxCategory?.id, code: 'UNIT', name: 'Measurement Units', icon: 'BarChart3', features: { hierarchy: false, bulkImport: true }, domains: [carbonDomain, cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: taxCategory?.id, code: 'UNIT_CONVERSIONS', name: 'Unit Conversions', icon: 'GitBranch', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain].filter(Boolean) },
+      {
+        categoryId: taxCategory?.id,
+        code: 'WASTE_CATEGORY',
+        name: 'Waste Categories',
+        icon: 'Layers',
+        features: { hierarchy: true, bulkImport: true },
+        domains: [cbamDomain, pefDomain, plasticsDomain, metalsDomain].filter(Boolean),
+        masterTypeSchema: {
+          version: 1,
+          form: {
+            fields: [
+              { name: 'code', label: 'Waste Code', component: 'textbox', required: true, placeholder: 'e.g. HAZ_SOLVENT' },
+              { name: 'name', label: 'Waste Category Name', component: 'textbox', required: true, placeholder: 'e.g. Organic Solvent Residue' },
+              { name: 'description', label: 'Description', component: 'textbox', multiline: true },
+              { name: 'hazardLevel', label: 'Hazard Classification', component: 'select', options: ['Non-Hazardous', 'Hazardous', 'Inert'] },
+              { name: 'treatmentMethod', label: 'Default Disposal Method', component: 'select', options: ['Recycling', 'Incineration', 'Landfill', 'Composting'] },
+            ],
+          },
+          grid: {
+            columns: [
+              { field: 'code', headerName: 'Waste Code', width: 140 },
+              { field: 'name', headerName: 'Category Name', width: 220 },
+              { field: 'description', headerName: 'Description', width: 260 },
+              { field: 'status', headerName: 'Status', width: 120, type: 'badge' },
+            ],
+          },
+          validation: { required: ['code', 'name'] },
+          search: { searchFields: ['code', 'name', 'description'] },
+        },
+      },
+      {
+        categoryId: taxCategory?.id,
+        code: 'VEHICLE_CATEGORY',
+        name: 'Vehicle Categories',
+        icon: 'Activity',
+        features: { hierarchy: true, bulkImport: true },
+        domains: [cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean),
+        masterTypeSchema: {
+          version: 1,
+          runtimeVersion: '1.0',
+          minimumRuntimeVersion: '1.0',
+          layout: { create: 'dialog', edit: 'drawer', detail: 'drawer' },
+          form: {
+            fields: [
+              { name: 'code', label: 'Vehicle Code', component: 'textbox', required: true, placeholder: 'e.g. EV_TRUCK_CLASS8' },
+              { name: 'name', label: 'Category Name', component: 'textbox', required: true, placeholder: 'e.g. Heavy Duty Class 8 Electric Truck' },
+              { name: 'description', label: 'Description', component: 'textbox', multiline: true },
+              {
+                name: 'fuelType',
+                label: 'Primary Energy Source',
+                component: 'lookup',
+                lookup: { type: 'FUEL_TYPE', display: 'name', value: 'code', filter: { status: 'PUBLISHED' } },
+                required: true,
+              },
+              { name: 'payloadCapacity', label: 'Payload Capacity (Tons)', component: 'number' },
+              { name: 'batteryCapacity', label: 'Battery Capacity (kWh)', component: 'number' },
+            ],
+          },
+          grid: {
+            columns: [
+              { field: 'code', headerName: 'Vehicle Code', width: 160 },
+              { field: 'name', headerName: 'Category Name', width: 240 },
+              { field: 'description', headerName: 'Description', width: 260 },
+              { field: 'status', headerName: 'Status', width: 120, type: 'badge' },
+            ],
+          },
+          validation: { required: ['code', 'name', 'fuelType'] },
+          events: [
+            {
+              condition: { field: 'fuelType', operator: 'equals', value: 'Electricity' },
+              actions: [{ type: 'show', field: 'batteryCapacity' }],
+            },
+          ],
+          search: { searchFields: ['code', 'name', 'description'] },
+        },
+      },
+      {
+        categoryId: taxCategory?.id,
+        code: 'ENERGY_SOURCE',
+        name: 'Energy Sources',
+        icon: 'Zap',
+        features: { hierarchy: true, bulkImport: true },
+        domains: [cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean),
+        masterTypeSchema: {
+          version: 1,
+          runtimeVersion: '1.0',
+          minimumRuntimeVersion: '1.0',
+          layout: { create: 'dialog', edit: 'drawer', detail: 'drawer' },
+          form: {
+            fields: [
+              { name: 'code', label: 'Energy Source Code', component: 'textbox', required: true, placeholder: 'e.g. SOLAR_PV' },
+              { name: 'name', label: 'Source Name', component: 'textbox', required: true, placeholder: 'e.g. Onsite Solar Photovoltaic' },
+              { name: 'description', label: 'Description', component: 'textbox', multiline: true },
+              { name: 'renewableType', label: 'Renewable Classification', component: 'select', options: ['Renewable', 'Non-Renewable', 'Grid Mixed'] },
+              { name: 'emissionFactorValue', label: 'Default Emission Factor (kg CO2e/kWh)', component: 'number' },
+            ],
+          },
+          grid: {
+            columns: [
+              { field: 'code', headerName: 'Code', width: 140 },
+              { field: 'name', headerName: 'Source Name', width: 220 },
+              { field: 'description', headerName: 'Description', width: 260 },
+              { field: 'status', headerName: 'Status', width: 120, type: 'badge' },
+            ],
+          },
+          validation: { required: ['code', 'name'] },
+          search: { searchFields: ['code', 'name', 'description'] },
+        },
+      },
+
+      { categoryId: refCategory?.id, code: 'FACTOR_SOURCE', name: 'Factor Sources', icon: 'Database', features: { hierarchy: false, bulkImport: true }, domains: [carbonDomain, cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: refCategory?.id, code: 'FACTOR_VERSION', name: 'Factor Versions', icon: 'GitBranch', features: { versioning: true, bulkImport: true }, domains: [carbonDomain, cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: refCategory?.id, code: 'GWP_VERSION', name: 'GWP Versions', icon: 'Zap', features: { versioning: true, bulkImport: true }, domains: [cbamDomain, esgDomain].filter(Boolean) },
+      { categoryId: refCategory?.id, code: 'FORMULA', name: 'Formula Library', icon: 'FlaskConical', features: { versioning: true, bulkImport: true }, domains: [cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: refCategory?.id, code: 'EMISSION_FACTOR', name: 'Emission Factors', icon: 'Database', features: { versioning: true, bulkImport: true }, domains: [carbonDomain, cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+      { categoryId: refCategory?.id, code: 'DATA_QUALITY', name: 'Data Quality', icon: 'FileCheck', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain, esgDomain, epdDomain].filter(Boolean) },
+
+      { categoryId: carbonCategory?.id, code: 'CALCULATION_POLICY', name: 'Calculation Policies', icon: 'FileCheck', features: { versioning: true, bulkImport: true }, domains: [cbamDomain].filter(Boolean) },
+      { categoryId: carbonCategory?.id, code: 'REPORTING_PERIOD', name: 'Reporting Periods', icon: 'History', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain].filter(Boolean) },
+
+      { categoryId: cbamCategory?.id, code: 'CN_CODE', name: 'CN Codes', icon: 'Database', features: { hierarchy: true, bulkImport: true }, domains: [cbamDomain].filter(Boolean) },
+      { categoryId: cbamCategory?.id, code: 'CBAM_PRODUCT', name: 'CBAM Products', icon: 'Layers', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain].filter(Boolean) },
+      { categoryId: cbamCategory?.id, code: 'PRODUCTION_ROUTE', name: 'Production Routes', icon: 'GitBranch', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain].filter(Boolean) },
+      { categoryId: cbamCategory?.id, code: 'INSTALLATION', name: 'Installations', icon: 'MapPin', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain].filter(Boolean) },
+
+      { categoryId: pefCategory?.id, code: 'MATERIAL', name: 'Materials', icon: 'Activity', features: { hierarchy: true, bulkImport: true }, domains: [pefDomain].filter(Boolean) },
+      { categoryId: pefCategory?.id, code: 'FIBER_TYPE', name: 'Fibers', icon: 'Activity', features: { hierarchy: false, bulkImport: true }, domains: [pefDomain].filter(Boolean) },
+      { categoryId: pefCategory?.id, code: 'CHEMICAL', name: 'Chemicals', icon: 'FlaskConical', features: { hierarchy: false, bulkImport: true }, domains: [pefDomain].filter(Boolean) },
+
+      { categoryId: lcaCategory?.id, code: 'PLASTIC_RESIN', name: 'Plastic Resins', icon: 'Activity', features: { hierarchy: false, bulkImport: true }, domains: [plasticsDomain].filter(Boolean) },
+      { categoryId: lcaCategory?.id, code: 'METAL_ALLOY', name: 'Metal Alloys', icon: 'Layers', features: { hierarchy: false, bulkImport: true }, domains: [metalsDomain].filter(Boolean) },
+      { categoryId: lcaCategory?.id, code: 'SMELTING_PROCESS', name: 'Processes', icon: 'GitBranch', features: { hierarchy: false, bulkImport: true }, domains: [metalsDomain, plasticsDomain].filter(Boolean) },
+
+      { categoryId: esgCategory?.id, code: 'ESG_FRAMEWORK', name: 'Frameworks', icon: 'FileCheck', features: { hierarchy: false, bulkImport: true }, domains: [esgDomain].filter(Boolean) },
+      { categoryId: esgCategory?.id, code: 'KPI', name: 'KPIs', icon: 'BarChart3', features: { hierarchy: false, bulkImport: true }, domains: [esgDomain].filter(Boolean) },
+      { categoryId: esgCategory?.id, code: 'SDG_GOAL', name: 'SDGs', icon: 'Globe', features: { hierarchy: false, bulkImport: true }, domains: [esgDomain].filter(Boolean) },
+
+      { categoryId: epdCategory?.id, code: 'PCR', name: 'PCR Rules', icon: 'FileCheck', features: { versioning: true, bulkImport: true }, domains: [epdDomain].filter(Boolean) },
+      { categoryId: epdCategory?.id, code: 'PROGRAM_OPERATOR', name: 'Program Operators', icon: 'Building2', features: { hierarchy: false, bulkImport: true }, domains: [epdDomain].filter(Boolean) },
+      { categoryId: epdCategory?.id, code: 'VERIFICATION_BODY', name: 'Verification Bodies', icon: 'FileCheck', features: { hierarchy: false, bulkImport: true }, domains: [epdDomain].filter(Boolean) },
+
+      { categoryId: govCategory?.id, code: 'HISTORY', name: 'Audit History', icon: 'History', features: { hierarchy: false, bulkImport: true }, domains: [cbamDomain, pefDomain, plasticsDomain, metalsDomain, esgDomain, epdDomain].filter(Boolean) },
+    ];
+
+    for (const t of typesDefinition) {
+      if (!t.categoryId) continue;
+      let typeRec = await this.masterTypeRepo.findOne({ where: { code: t.code }, relations: { serviceDomains: true } });
+      if (!typeRec) {
+        typeRec = this.masterTypeRepo.create({
+          categoryId: t.categoryId,
+          code: t.code,
+          name: t.name,
+          icon: t.icon,
+          features: t.features || { hierarchy: false, bulkImport: true },
+          serviceDomains: t.domains as ServiceDomain[],
+        });
+      } else {
+        typeRec.features = t.features || { hierarchy: false, bulkImport: true };
+        // Always sync service domain associations to reflect config changes
+        typeRec.serviceDomains = t.domains as ServiceDomain[];
+        if (t.masterTypeSchema) {
+          typeRec.masterTypeSchema = t.masterTypeSchema;
+        }
+      }
+      const savedType = await this.masterTypeRepo.save(typeRec);
+
+      // Create MasterTypeSchemaVersion v1
+      if (t.masterTypeSchema) {
+        let schemaVer = await this.schemaVersionRepo.findOne({
+          where: { masterTypeId: savedType.id, version: 1 },
+        });
+
+        if (!schemaVer) {
+          const checksumStr = require('crypto')
+            .createHash('sha256')
+            .update(JSON.stringify(t.masterTypeSchema))
+            .digest('hex');
+
+          schemaVer = this.schemaVersionRepo.create({
+            masterTypeId: savedType.id,
+            version: 1,
+            status: 'PUBLISHED',
+            checksum: checksumStr,
+            schema: t.masterTypeSchema,
+            formSchema: t.masterTypeSchema.form,
+            gridSchema: t.masterTypeSchema.grid,
+            validationSchema: t.masterTypeSchema.validation,
+            publishedAt: new Date(),
+            publishedBy: 'system',
+          });
+          const savedSchemaVer = await this.schemaVersionRepo.save(schemaVer);
+
+          savedType.activeSchemaVersionId = savedSchemaVer.id;
+          await this.masterTypeRepo.save(savedType);
+        }
+      }
+
+      // Seed pre-computed statistics
+      const itemCount = await this.masterItemRepo.count({ where: { type: savedType.code, isActive: true } });
+      const publishedCount = await this.masterItemRepo.count({ where: { type: savedType.code, status: MasterItemStatus.PUBLISHED, isActive: true } });
+      const draftCount = await this.masterItemRepo.count({ where: { type: savedType.code, status: MasterItemStatus.DRAFT, isActive: true } });
+
+      let stats = await this.statisticsRepo.findOne({ where: { masterTypeId: savedType.id } });
+      if (!stats) {
+        stats = this.statisticsRepo.create({
+          masterTypeId: savedType.id,
+          itemCount,
+          publishedCount,
+          draftCount,
+          lastUpdated: new Date(),
+        });
+      } else {
+        stats.itemCount = itemCount;
+        stats.publishedCount = publishedCount;
+        stats.draftCount = draftCount;
+        stats.lastUpdated = new Date();
+      }
+      await this.statisticsRepo.save(stats);
+    }
+  }
+
+  async getSidebarStructure(serviceCode: string) {
+    const activeDomain = await this.serviceDomainRepo.findOne({ where: { code: serviceCode } });
+    const domainId = activeDomain?.id;
+
+    const categories = await this.categoryRepo.find({
+      order: { sortOrder: 'ASC' },
+      relations: { types: { serviceDomains: true } },
+    });
+
+    const allStats = await this.statisticsRepo.find();
+    const statsMap = new Map(allStats.map(s => [s.masterTypeId, s.itemCount]));
+
+    const resultCategories = [];
+
+    for (const cat of categories) {
+      const matchingTypes = [];
+
+      for (const mt of cat.types) {
+        if (!mt.isActive) continue;
+        const belongsToService = !domainId || mt.serviceDomains?.some(sd => sd.id === domainId);
+        if (belongsToService) {
+          const itemCount = statsMap.get(mt.id) ?? 0;
+
+          matchingTypes.push({
+            id: mt.id,
+            code: mt.code,
+            name: mt.name,
+            icon: mt.icon,
+            color: mt.color,
+            count: itemCount,
+          });
+        }
+      }
+
+      if (matchingTypes.length > 0) {
+        resultCategories.push({
+          id: cat.id,
+          code: cat.code,
+          name: cat.name,
+          icon: cat.icon,
+          types: matchingTypes,
+        });
+      }
+    }
+
+    return {
+      workspace: activeDomain?.name || serviceCode || 'Platform',
+      categories: resultCategories,
+    };
+  }
+
+  async getMasterTypeSchema(code: string) {
+    const masterType = await this.masterTypeRepo.findOne({
+      where: { code },
+      relations: { category: true },
+    });
+
+    const activeSchemaVersion = masterType?.activeSchemaVersionId
+      ? await this.schemaVersionRepo.findOne({ where: { id: masterType.activeSchemaVersionId } })
+      : null;
+
+    const defaultFormSchema = this.getDefaultFormSchema(code);
+    const defaultGridSchema = this.getDefaultGridSchema(code);
+    const defaultSearchSchema = this.getDefaultSearchSchema(code);
+
+    const schemaDoc = activeSchemaVersion?.schema || masterType?.masterTypeSchema || {
+      version: activeSchemaVersion?.version || 1,
+      layout: { create: 'dialog', edit: 'drawer', detail: 'drawer' },
+      form: masterType?.formSchema || defaultFormSchema,
+      grid: masterType?.gridSchema || defaultGridSchema,
+      validation: masterType?.validationSchema || { required: ['code', 'name'] },
+      search: masterType?.searchSchema || defaultSearchSchema,
+    };
+
+    return {
+      id: masterType?.id,
+      code: masterType?.code || code,
+      name: masterType?.name || code,
+      category: masterType?.category?.name,
+      features: masterType?.features || { hierarchy: true, versioning: true, allowAttributes: true, allowParent: true },
+      activeSchemaVersion: activeSchemaVersion?.version || 1,
+      checksum: activeSchemaVersion?.checksum,
+      masterTypeSchema: schemaDoc,
+      formSchema: schemaDoc.form || defaultFormSchema,
+      gridSchema: schemaDoc.grid || defaultGridSchema,
+      validationSchema: schemaDoc.validation || { required: ['code', 'name'] },
+      searchSchema: schemaDoc.search || defaultSearchSchema,
+      permissions: { create: true, edit: true, delete: true, import: true, export: true },
+    };
+  }
+
+  private getDefaultFormSchema(code: string) {
+    switch (code) {
+      case 'FUEL_TYPE':
+        return {
+          fields: [
+            { name: 'code', label: 'Fuel Code', component: 'textbox', required: true, placeholder: 'e.g. DIESEL_B5' },
+            { name: 'name', label: 'Fuel Name', component: 'textbox', required: true, placeholder: 'e.g. Automotive Diesel Fuel B5' },
+            { name: 'description', label: 'Description', component: 'textbox', multiline: true },
+            { name: 'scope', label: 'GHG Scope', component: 'select', options: ['Scope 1', 'Scope 2', 'Scope 3'] },
+            { name: 'subType', label: 'Fuel Family', component: 'select', options: ['Liquid Biofuel', 'Fossil Liquid', 'Gaseous', 'Solid Biomass'] },
+            { name: 'allowedUnits', label: 'Valid Measurement Units', component: 'unit-selector', isMulti: true },
+            { name: 'density', label: 'Default Density (kg/m³)', component: 'number', attributePath: 'attributes.density' },
+            { name: 'ncv', label: 'Net Calorific Value (MJ/kg)', component: 'number', attributePath: 'attributes.ncv' },
+          ],
+        };
+      case 'COUNTRY':
+        return {
+          fields: [
+            { name: 'code', label: 'ISO Country Code', component: 'country', required: true, placeholder: 'US, DE, IN, JP' },
+            { name: 'name', label: 'Country Name', component: 'textbox', required: true },
+            { name: 'description', label: 'Region / Continent', component: 'textbox' },
+            { name: 'currency', label: 'Default Currency', component: 'select', options: ['USD', 'EUR', 'INR', 'GBP', 'JPY'] },
+          ],
+        };
+      default:
+        return {
+          fields: [
+            { name: 'code', label: 'Master Code', component: 'textbox', required: true },
+            { name: 'name', label: 'Name', component: 'textbox', required: true },
+            { name: 'description', label: 'Description', component: 'textbox', multiline: true },
+            { name: 'sortOrder', label: 'Sort Order', component: 'number', defaultValue: 0 },
+            { name: 'isActive', label: 'Status Active', component: 'checkbox', defaultValue: true },
+          ],
+        };
+    }
+  }
+
+  private getDefaultGridSchema(code: string) {
+    return {
+      columns: [
+        { field: 'code', headerName: 'Code', width: 140, pinned: 'left' },
+        { field: 'name', headerName: 'Name', width: 220 },
+        { field: 'description', headerName: 'Description', width: 280 },
+        { field: 'status', headerName: 'Status', width: 120, type: 'badge' },
+        { field: 'updatedAt', headerName: 'Last Updated', width: 160, type: 'date' },
+      ],
+    };
+  }
+
+  private getDefaultSearchSchema(code: string) {
+    return {
+      searchFields: ['code', 'name', 'description'],
+      quickFilters: [
+        { name: 'status', label: 'Status', type: 'select', options: ['PUBLISHED', 'DRAFT', 'DEPRECATED'] },
+      ],
+    };
   }
 }

@@ -26,4 +26,10 @@ export class Service extends BaseColumns {
 
   @Column({ type: 'varchar', nullable: true })
   demoUrl: string;
+
+  /**
+   * JSON array of supported master item types for this service domain, e.g. ["ACTIVITY_CATEGORY","EMISSION_FACTOR","UNIT"]
+   */
+  @Column({ type: 'simple-json', nullable: true })
+  allowedMasterTypes: string[];
 }

@@ -255,6 +255,44 @@ export class MastersController {
   // DYNAMIC MASTER ITEM CRUD ENDPOINTS
   // ============================================================================
 
+  @Get('sidebar-structure')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Fetch zero-config dynamic sidebar structure for active workspace' })
+  @ApiQuery({ name: 'serviceCode', required: false })
+  async getSidebarStructure(
+    @Query('serviceCode') serviceCode: string,
+    @Res() res: Response,
+  ) {
+    const result = await this.mastersService.getSidebarStructure(serviceCode);
+    return this.utilService.sendSuccessResponse(res, 'Successfully fetched sidebar structure', result);
+  }
+
+  @Get('types/:code/schema')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Fetch on-demand UI, validation, grid & workflow schemas for a master type' })
+  async getMasterTypeSchema(
+    @Param('code') code: string,
+    @Res() res: Response,
+  ) {
+    const result = await this.mastersService.getMasterTypeSchema(code);
+    return this.utilService.sendSuccessResponse(res, 'Successfully fetched master type schema', result);
+  }
+
+  @Get('supported-types')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Fetch dynamic supported master item types for a service domain' })
+  @ApiQuery({ name: 'serviceCode', required: false })
+  async getSupportedTypes(
+    @Query('serviceCode') serviceCode: string,
+    @Res() res: Response,
+  ) {
+    const result = await this.mastersService.getSupportedTypesForService(serviceCode);
+    return this.utilService.sendSuccessResponse(res, 'Successfully fetched supported master item types', result);
+  }
+
   @Get('items')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
@@ -262,14 +300,16 @@ export class MastersController {
   @ApiQuery({ name: 'type', required: false })
   @ApiQuery({ name: 'parentId', required: false })
   @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'serviceCode', required: false })
   async getMasterItems(
     @Query('type') type: string,
     @Query('parentId') parentId: string,
     @Query('search') search: string,
+    @Query('serviceCode') serviceCode: string,
     @Res() res: Response,
   ) {
     const parsedParentId = parentId ? parseInt(parentId, 10) : undefined;
-    const result = await this.mastersService.getMasterItems(type, parsedParentId, search);
+    const result = await this.mastersService.getMasterItems(type, parsedParentId, search, serviceCode);
     return this.utilService.sendSuccessResponse(res, 'Successfully fetched master items', result);
   }
 
@@ -304,6 +344,17 @@ export class MastersController {
   ) {
     const result = await this.mastersService.updateMasterItem(parseInt(id, 10), dto);
     return this.utilService.sendSuccessResponse(res, 'Successfully updated master item', result);
+  }
+
+  @Post('items/bulk-delete')
+  @UseGuards(AuthGuard('jwt'))
+  @Roles(MasterRole.ADMIN, MasterRole.SUPER_ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk soft delete / Deactivate master items in a single request (Admin only)' })
+  async bulkDeleteMasterItems(@Req() req: any, @Body() body: { ids: (number | string)[] }, @Res() res: Response) {
+    const user: any = req.user;
+    const result = await this.mastersService.bulkDeleteMasterItems(body?.ids || [], user?.id);
+    return this.utilService.sendSuccessResponse(res, 'Successfully deactivated master items in bulk', result);
   }
 
   @Delete('items/:id')

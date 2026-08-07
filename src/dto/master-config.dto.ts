@@ -283,6 +283,12 @@ export class CreateSupplementaryFieldDto {
 
 // 7. Generic Master Item DTOs
 export class CreateMasterItemDto {
+  @ApiProperty({ example: 'CARBON', required: false, default: 'CARBON' })
+  @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  @IsOptional()
+  serviceCode?: string;
+
   @ApiProperty({ example: 'FUEL_TYPE' })
   @IsString()
   @Transform(({ value }) => (value ? value.trim() : value))

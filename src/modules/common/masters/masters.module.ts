@@ -33,9 +33,24 @@ import {
 import { ActivityCategoryFuelType } from 'src/entities/activity-category-fuel-type.entity';
 import { FuelTypeMeasurementUnit } from 'src/entities/fuel-type-measurement-unit.entity';
 
+import { Service } from 'src/entities/service.entity';
+import { ServiceDomain } from 'src/entities/service-domain.entity';
+import { MasterCategory } from 'src/entities/master-category.entity';
+import { MasterType } from 'src/entities/master-type.entity';
+import { MasterItemMetadata } from 'src/entities/master-item-metadata.entity';
+import { MasterTypeSchemaVersion } from 'src/entities/master-type-schema-version.entity';
+import { MasterTypeStatistics } from 'src/entities/master-type-statistics.entity';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      Service,
+      ServiceDomain,
+      MasterCategory,
+      MasterType,
+      MasterItemMetadata,
+      MasterTypeSchemaVersion,
+      MasterTypeStatistics,
       MasterRoles,
       MasterApprovalStatus,
       MasterItem,

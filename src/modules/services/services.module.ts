@@ -22,6 +22,7 @@ import {
   GasMultiplier,
   GwpVersion,
 } from 'src/entities/master-config.entity';
+import { MasterItem } from 'src/entities/master-item.entity';
 import { ServicesService } from './services.service';
 import { SummaryService } from './summary.service';
 import { ServicesController } from './services.controller';
@@ -50,6 +51,7 @@ import { DataQualityModule } from 'src/modules/common/data-quality/data-quality.
       GwpVersion,
       GasMultiplier,
       FormulaVersion,
+      MasterItem,
     ]),
     MulterModule.register({
       storage: diskStorage({

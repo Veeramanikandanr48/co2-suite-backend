@@ -11,6 +11,7 @@ import { Service } from 'src/entities/service.entity';
 import { OrganizationService } from 'src/entities/organization-service.entity';
 import { ServiceScopeItem } from 'src/entities/service-scope-item.entity';
 import { EmissionFactor } from 'src/entities/emission-factor.entity';
+import { MasterItem } from 'src/entities/master-item.entity';
 import { InventoryEntry, InventoryStatus } from 'src/entities/inventory-entry.entity';
 import {
   AssignServicesDto,
@@ -53,6 +54,8 @@ export class ServicesService implements OnApplicationBootstrap {
     private readonly efRepo: Repository<EmissionFactor>,
     @InjectRepository(InventoryEntry)
     private readonly inventoryRepo: Repository<InventoryEntry>,
+    @InjectRepository(MasterItem)
+    private readonly masterItemRepo: Repository<MasterItem>,
     private readonly utilService: UtilService,
     private readonly calculationEngine: CalculationEngine,
     private readonly calcDbService: CalculationDbService,
@@ -97,26 +100,6 @@ export class ServicesService implements OnApplicationBootstrap {
       );
     }
 
-    const efCount = await this.efRepo.count();
-    if (efCount < SEED_EMISSION_FACTORS.length) {
-      for (const ef of SEED_EMISSION_FACTORS) {
-        const existing = await this.efRepo
-          .createQueryBuilder('ef')
-          .select(['ef.id', 'ef.category', 'ef.fuelOrGasType', 'ef.source'])
-          .where('ef.category = :category', { category: ef.category })
-          .andWhere('ef.fuelOrGasType = :fuelOrGasType', {
-            fuelOrGasType: ef.fuelOrGasType,
-          })
-          .andWhere('ef.source = :source', { source: ef.source })
-          .getOne();
-        if (!existing) {
-          await this.efRepo.save(
-            this.efRepo.create(ef as Partial<EmissionFactor>),
-          );
-        }
-      }
-    }
-
     const invCount = await this.inventoryRepo.count();
     if (invCount < 15) {
       await this.inventoryRepo.save(
@@ -125,6 +108,28 @@ export class ServicesService implements OnApplicationBootstrap {
         ),
       );
     }
+  }
+
+  private async findOrCreateMasterItem(
+    type: string,
+    name: string,
+    code?: string,
+  ): Promise<MasterItem | null> {
+    if (!name) return null;
+    const itemCode = code || name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+    const existing = await this.masterItemRepo.findOne({
+      where: [{ type, code: itemCode }, { type, name }],
+    });
+    if (existing) return existing;
+    const created = this.masterItemRepo.create({
+      type,
+      name,
+      code: itemCode,
+      serviceCode: 'CARBON',
+      status: 'PUBLISHED',
+      isActive: true,
+    } as Partial<MasterItem>);
+    return this.masterItemRepo.save(created);
   }
 
   // --- SERVICE METHODS ---
@@ -422,41 +427,25 @@ export class ServicesService implements OnApplicationBootstrap {
   async getEmissionFactors(category?: string): Promise<EmissionFactor[]> {
     const query = this.efRepo
       .createQueryBuilder('ef')
-      .select([
-        'ef.id',
-        'ef.scope',
-        'ef.category',
-        'ef.source',
-        'ef.version',
-        'ef.fuelOrGasType',
-        'ef.unit',
-        'ef.factor',
-        'ef.co2',
-        'ef.ch4',
-        'ef.n2o',
-        'ef.co2e',
-        'ef.effectiveFrom',
-        'ef.effectiveTo',
-        'ef.formula',
-        'ef.fuelGasTypeId',
-        'ef.activityCategoryId',
-        'ef.measurementUnitId',
-        'ef.scopeId',
-        'ef.factorSourceId',
-        'ef.factorVersionId',
-        'ef.isActive',
-        'ef.createdAt',
-      ])
+      .leftJoinAndSelect('ef.scopeItem', 'scopeItem')
+      .leftJoinAndSelect('ef.activityCategoryItem', 'activityCategoryItem')
+      .leftJoinAndSelect('ef.fuelGasTypeItem', 'fuelGasTypeItem')
+      .leftJoinAndSelect('ef.measurementUnitItem', 'measurementUnitItem')
+      .leftJoinAndSelect('ef.countryItem', 'countryItem')
+      .leftJoinAndSelect('ef.regionItem', 'regionItem')
+      .leftJoinAndSelect('ef.factorSourceItem', 'factorSourceItem')
+      .leftJoinAndSelect('ef.factorVersionItem', 'factorVersionItem')
+      .leftJoinAndSelect('ef.formulaRevisionItem', 'formulaRevisionItem')
       .where('ef.isActive = :isActive', { isActive: true });
 
     if (category) {
-      query.andWhere('ef.category = :category', { category });
+      query.andWhere('activityCategoryItem.name = :category', { category });
     }
 
     return query
-      .orderBy('ef.category', 'ASC')
-      .addOrderBy('ef.source', 'ASC')
-      .addOrderBy('ef.fuelOrGasType', 'ASC')
+      .orderBy('ef.activityCategoryId', 'ASC')
+      .addOrderBy('ef.factorSourceId', 'ASC')
+      .addOrderBy('ef.fuelGasTypeId', 'ASC')
       .getMany();
   }
 
@@ -485,16 +474,16 @@ export class ServicesService implements OnApplicationBootstrap {
       'factor',
       'isActive',
       'createdAt',
-    ];
+    ]; // These map to real DB columns via sortFieldObject
     const sortFieldObject: ICommonSortFieldObject = {
       id: 'ef.id',
-      scope: 'ef.scope',
-      category: 'ef.category',
-      source: 'ef.source',
-      version: 'ef.version',
-      fuelOrGasType: 'ef.fuelOrGasType',
-      unit: 'ef.unit',
-      factor: 'ef.factor',
+      scope: 'ef.scopeId',
+      category: 'ef.activityCategoryId',
+      source: 'ef.factorSourceId',
+      version: 'ef.factorVersionId',
+      fuelOrGasType: 'ef.fuelGasTypeId',
+      unit: 'ef.measurementUnitId',
+      factor: 'ef.totalEmissionFactor',
       isActive: 'ef.isActive',
       createdAt: 'ef.createdAt',
     };
@@ -513,31 +502,15 @@ export class ServicesService implements OnApplicationBootstrap {
 
     const query = this.efRepo
       .createQueryBuilder(tableName)
-      .select([
-        'ef.id',
-        'ef.scope',
-        'ef.category',
-        'ef.source',
-        'ef.version',
-        'ef.fuelOrGasType',
-        'ef.unit',
-        'ef.factor',
-        'ef.co2',
-        'ef.ch4',
-        'ef.n2o',
-        'ef.co2e',
-        'ef.effectiveFrom',
-        'ef.effectiveTo',
-        'ef.formula',
-        'ef.fuelGasTypeId',
-        'ef.activityCategoryId',
-        'ef.measurementUnitId',
-        'ef.scopeId',
-        'ef.factorSourceId',
-        'ef.factorVersionId',
-        'ef.isActive',
-        'ef.createdAt',
-      ])
+      .leftJoinAndSelect('ef.scopeItem', 'scopeItem')
+      .leftJoinAndSelect('ef.activityCategoryItem', 'activityCategoryItem')
+      .leftJoinAndSelect('ef.fuelGasTypeItem', 'fuelGasTypeItem')
+      .leftJoinAndSelect('ef.measurementUnitItem', 'measurementUnitItem')
+      .leftJoinAndSelect('ef.countryItem', 'countryItem')
+      .leftJoinAndSelect('ef.regionItem', 'regionItem')
+      .leftJoinAndSelect('ef.factorSourceItem', 'factorSourceItem')
+      .leftJoinAndSelect('ef.factorVersionItem', 'factorVersionItem')
+      .leftJoinAndSelect('ef.formulaRevisionItem', 'formulaRevisionItem')
       .andWhere('ef.isActive = :isActive', { isActive: true });
 
     if (additionalFilter && typeof additionalFilter === 'object') {
@@ -546,10 +519,10 @@ export class ServicesService implements OnApplicationBootstrap {
         string | boolean | undefined
       >;
       if (category) {
-        query.andWhere('ef.category = :category', { category });
+        query.andWhere('activityCategoryItem.name = :category', { category });
       }
       if (source && typeof source === 'string') {
-        query.andWhere('LOWER(ef.source) LIKE :source', {
+        query.andWhere('LOWER(factorSourceItem.name) LIKE :source', {
           source: `%${source.toLowerCase()}%`,
         });
       }
@@ -561,7 +534,7 @@ export class ServicesService implements OnApplicationBootstrap {
     if (searchInput && searchInput.trim()) {
       const term = `%${searchInput.trim().toLowerCase()}%`;
       query.andWhere(
-        '(LOWER(ef.category) LIKE :term OR LOWER(ef.source) LIKE :term OR LOWER(ef.fuelOrGasType) LIKE :term OR LOWER(ef.version) LIKE :term OR LOWER(ef.unit) LIKE :term)',
+        '(LOWER(activityCategoryItem.name) LIKE :term OR LOWER(factorSourceItem.name) LIKE :term OR LOWER(fuelGasTypeItem.name) LIKE :term OR LOWER(factorVersionItem.name) LIKE :term OR LOWER(measurementUnitItem.name) LIKE :term)',
         { term },
       );
     }
@@ -586,30 +559,6 @@ export class ServicesService implements OnApplicationBootstrap {
     this.assertSuperAdmin(user);
     const existing = await this.efRepo
       .createQueryBuilder('ef')
-      .select([
-        'ef.id',
-        'ef.scope',
-        'ef.category',
-        'ef.source',
-        'ef.version',
-        'ef.fuelOrGasType',
-        'ef.unit',
-        'ef.factor',
-        'ef.co2',
-        'ef.ch4',
-        'ef.n2o',
-        'ef.co2e',
-        'ef.effectiveFrom',
-        'ef.effectiveTo',
-        'ef.formula',
-        'ef.fuelGasTypeId',
-        'ef.activityCategoryId',
-        'ef.measurementUnitId',
-        'ef.scopeId',
-        'ef.factorSourceId',
-        'ef.factorVersionId',
-        'ef.isActive',
-      ])
       .where('ef.id = :id', { id })
       .andWhere('ef.isActive = :isActive', { isActive: true })
       .getOne();
@@ -1255,12 +1204,14 @@ export class ServicesService implements OnApplicationBootstrap {
       : this.activityToCategoryMap[codeUpper] || codeUpper;
 
     // 2. Query distinct emission factors dynamically from DB
-    const efRecords = await this.efRepo
+    // source, version, unit, formula, category are virtual getters — filter via joins
+    const efQuery = this.efRepo
       .createQueryBuilder('ef')
-      .select(['ef.source', 'ef.version', 'ef.unit', 'ef.formula'])
-      .where('LOWER(ef.category) = LOWER(:categoryName)', { categoryName })
-      .andWhere('ef.isActive = :isActive', { isActive: true })
-      .getMany();
+      .leftJoin('ef.activityCategoryItem', 'aci')
+      .andWhere('LOWER(aci.name) = LOWER(:categoryName)', { categoryName })
+      .andWhere('ef.isActive = :isActive', { isActive: true });
+
+    const efRecords = await efQuery.getMany();
 
     const sourcesSet = new Set<string>();
     const versionsSet = new Set<string>();

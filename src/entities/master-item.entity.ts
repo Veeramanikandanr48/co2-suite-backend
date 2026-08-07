@@ -1,25 +1,38 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
+import { MasterType } from './master-type.entity';
+import { ServiceDomain } from './service-domain.entity';
 
-export enum MasterItemType {
-  ORGANIZATION = 'ORGANIZATION',
-  SCOPE = 'SCOPE',
-  ACTIVITY_CATEGORY = 'ACTIVITY_CATEGORY',
-  FUEL_TYPE = 'FUEL_TYPE',
-  GAS_TYPE = 'GAS_TYPE',
-  UNIT = 'UNIT',
-  COUNTRY = 'COUNTRY',
-  REGION = 'REGION',
-  FACTOR_SOURCE = 'FACTOR_SOURCE',
-  FACTOR_VERSION = 'FACTOR_VERSION',
-  GWP_VERSION = 'GWP_VERSION',
-  FORMULA = 'FORMULA',
-  DATA_QUALITY = 'DATA_QUALITY',
-  CURRENCY = 'CURRENCY',
-  SUPPLIER = 'SUPPLIER',
-  EVIDENCE = 'EVIDENCE',
-  INDUSTRY = 'INDUSTRY',
-  REPORTING_FRAMEWORK = 'REPORTING_FRAMEWORK',
+export const MasterItemType = {
+  ORGANIZATION: 'ORGANIZATION',
+  SCOPE: 'SCOPE',
+  ACTIVITY_CATEGORY: 'ACTIVITY_CATEGORY',
+  FUEL_TYPE: 'FUEL_TYPE',
+  GAS_TYPE: 'GAS_TYPE',
+  UNIT: 'UNIT',
+  COUNTRY: 'COUNTRY',
+  REGION: 'REGION',
+  FACTOR_SOURCE: 'FACTOR_SOURCE',
+  FACTOR_VERSION: 'FACTOR_VERSION',
+  GWP_VERSION: 'GWP_VERSION',
+  FORMULA: 'FORMULA',
+  DATA_QUALITY: 'DATA_QUALITY',
+  CURRENCY: 'CURRENCY',
+  SUPPLIER: 'SUPPLIER',
+  EVIDENCE: 'EVIDENCE',
+  INDUSTRY: 'INDUSTRY',
+  REPORTING_FRAMEWORK: 'REPORTING_FRAMEWORK',
+  EMISSION_FACTOR: 'EMISSION_FACTOR',
+  CALCULATION_POLICY: 'CALCULATION_POLICY',
+  REPORTING_PERIOD: 'REPORTING_PERIOD',
+} as const;
+
+export type MasterItemType = typeof MasterItemType[keyof typeof MasterItemType] | string;
+
+export enum MasterVisibility {
+  GLOBAL = 'GLOBAL',
+  DOMAIN = 'DOMAIN',
+  TENANT = 'TENANT',
 }
 
 export enum MasterItemStatus {
@@ -31,13 +44,37 @@ export enum MasterItemStatus {
 
 @Entity({ name: 'master_items' })
 @Index(['type', 'status', 'isActive'])
+@Index(['serviceCode', 'type', 'status', 'isActive'])
 @Index(['effectiveFrom', 'effectiveTo'])
 export class MasterItem extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ type: 'varchar', length: 20, default: MasterVisibility.GLOBAL })
+  visibility: MasterVisibility;
+
+  @Column({ type: 'boolean', default: false })
+  isGlobal: boolean;
+
+  @Column({ type: 'varchar', length: 50, nullable: true, default: 'CARBON' })
+  serviceCode: string;
+
+  @Column({ type: 'int', nullable: true })
+  masterTypeId: number;
+
+  @ManyToOne(() => MasterType, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'masterTypeId' })
+  masterType: MasterType;
+
+  @Column({ type: 'int', nullable: true })
+  serviceDomainId: number;
+
+  @ManyToOne(() => ServiceDomain, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'serviceDomainId' })
+  serviceDomain: ServiceDomain;
+
   @Column({ type: 'varchar', length: 50 })
-  type: MasterItemType;
+  type: string;
 
   @Column({ type: 'varchar', length: 100 })
   code: string;
@@ -99,6 +136,9 @@ export class MasterItem extends BaseColumns {
 
   @Column({ type: 'int', default: 1 })
   version: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  attributes: Record<string, any>;
 
   @Column({ type: 'jsonb', nullable: true })
   customAttributes: Record<string, any>;

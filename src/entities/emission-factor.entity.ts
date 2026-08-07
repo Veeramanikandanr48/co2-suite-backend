@@ -223,4 +223,21 @@ export class EmissionFactor extends BaseColumns {
   set formula(val: string) {
     this._formula = val;
   }
+
+  toJSON() {
+    return {
+      ...this,
+      factor: this.factor,
+      status: this.status,
+      scope: this.scope,
+      category: this.category,
+      fuelOrGasType: this.fuelOrGasType,
+      unit: this.unit,
+      country: this.country,
+      region: this.region,
+      source: this.source,
+      version: this.version,
+      formula: this.formula,
+    };
+  }
 }

@@ -28,9 +28,6 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { FacilitiesModule } from './modules/facilities/facilities.module';
 import { ApprovalModule } from './modules/common/approval/approval.module';
 import { DataQualityModule } from './modules/common/data-quality/data-quality.module';
-import { AiModule } from './modules/common/ai/ai.module';
-import { ReportingModule } from './modules/common/reporting/reporting.module';
-import { AnalyticsModule } from './modules/common/analytics/analytics.module';
 import { EnterpriseModule } from './modules/common/enterprise/enterprise.module';
 import { UtilService } from './utility/util/util.service';
 import { RolesGuard } from './auth/roles.guard';
@@ -114,9 +111,6 @@ import { RolesGuard } from './auth/roles.guard';
     FacilitiesModule,
     ApprovalModule,
     DataQualityModule,
-    AiModule,
-    ReportingModule,
-    AnalyticsModule,
     EnterpriseModule,
   ],
   controllers: [AppController],
@@ -137,4 +131,4 @@ import { RolesGuard } from './auth/roles.guard';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
