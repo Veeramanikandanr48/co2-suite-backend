@@ -188,7 +188,7 @@ export class CompositeFactorResolver implements IFactorProvider {
               ch4: ef.ch4 ? Number(ef.ch4) : undefined,
               n2o: ef.n2o ? Number(ef.n2o) : undefined,
               co2e: ef.co2e ? Number(ef.co2e) : Number(ef.totalEmissionFactor),
-              formula: ef.formulaRevisionItem?.expression || '(amount * factor) / 1000',
+              formula: ef.formula || '(amount * factor) / 1000',
               source: ef.factorSourceItem?.name || 'IPCC',
               version: ef.factorVersionItem?.name || 'AR6',
             };
@@ -309,7 +309,7 @@ export class CompositeFactorResolver implements IFactorProvider {
           activityCategoryId: In(categoryIds),
           fuelGasTypeId: In(fuelIds),
         },
-        relations: { gases: true, formulaRevisionItem: true, factorSourceItem: true, factorVersionItem: true },
+        relations: { factorSourceItem: true, factorVersionItem: true },
         order: { priority: 'ASC' },
       });
 
@@ -332,7 +332,7 @@ export class CompositeFactorResolver implements IFactorProvider {
             ch4: match.ch4 ? Number(match.ch4) : undefined,
             n2o: match.n2o ? Number(match.n2o) : undefined,
             co2e: match.co2e ? Number(match.co2e) : Number(match.totalEmissionFactor),
-            formula: match.formulaRevisionItem?.expression || '(amount * factor) / 1000',
+            formula: match.formula || '(amount * factor) / 1000',
             source: match.factorSourceItem?.name || 'IPCC',
             version: match.factorVersionItem?.name || 'AR6',
           };

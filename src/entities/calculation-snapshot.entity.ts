@@ -8,8 +8,6 @@ import {
 } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import { InventoryEntry } from './inventory-entry.entity';
-import { EmissionFactorRevision } from './emission-factor-revision.entity';
-import { FormulaRevision } from './formula-revision.entity';
 import { MasterItem } from './master-item.entity';
 
 /**
@@ -60,20 +58,12 @@ export class CalculationSnapshot extends BaseColumns {
   @Column({ type: 'int', nullable: true })
   factorRevisionId: number;
 
-  @ManyToOne(() => EmissionFactorRevision, { nullable: true, eager: false })
-  @JoinColumn({ name: 'factorRevisionId' })
-  factorRevision: EmissionFactorRevision;
-
   /**
    * Pinned to the exact FormulaRevision whose expression was evaluated.
    * The `formulaExpression` column below mirrors this for self-description.
    */
   @Column({ type: 'int', nullable: true })
   formulaRevisionId: number;
-
-  @ManyToOne(() => FormulaRevision, { nullable: true, eager: false })
-  @JoinColumn({ name: 'formulaRevisionId' })
-  formulaRevision: FormulaRevision;
 
   /**
    * GWP version applied (AR4 / AR5 / AR6 / AR7).

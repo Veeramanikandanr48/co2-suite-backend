@@ -1,9 +1,6 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import { MasterItem } from './master-item.entity';
-import { FormulaRevision } from './formula-revision.entity';
-import { EmissionFactorMetadata } from './emission-factor-metadata.entity';
-import { EmissionFactorGas } from './emission-factor-gas.entity';
 
 @Entity({ name: 'emission_factors' })
 @Index(
@@ -94,10 +91,6 @@ export class EmissionFactor extends BaseColumns {
   @Column({ nullable: true })
   formulaRevisionId: number;
 
-  @ManyToOne(() => FormulaRevision, { nullable: true, onDelete: 'SET NULL', eager: true })
-  @JoinColumn({ name: 'formulaRevisionId' })
-  formulaRevisionItem: FormulaRevision;
-
   // Resolution Priority Rule (1 = Company Specific, 2 = Supplier Specific, 3 = Regional, 4 = Country, 5 = Global Default)
   @Column({ type: 'int', default: 3 })
   priority: number;
@@ -119,20 +112,12 @@ export class EmissionFactor extends BaseColumns {
   @Column('decimal', { precision: 18, scale: 8, nullable: true })
   co2e: number;
 
-  // Normalized Greenhouse Gas Breakdown Values
-  @OneToMany(() => EmissionFactorGas, (gas) => gas.emissionFactor, { cascade: true, eager: true })
-  gases: EmissionFactorGas[];
-
   // Validity Date Range
   @Column({ type: 'varchar', nullable: true })
   effectiveFrom: string;
 
   @Column({ type: 'varchar', nullable: true })
   effectiveTo: string;
-
-  // One-to-One Relation to Extended Audit & Provenance Metadata
-  @OneToOne(() => EmissionFactorMetadata, (meta) => meta.emissionFactor, { cascade: true })
-  metadata: EmissionFactorMetadata;
 
   // Alias getter/setter for factor for backward compatibility
   get factor(): number {
@@ -218,7 +203,7 @@ export class EmissionFactor extends BaseColumns {
   }
 
   get formula(): string {
-    return this._formula || this.formulaRevisionItem?.expression || '(amount * factor) / 1000';
+    return this._formula || '(amount * factor) / 1000';
   }
   set formula(val: string) {
     this._formula = val;
