@@ -72,10 +72,21 @@ export class ServicesService implements OnApplicationBootstrap {
     }
   }
 
-  /**
-   * Seeds initial DB tables from separate seed file on application startup.
-   */
   async onApplicationBootstrap(): Promise<void> {
+    try {
+      await this.dataSource.query(`
+        DROP TABLE IF EXISTS 
+          master_items, master_types, master_categories, master_configs, 
+          gas_types, gwp_versions, gwp_values, factor_sets, calculation_formulas, 
+          calculation_policies, supplementary_fields, data_quality, master_change_requests, 
+          master_item_versions, master_schemas, master_type_schema_versions, 
+          master_type_statistics, unit_conversions, activity_category_fuel_types, 
+          fuel_type_measurement_units CASCADE;
+      `);
+    } catch {
+      // Ignore if tables do not exist
+    }
+
     const serviceCount = await this.serviceRepo.count();
     if (serviceCount === 0) {
       await this.serviceRepo.save(

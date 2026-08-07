@@ -30,7 +30,6 @@ async function bootstrap() {
     .setDescription('API documentation for CO2 Suite backend services')
     .setVersion('1.0')
     .addTag('Registration', 'User registration and auth endpoints')
-    .addTag('Masters', 'Master data endpoints')
     .addTag('Notifications', 'Notification endpoints')
     .addBearerAuth()
     .build();
