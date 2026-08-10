@@ -766,11 +766,18 @@ export class MasterService {
       where: { id } as FindOptionsWhere<{ id: number }>,
     });
 
-    if (!record) {
-      throw new NotFoundException(`Record with id ${id} not found.`);
+    Object.assign(record, fields, { updatedBy });
+
+    if (fields.isActive === false) {
+      (record as any).isActive = false;
+      (record as any).deletedAt = new Date();
+      (record as any).deletedBy = updatedBy;
+    } else if (fields.isActive === true) {
+      (record as any).isActive = true;
+      (record as any).deletedAt = null;
+      (record as any).deletedBy = null;
     }
 
-    Object.assign(record, fields, { updatedBy });
     const saved = await repo.save(record);
 
     if (entityType === 'datasource') {

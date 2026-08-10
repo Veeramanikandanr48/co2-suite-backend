@@ -2,6 +2,7 @@ import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -37,6 +38,11 @@ export class CreateMasterScopeDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Master Category ──────────────────────────────────────────────────────────
@@ -73,6 +79,11 @@ export class CreateMasterCategoryDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Master Fuel ──────────────────────────────────────────────────────────────
@@ -110,6 +121,11 @@ export class CreateMasterFuelDto {
   @IsNumber({}, { each: true })
   @IsOptional()
   unitIds?: number[];
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Master Unit ──────────────────────────────────────────────────────────────
@@ -142,6 +158,11 @@ export class CreateMasterUnitDto {
   @IsNumber({}, { each: true })
   @IsOptional()
   formulaIds?: number[];
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Master Datasource ────────────────────────────────────────────────────────
@@ -190,7 +211,19 @@ export class CreateMasterDatasourceDto {
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (!Array.isArray(value)) return undefined;
+    const clean = value
+      .map((v) => (typeof v === 'object' && v !== null && 'version' in v ? String(v.version) : typeof v === 'number' ? String(v) : typeof v === 'string' ? v.trim() : null))
+      .filter((v): v is string => Boolean(v));
+    return clean.length ? clean : undefined;
+  })
   versions?: string[];
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Master Factor Version ────────────────────────────────────────────────────
@@ -227,6 +260,11 @@ export class CreateMasterFactorVersionDto {
   @IsNumber({}, { each: true })
   @IsOptional()
   fuelIds?: number[];
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Master Formula ───────────────────────────────────────────────────────────
@@ -263,6 +301,11 @@ export class CreateMasterFormulaDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Scope Category Mapping ───────────────────────────────────────────────────
@@ -292,6 +335,11 @@ export class CreateScopeCategoryMappingDto {
   @IsNumber()
   @IsOptional()
   sortOrder?: number;
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Category Datasource Mapping ─────────────────────────────────────────────
@@ -321,6 +369,11 @@ export class CreateCategoryDatasourceMappingDto {
   @IsNumber()
   @IsOptional()
   sortOrder?: number;
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Version Fuel Mapping ─────────────────────────────────────────────────────
@@ -345,6 +398,11 @@ export class CreateVersionFuelMappingDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Fuel Unit Mapping ────────────────────────────────────────────────────────
@@ -369,6 +427,11 @@ export class CreateFuelUnitMappingDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 // ─── Unit Formula Mapping ─────────────────────────────────────────────────────
@@ -393,6 +456,11 @@ export class CreateUnitFormulaMappingDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ example: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 export class UpdateMasterScopeDto extends PartialType(CreateMasterScopeDto) { }
@@ -406,5 +474,3 @@ export class UpdateCategoryDatasourceMappingDto extends PartialType(CreateCatego
 export class UpdateVersionFuelMappingDto extends PartialType(CreateVersionFuelMappingDto) { }
 export class UpdateFuelUnitMappingDto extends PartialType(CreateFuelUnitMappingDto) { }
 export class UpdateUnitFormulaMappingDto extends PartialType(CreateUnitFormulaMappingDto) { }
-
-
