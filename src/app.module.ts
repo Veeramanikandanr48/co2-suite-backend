@@ -25,6 +25,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { FacilitiesModule } from './modules/facilities/facilities.module';
 import { ApprovalModule } from './modules/common/approval/approval.module';
+import { MasterModule } from './modules/master/master.module';
 import { UtilService } from './utility/util/util.service';
 
 @Module({
@@ -103,6 +104,7 @@ import { UtilService } from './utility/util/util.service';
     ServicesModule,
     FacilitiesModule,
     ApprovalModule,
+    MasterModule,
   ],
   controllers: [AppController],
   providers: [
