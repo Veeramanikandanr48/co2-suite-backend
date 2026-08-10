@@ -9,6 +9,8 @@ import { MasterUnit } from 'src/entities/master-unit.entity';
 import { MasterDatasource } from 'src/entities/master-datasource.entity';
 import { MasterFactorVersion } from 'src/entities/master-factor-version.entity';
 import { MasterFormula } from 'src/entities/master-formula.entity';
+import { ScopeCategoryMapping } from 'src/entities/scope-category-mapping.entity';
+import { CategoryDatasourceMapping } from 'src/entities/category-datasource-mapping.entity';
 import { UtilService } from 'src/utility/util/util.service';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import {
@@ -19,6 +21,8 @@ import {
   CreateMasterDatasourceDto,
   CreateMasterFactorVersionDto,
   CreateMasterFormulaDto,
+  CreateScopeCategoryMappingDto,
+  CreateCategoryDatasourceMappingDto,
 } from 'src/dto/master.dto';
 
 export type MasterEntityType =
@@ -28,7 +32,9 @@ export type MasterEntityType =
   | 'unit'
   | 'datasource'
   | 'factor-version'
-  | 'formula';
+  | 'formula'
+  | 'scope-category-mapping'
+  | 'category-datasource-mapping';
 
 export interface IMasterListResult<T> {
   listData: T[];
@@ -64,6 +70,12 @@ export class MasterService {
 
     @InjectRepository(MasterFormula)
     private readonly masterFormulaRepo: Repository<MasterFormula>,
+
+    @InjectRepository(ScopeCategoryMapping)
+    private readonly scopeCategoryMappingRepo: Repository<ScopeCategoryMapping>,
+
+    @InjectRepository(CategoryDatasourceMapping)
+    private readonly categoryDatasourceMappingRepo: Repository<CategoryDatasourceMapping>,
 
     private readonly utilService: UtilService,
   ) { }
@@ -125,9 +137,16 @@ export class MasterService {
       });
     }
 
-    // Load relations
+    // Load relations (supports nested relations e.g. 'categoryMappings.masterCategory')
     relations.forEach((relation) => {
-      query.leftJoinAndSelect(`${alias}.${relation}`, relation);
+      if (relation.includes('.')) {
+        const parts = relation.split('.');
+        const parentAlias = parts[parts.length - 2];
+        const prop = parts[parts.length - 1];
+        query.leftJoinAndSelect(`${parentAlias}.${prop}`, prop);
+      } else {
+        query.leftJoinAndSelect(`${alias}.${relation}`, relation);
+      }
     });
 
     // Apply sort and pagination
@@ -212,6 +231,7 @@ export class MasterService {
       'id',
       payload,
       ['name', 'code', 'description'],
+      ['categoryMappings', 'categoryMappings.masterCategory'],
     );
   }
 
@@ -243,6 +263,38 @@ export class MasterService {
       'id',
       payload,
       ['name', 'formula', 'description'],
+    );
+  }
+
+  // ─── Master Scope Category Mapping ─────────────────────────────────────────
+
+  async getMasterScopeCategoryMappings(
+    payload: CommonListPayloadDto,
+  ): Promise<IMasterListResult<ScopeCategoryMapping>> {
+    return this.getMasterList(
+      this.scopeCategoryMappingRepo,
+      'scopeCategoryMapping',
+      ['id', 'name', 'code', 'scope', 'scopeCode', 'createdAt'],
+      'id',
+      payload,
+      ['name', 'code', 'scope', 'scopeCode', 'description'],
+      ['masterScope', 'masterCategory'],
+    );
+  }
+
+  // ─── Master Category Datasource Mapping ───────────────────────────────────
+
+  async getMasterCategoryDatasourceMappings(
+    payload: CommonListPayloadDto,
+  ): Promise<IMasterListResult<CategoryDatasourceMapping>> {
+    return this.getMasterList(
+      this.categoryDatasourceMappingRepo,
+      'categoryDatasourceMapping',
+      ['id', 'createdAt'],
+      'id',
+      payload,
+      ['description'],
+      ['masterCategory', 'masterDatasource'],
     );
   }
 
@@ -331,16 +383,42 @@ export class MasterService {
 
   // ─── Master Datasource Create ─────────────────────────────────────────────
 
+  private async syncCategoryDatasourceMappings(
+    datasourceId: number,
+    categoryIds: number[],
+    userId: number,
+  ): Promise<void> {
+    await this.categoryDatasourceMappingRepo.delete({ datasourceId });
+    if (categoryIds.length > 0) {
+      const mappings = categoryIds.map((categoryId) =>
+        this.categoryDatasourceMappingRepo.create({
+          datasourceId,
+          categoryId,
+          createdBy: userId,
+          isActive: true,
+        }),
+      );
+      await this.categoryDatasourceMappingRepo.save(mappings);
+    }
+  }
+
   async createMasterDatasource(
     dto: CreateMasterDatasourceDto,
     createdBy: number,
   ): Promise<MasterDatasource> {
-    return this.createMaster(
+    const { categoryIds, ...rest } = dto;
+    const ds = await this.createMaster(
       this.masterDatasourceRepo,
-      dto as Partial<MasterDatasource>,
+      rest as Partial<MasterDatasource>,
       { code: dto.code } as FindOptionsWhere<MasterDatasource>,
       createdBy,
     );
+
+    if (Array.isArray(categoryIds)) {
+      await this.syncCategoryDatasourceMappings(ds.id, categoryIds, createdBy);
+    }
+
+    return ds;
   }
 
   // ─── Master Factor Version Create ─────────────────────────────────────────
@@ -371,6 +449,34 @@ export class MasterService {
     );
   }
 
+  // ─── Scope Category Mapping Create ────────────────────────────────────────
+
+  async createScopeCategoryMapping(
+    dto: CreateScopeCategoryMappingDto,
+    createdBy: number,
+  ): Promise<ScopeCategoryMapping> {
+    return this.createMaster(
+      this.scopeCategoryMappingRepo,
+      dto as Partial<ScopeCategoryMapping>,
+      { scopeId: dto.scopeId, categoryId: dto.categoryId } as FindOptionsWhere<ScopeCategoryMapping>,
+      createdBy,
+    );
+  }
+
+  // ─── Category Datasource Mapping Create ───────────────────────────────────
+
+  async createCategoryDatasourceMapping(
+    dto: CreateCategoryDatasourceMappingDto,
+    createdBy: number,
+  ): Promise<CategoryDatasourceMapping> {
+    return this.createMaster(
+      this.categoryDatasourceMappingRepo,
+      dto as Partial<CategoryDatasourceMapping>,
+      { categoryId: dto.categoryId, datasourceId: dto.datasourceId } as FindOptionsWhere<CategoryDatasourceMapping>,
+      createdBy,
+    );
+  }
+
   // ─── Reusable Update ─────────────────────────────────────────────────────
 
   /**
@@ -378,7 +484,7 @@ export class MasterService {
    * Resolves the correct repository via a repo map keyed by entityType,
    * finds the record by ID, merges the partial DTO, and saves.
    *
-   * @param entityType - 'scope' | 'category' | 'fuel' | 'unit' | 'datasource' | 'factor-version' | 'formula'
+   * @param entityType - 'scope' | 'category' | 'fuel' | 'unit' | 'datasource' | 'factor-version' | 'formula' | 'scope-category-mapping' | 'category-datasource-mapping'
    * @param id         - Primary key of the record to update
    * @param dto        - Partial fields to apply (only provided keys are changed)
    * @param updatedBy  - ID of the user performing the action
@@ -389,6 +495,7 @@ export class MasterService {
     dto: Record<string, unknown>,
     updatedBy: number,
   ): Promise<unknown> {
+    const { categoryIds, ...fields } = dto as Record<string, unknown> & { categoryIds?: number[] };
     const repoMap: Record<MasterEntityType, Repository<{ id: number }>> = {
       scope: this.masterScopeRepo as Repository<{ id: number }>,
       category: this.masterCategoryRepo as Repository<{ id: number }>,
@@ -397,6 +504,8 @@ export class MasterService {
       datasource: this.masterDatasourceRepo as Repository<{ id: number }>,
       'factor-version': this.masterFactorVersionRepo as Repository<{ id: number }>,
       formula: this.masterFormulaRepo as Repository<{ id: number }>,
+      'scope-category-mapping': this.scopeCategoryMappingRepo as Repository<{ id: number }>,
+      'category-datasource-mapping': this.categoryDatasourceMappingRepo as Repository<{ id: number }>,
     };
 
     const repo = repoMap[entityType];
@@ -408,8 +517,14 @@ export class MasterService {
       throw new NotFoundException(`Record with id ${id} not found.`);
     }
 
-    Object.assign(record, dto, { updatedBy });
-    return repo.save(record);
+    Object.assign(record, fields, { updatedBy });
+    const saved = await repo.save(record);
+
+    if (entityType === 'datasource' && Array.isArray(categoryIds)) {
+      await this.syncCategoryDatasourceMappings(id, categoryIds, updatedBy);
+    }
+
+    return saved;
   }
 
   // ─── Upsert: Create or Update based on presence of id ────────────────────
@@ -441,6 +556,8 @@ export class MasterService {
       datasource: () => this.createMasterDatasource(fields as unknown as CreateMasterDatasourceDto, userId),
       'factor-version': () => this.createMasterFactorVersion(fields as unknown as CreateMasterFactorVersionDto, userId),
       formula: () => this.createMasterFormula(fields as unknown as CreateMasterFormulaDto, userId),
+      'scope-category-mapping': () => this.createScopeCategoryMapping(fields as unknown as CreateScopeCategoryMappingDto, userId),
+      'category-datasource-mapping': () => this.createCategoryDatasourceMapping(fields as unknown as CreateCategoryDatasourceMappingDto, userId),
     };
 
     return createMap[entityType]();

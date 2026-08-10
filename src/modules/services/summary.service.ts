@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Service } from 'src/entities/service.entity';
 import { OrganizationService } from 'src/entities/organization-service.entity';
-import { ServiceScopeItem } from 'src/entities/service-scope-item.entity';
+import { ScopeCategoryMapping } from 'src/entities/scope-category-mapping.entity';
 import { InventoryEntry } from 'src/entities/inventory-entry.entity';
 import { Facility } from 'src/entities/facility.entity';
 import { Organization } from 'src/entities/organization.entity';
@@ -17,8 +17,8 @@ export class SummaryService {
     private readonly serviceRepo: Repository<Service>,
     @InjectRepository(OrganizationService)
     private readonly orgServiceRepo: Repository<OrganizationService>,
-    @InjectRepository(ServiceScopeItem)
-    private readonly scopeItemRepo: Repository<ServiceScopeItem>,
+    @InjectRepository(ScopeCategoryMapping)
+    private readonly scopeCategoryMappingRepo: Repository<ScopeCategoryMapping>,
     @InjectRepository(InventoryEntry)
     private readonly inventoryRepo: Repository<InventoryEntry>,
     @InjectRepository(Facility)
@@ -27,7 +27,7 @@ export class SummaryService {
     private readonly orgRepo: Repository<Organization>,
     @InjectRepository(UserDetails)
     private readonly userRepo: Repository<UserDetails>,
-  ) {}
+  ) { }
 
   /**
    * Calculate dynamic Carbon Summary metrics, graphs, charts, and activities strictly from DB data.
@@ -112,22 +112,12 @@ export class SummaryService {
     );
 
     // 4. Fetch service scope items from DB
-    const scopeItems = await this.scopeItemRepo
-      .createQueryBuilder('scopeItem')
-      .select([
-        'scopeItem.id',
-        'scopeItem.serviceCode',
-        'scopeItem.category',
-        'scopeItem.code',
-        'scopeItem.scopeCode',
-        'scopeItem.name',
-        'scopeItem.unit',
-        'scopeItem.isActive',
-      ])
-      .where('scopeItem.serviceCode = :codeUpper', { codeUpper })
-      .andWhere('scopeItem.isActive = :isActive', { isActive: true })
-      .orderBy('scopeItem.scopeCode', 'ASC')
-      .addOrderBy('scopeItem.sortOrder', 'ASC')
+    const scopeItems = await this.scopeCategoryMappingRepo
+      .createQueryBuilder('mapping')
+      .leftJoinAndSelect('mapping.masterScope', 'masterScope')
+      .leftJoinAndSelect('mapping.masterCategory', 'masterCategory')
+      .where('mapping.isActive = :isActive', { isActive: true })
+      .orderBy('mapping.sortOrder', 'ASC')
       .getMany();
 
     const categoryToScopeMap = new Map<string, string>();
@@ -136,13 +126,17 @@ export class SummaryService {
     const scope3CategoriesSet = new Set<string>();
 
     scopeItems.forEach((item) => {
-      categoryToScopeMap.set(item.name.toLowerCase(), item.scope);
-      if (item.scope === 'Scope 1')
-        scope1CategoriesSet.add(item.name.toLowerCase());
-      if (item.scope === 'Scope 2')
-        scope2CategoriesSet.add(item.name.toLowerCase());
-      if (item.scope === 'Scope 3')
-        scope3CategoriesSet.add(item.name.toLowerCase());
+      const catName = item.masterCategory?.name ? item.masterCategory.name.toLowerCase() : '';
+      const scopeLabel = item.masterScope?.scope || `Scope ${item.scopeId}`;
+      if (catName) {
+        categoryToScopeMap.set(catName, scopeLabel);
+        if (item.scopeId === 1 || scopeLabel.includes('1'))
+          scope1CategoriesSet.add(catName);
+        if (item.scopeId === 2 || scopeLabel.includes('2'))
+          scope2CategoriesSet.add(catName);
+        if (item.scopeId === 3 || scopeLabel.includes('3'))
+          scope3CategoriesSet.add(catName);
+      }
     });
 
     // 5. Filter entries based on queryParams

@@ -1,6 +1,7 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import type { MasterFactorVersion } from './master-factor-version.entity';
+import type { CategoryDatasourceMapping } from './category-datasource-mapping.entity';
 
 @Entity({ name: 'master_datasource' })
 export class MasterDatasource extends BaseColumns {
@@ -21,4 +22,7 @@ export class MasterDatasource extends BaseColumns {
 
   @OneToMany('MasterFactorVersion', 'datasource')
   versions: MasterFactorVersion[];
+
+  @OneToMany('CategoryDatasourceMapping', 'masterDatasource')
+  categoryMappings: CategoryDatasourceMapping[];
 }

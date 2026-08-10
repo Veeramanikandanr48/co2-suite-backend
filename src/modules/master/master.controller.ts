@@ -32,6 +32,8 @@ import {
   CreateMasterDatasourceDto,
   CreateMasterFactorVersionDto,
   CreateMasterFormulaDto,
+  CreateScopeCategoryMappingDto,
+  CreateCategoryDatasourceMappingDto,
 } from 'src/dto/master.dto';
 import { MasterEntityType } from './master.service';
 
@@ -407,6 +409,110 @@ export class MasterController {
       return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save master formula.');
     } finally {
       logger.info('Method ended: upsertMasterFormula');
+    }
+  }
+
+  // ─── GET: Scope Category Mappings ─────────────────────────────────────────
+
+  @Get('scope-category-mappings')
+  @ApiOperation({ summary: 'Get all active scope category mappings' })
+  @ApiResponse({ status: 200, description: 'Successfully fetched scope category mappings' })
+  @ApiResponse({ status: 400, description: 'Failed to fetch scope category mappings' })
+  async getMasterScopeCategoryMappings(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query() query: CommonListPayloadDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: getMasterScopeCategoryMappings');
+    try {
+      const result = await this.masterService.getMasterScopeCategoryMappings(query);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Successfully fetched scope category mappings', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to fetch scope category mappings. Please try again later.');
+    } finally {
+      logger.info('Method ended: getMasterScopeCategoryMappings');
+    }
+  }
+
+  // ─── POST (Upsert): Scope Category Mapping ────────────────────────────────
+
+  @Post('scope-category-mappings')
+  @ApiOperation({ summary: 'Create or update a scope category mapping. Omit id to create; include id to update.' })
+  @ApiBody({ type: CreateScopeCategoryMappingDto })
+  @ApiResponse({ status: 200, description: 'Scope category mapping saved successfully' })
+  @ApiResponse({ status: 400, description: 'Failed to save scope category mapping' })
+  async upsertScopeCategoryMapping(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Body() dto: CreateScopeCategoryMappingDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: upsertScopeCategoryMapping');
+    try {
+      const result = await this.masterService.upsertMasterRecord('scope-category-mapping' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Scope category mapping saved successfully', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save scope category mapping.');
+    } finally {
+      logger.info('Method ended: upsertScopeCategoryMapping');
+    }
+  }
+
+  // ─── GET: Category Datasource Mappings ────────────────────────────────────
+
+  @Get('category-datasource-mappings')
+  @ApiOperation({ summary: 'Get all active category datasource mappings' })
+  @ApiResponse({ status: 200, description: 'Successfully fetched category datasource mappings' })
+  @ApiResponse({ status: 400, description: 'Failed to fetch category datasource mappings' })
+  async getMasterCategoryDatasourceMappings(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query() query: CommonListPayloadDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: getMasterCategoryDatasourceMappings');
+    try {
+      const result = await this.masterService.getMasterCategoryDatasourceMappings(query);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Successfully fetched category datasource mappings', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to fetch category datasource mappings. Please try again later.');
+    } finally {
+      logger.info('Method ended: getMasterCategoryDatasourceMappings');
+    }
+  }
+
+  // ─── POST (Upsert): Category Datasource Mapping ───────────────────────────
+
+  @Post('category-datasource-mappings')
+  @ApiOperation({ summary: 'Create or update a category datasource mapping. Omit id to create; include id to update.' })
+  @ApiBody({ type: CreateCategoryDatasourceMappingDto })
+  @ApiResponse({ status: 200, description: 'Category datasource mapping saved successfully' })
+  @ApiResponse({ status: 400, description: 'Failed to save category datasource mapping' })
+  async upsertCategoryDatasourceMapping(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Body() dto: CreateCategoryDatasourceMappingDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: upsertCategoryDatasourceMapping');
+    try {
+      const result = await this.masterService.upsertMasterRecord('category-datasource-mapping' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Category datasource mapping saved successfully', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save category datasource mapping.');
+    } finally {
+      logger.info('Method ended: upsertCategoryDatasourceMapping');
     }
   }
 }

@@ -9,18 +9,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Service } from 'src/entities/service.entity';
 import { OrganizationService } from 'src/entities/organization-service.entity';
-import { ServiceScopeItem } from 'src/entities/service-scope-item.entity';
-import { EmissionFactor } from 'src/entities/emission-factor.entity';
+import { ScopeCategoryMapping } from 'src/entities/scope-category-mapping.entity';
 import { InventoryEntry } from 'src/entities/inventory-entry.entity';
 import {
   AssignServicesDto,
   CreateScopeItemDto,
   CreateServiceDto,
 } from 'src/dto/service.dto';
+import { CreateScopeCategoryMappingDto } from 'src/dto/master.dto';
 import {
-  CreateEmissionFactorDto,
   CreateInventoryEntryDto,
-  UpdateEmissionFactorDto,
   UpdateInventoryEntryDto,
 } from 'src/dto/inventory.dto';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
@@ -30,8 +28,7 @@ import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
 import { MasterRole } from 'src/enums/casl.enum';
 import {
   SEED_SERVICES,
-  SEED_SCOPE_ITEMS,
-  SEED_EMISSION_FACTORS,
+  SEED_SCOPE_CATEGORY_MAPPINGS,
   SEED_INVENTORY_ENTRIES,
 } from 'src/seeds/initial-data.seed';
 import { CalculationEngine } from './engine/calculation-engine';
@@ -44,10 +41,8 @@ export class ServicesService implements OnApplicationBootstrap {
     private readonly serviceRepo: Repository<Service>,
     @InjectRepository(OrganizationService)
     private readonly orgServiceRepo: Repository<OrganizationService>,
-    @InjectRepository(ServiceScopeItem)
-    private readonly scopeItemRepo: Repository<ServiceScopeItem>,
-    @InjectRepository(EmissionFactor)
-    private readonly efRepo: Repository<EmissionFactor>,
+    @InjectRepository(ScopeCategoryMapping)
+    private readonly scopeCategoryMappingRepo: Repository<ScopeCategoryMapping>,
     @InjectRepository(InventoryEntry)
     private readonly inventoryRepo: Repository<InventoryEntry>,
     private readonly utilService: UtilService,
@@ -83,33 +78,13 @@ export class ServicesService implements OnApplicationBootstrap {
       );
     }
 
-    const scopeCount = await this.scopeItemRepo.count();
-    if (scopeCount === 0) {
-      await this.scopeItemRepo.save(
-        this.scopeItemRepo.create(
-          SEED_SCOPE_ITEMS as Partial<ServiceScopeItem>[],
+    const scopeMappingCount = await this.scopeCategoryMappingRepo.count();
+    if (scopeMappingCount === 0) {
+      await this.scopeCategoryMappingRepo.save(
+        this.scopeCategoryMappingRepo.create(
+          SEED_SCOPE_CATEGORY_MAPPINGS as Partial<ScopeCategoryMapping>[],
         ),
       );
-    }
-
-    const efCount = await this.efRepo.count();
-    if (efCount < SEED_EMISSION_FACTORS.length) {
-      for (const ef of SEED_EMISSION_FACTORS) {
-        const existing = await this.efRepo
-          .createQueryBuilder('ef')
-          .select(['ef.id', 'ef.category', 'ef.fuelOrGasType', 'ef.source'])
-          .where('ef.category = :category', { category: ef.category })
-          .andWhere('ef.fuelOrGasType = :fuelOrGasType', {
-            fuelOrGasType: ef.fuelOrGasType,
-          })
-          .andWhere('ef.source = :source', { source: ef.source })
-          .getOne();
-        if (!existing) {
-          await this.efRepo.save(
-            this.efRepo.create(ef as Partial<EmissionFactor>),
-          );
-        }
-      }
     }
 
     const invCount = await this.inventoryRepo.count();
@@ -326,71 +301,60 @@ export class ServicesService implements OnApplicationBootstrap {
     return { message: 'Service removed from organization successfully' };
   }
 
-  // --- SERVICE SCOPE ITEMS METHODS ---
+  // --- SCOPE CATEGORY MAPPING METHODS ---
 
   async createScopeItem(
-    dto: CreateScopeItemDto,
+    dto: CreateScopeCategoryMappingDto,
     user: IDecodeUserDetails,
-  ): Promise<ServiceScopeItem> {
+  ): Promise<ScopeCategoryMapping> {
     this.assertSuperAdmin(user);
-    const serviceCode = dto.serviceCode.trim().toUpperCase();
-    const itemCode = dto.code.trim().toUpperCase();
 
-    const existing = await this.scopeItemRepo
-      .createQueryBuilder('scopeItem')
-      .select(['scopeItem.id', 'scopeItem.serviceCode', 'scopeItem.code'])
-      .where('scopeItem.serviceCode = :serviceCode', { serviceCode })
-      .andWhere('scopeItem.code = :itemCode', { itemCode })
-      .andWhere('scopeItem.isActive = :isActive', { isActive: true })
+    const existing = await this.scopeCategoryMappingRepo
+      .createQueryBuilder('mapping')
+      .select(['mapping.id', 'mapping.scopeId', 'mapping.categoryId'])
+      .where('mapping.scopeId = :scopeId', { scopeId: dto.scopeId })
+      .andWhere('mapping.categoryId = :categoryId', { categoryId: dto.categoryId })
+      .andWhere('mapping.isActive = :isActive', { isActive: true })
       .getOne();
 
     if (existing) {
       throw new ConflictException(
-        `Scope item with code "${itemCode}" already exists for service "${serviceCode}"`,
+        `Scope category mapping already exists for scopeId ${dto.scopeId} and categoryId ${dto.categoryId}`,
       );
     }
 
-    const entity = this.scopeItemRepo.create({
+    const entity = this.scopeCategoryMappingRepo.create({
       ...dto,
-      serviceCode,
-      code: itemCode,
-      scopeCode: dto.scopeCode.trim().toUpperCase(),
       sortOrder: dto.sortOrder ?? 0,
       isActive: true,
     });
-    return this.scopeItemRepo.save(entity);
+    return this.scopeCategoryMappingRepo.save(entity);
   }
 
-  async getServiceScopes(serviceCode?: string): Promise<ServiceScopeItem[]> {
-    const codeUpper = serviceCode
-      ? serviceCode.trim().toUpperCase()
-      : undefined;
+  async getServiceScopes(_serviceCode?: string) {
+    const query = this.scopeCategoryMappingRepo
+      .createQueryBuilder('mapping')
+      .leftJoinAndSelect('mapping.masterScope', 'masterScope')
+      .leftJoinAndSelect('mapping.masterCategory', 'masterCategory')
+      .where('mapping.isActive = :isActive', { isActive: true });
 
-    const query = this.scopeItemRepo
-      .createQueryBuilder('scopeItem')
-      .select([
-        'scopeItem.id',
-        'scopeItem.serviceCode',
-        'scopeItem.scope',
-        'scopeItem.scopeCode',
-        'scopeItem.name',
-        'scopeItem.code',
-        'scopeItem.description',
-        'scopeItem.sortOrder',
-        'scopeItem.isActive',
-        'scopeItem.createdAt',
-      ])
-      .where('scopeItem.isActive = :isActive', { isActive: true });
-
-    if (codeUpper) {
-      query.andWhere('scopeItem.serviceCode = :codeUpper', { codeUpper });
-    }
-
-    return query
-      .orderBy('scopeItem.scopeCode', 'ASC')
-      .addOrderBy('scopeItem.sortOrder', 'ASC')
-      .addOrderBy('scopeItem.id', 'ASC')
+    const mappings = await query
+      .orderBy('mapping.sortOrder', 'ASC')
+      .addOrderBy('mapping.id', 'ASC')
       .getMany();
+
+    return mappings.map((m) => ({
+      id: m.id,
+      scopeId: m.scopeId,
+      categoryId: m.categoryId,
+      description: m.description,
+      sortOrder: m.sortOrder,
+      scope: m.masterScope?.scope || `Scope ${m.scopeId}`,
+      scopeCode: m.masterScope?.code || `SCOPE_${m.scopeId}`,
+      name: m.masterCategory?.name || '',
+      code: m.masterCategory?.code || '',
+      isActive: m.isActive,
+    }));
   }
 
   async deactivateScopeItem(
@@ -398,201 +362,21 @@ export class ServicesService implements OnApplicationBootstrap {
     user: IDecodeUserDetails,
   ): Promise<{ message: string }> {
     this.assertSuperAdmin(user);
-    const existing = await this.scopeItemRepo
-      .createQueryBuilder('scopeItem')
-      .select(['scopeItem.id', 'scopeItem.isActive'])
-      .where('scopeItem.id = :id', { id })
-      .andWhere('scopeItem.isActive = :isActive', { isActive: true })
+    const existing = await this.scopeCategoryMappingRepo
+      .createQueryBuilder('mapping')
+      .select(['mapping.id', 'mapping.isActive'])
+      .where('mapping.id = :id', { id })
+      .andWhere('mapping.isActive = :isActive', { isActive: true })
       .getOne();
     if (!existing) {
-      throw new BadRequestException('Service scope item not found');
+      throw new BadRequestException('Scope category mapping not found');
     }
     existing.isActive = false;
-    await this.scopeItemRepo.save(existing);
-    return { message: 'Service scope item deactivated successfully' };
+    await this.scopeCategoryMappingRepo.save(existing);
+    return { message: 'Scope category mapping deactivated successfully' };
   }
 
   // --- EMISSION FACTORS METHODS ---
-
-  async getEmissionFactors(category?: string): Promise<EmissionFactor[]> {
-    const query = this.efRepo
-      .createQueryBuilder('ef')
-      .select([
-        'ef.id',
-        'ef.category',
-        'ef.source',
-        'ef.version',
-        'ef.fuelOrGasType',
-        'ef.unit',
-        'ef.factor',
-        'ef.formula',
-        'ef.isActive',
-        'ef.createdAt',
-      ])
-      .where('ef.isActive = :isActive', { isActive: true });
-
-    if (category) {
-      query.andWhere('ef.category = :category', { category });
-    }
-
-    return query
-      .orderBy('ef.category', 'ASC')
-      .addOrderBy('ef.source', 'ASC')
-      .addOrderBy('ef.fuelOrGasType', 'ASC')
-      .getMany();
-  }
-
-  async createEmissionFactor(
-    dto: CreateEmissionFactorDto,
-    user: IDecodeUserDetails,
-  ): Promise<EmissionFactor> {
-    this.assertSuperAdmin(user);
-    const entity = this.efRepo.create({
-      ...dto,
-      isActive: true,
-    });
-    return this.efRepo.save(entity);
-  }
-
-  async getEmissionFactorsFilterList(payload: CommonListPayloadDto) {
-    const tableName = 'ef';
-    const tableSortCheck = [
-      'id',
-      'category',
-      'source',
-      'version',
-      'fuelOrGasType',
-      'unit',
-      'factor',
-      'isActive',
-      'createdAt',
-    ];
-    const sortFieldObject: ICommonSortFieldObject = {
-      id: 'ef.id',
-      category: 'ef.category',
-      source: 'ef.source',
-      version: 'ef.version',
-      fuelOrGasType: 'ef.fuelOrGasType',
-      unit: 'ef.unit',
-      factor: 'ef.factor',
-      isActive: 'ef.isActive',
-      createdAt: 'ef.createdAt',
-    };
-
-    const processedPayload = await this.utilService.processListPayload(
-      payload || {},
-      tableName,
-      tableSortCheck,
-      sortFieldObject,
-      10,
-      'id',
-    );
-
-    const { offSet, limit, sortField, sortOrder } = processedPayload;
-    const { searchInput = '', additionalFilter } = payload || {};
-
-    const query = this.efRepo
-      .createQueryBuilder(tableName)
-      .select([
-        'ef.id',
-        'ef.category',
-        'ef.source',
-        'ef.fuelOrGasType',
-        'ef.unit',
-        'ef.factor',
-        'ef.version',
-        'ef.formula',
-        'ef.isActive',
-        'ef.createdAt',
-      ])
-      .andWhere('ef.isActive = :isActive', { isActive: true });
-
-    if (additionalFilter && typeof additionalFilter === 'object') {
-      const { category, source, isActive } = additionalFilter as Record<
-        string,
-        string | boolean | undefined
-      >;
-      if (category) {
-        query.andWhere('ef.category = :category', { category });
-      }
-      if (source && typeof source === 'string') {
-        query.andWhere('LOWER(ef.source) LIKE :source', {
-          source: `%${source.toLowerCase()}%`,
-        });
-      }
-      if (isActive !== undefined) {
-        query.andWhere('ef.isActive = :isActive', { isActive });
-      }
-    }
-
-    if (searchInput && searchInput.trim()) {
-      const term = `%${searchInput.trim().toLowerCase()}%`;
-      query.andWhere(
-        '(LOWER(ef.category) LIKE :term OR LOWER(ef.source) LIKE :term OR LOWER(ef.fuelOrGasType) LIKE :term OR LOWER(ef.version) LIKE :term OR LOWER(ef.unit) LIKE :term)',
-        { term },
-      );
-    }
-
-    const orderDirection = sortOrder === -1 ? 'DESC' : 'ASC';
-    query.orderBy(sortField, orderDirection);
-    query.skip(offSet).take(limit);
-
-    const [listData, dataCount] = await query.getManyAndCount();
-
-    return {
-      listData,
-      dataCount,
-    };
-  }
-
-  async updateEmissionFactor(
-    id: number,
-    dto: UpdateEmissionFactorDto,
-    user: IDecodeUserDetails,
-  ): Promise<EmissionFactor> {
-    this.assertSuperAdmin(user);
-    const existing = await this.efRepo
-      .createQueryBuilder('ef')
-      .select([
-        'ef.id',
-        'ef.category',
-        'ef.source',
-        'ef.version',
-        'ef.fuelOrGasType',
-        'ef.unit',
-        'ef.factor',
-        'ef.formula',
-        'ef.isActive',
-      ])
-      .where('ef.id = :id', { id })
-      .andWhere('ef.isActive = :isActive', { isActive: true })
-      .getOne();
-    if (!existing) {
-      throw new BadRequestException(`Emission factor with ID ${id} not found`);
-    }
-
-    Object.assign(existing, dto);
-    return this.efRepo.save(existing);
-  }
-
-  async deactivateEmissionFactor(
-    id: number,
-    user: IDecodeUserDetails,
-  ): Promise<{ message: string }> {
-    this.assertSuperAdmin(user);
-    const existing = await this.efRepo
-      .createQueryBuilder('ef')
-      .select(['ef.id', 'ef.isActive'])
-      .where('ef.id = :id', { id })
-      .andWhere('ef.isActive = :isActive', { isActive: true })
-      .getOne();
-    if (!existing) {
-      throw new BadRequestException('Emission factor not found');
-    }
-    existing.isActive = false;
-    await this.efRepo.save(existing);
-    return { message: 'Emission factor deactivated successfully' };
-  }
 
   // --- INVENTORY ENTRIES METHODS ---
 
@@ -918,23 +702,12 @@ export class ServicesService implements OnApplicationBootstrap {
   ): Promise<InventoryEntry> {
     const orgId = this.resolveOrgId(user);
     const userId = user.id;
-    const efRecord = await this.efRepo
-      .createQueryBuilder('ef')
-      .select(['ef.id', 'ef.factor', 'ef.formula'])
-      .where('ef.category = :category', { category: dto.category })
-      .andWhere('ef.fuelOrGasType = :name', { name: dto.name })
-      .andWhere('ef.isActive = :isActive', { isActive: true })
-      .getOne();
 
-    let efVal = dto.ef;
-    if (efVal === undefined || efVal === null) {
-      efVal = efRecord?.factor ?? 0;
-    }
-
+    const efVal = dto.ef ?? 0;
     const calculatedEmission = this.calculateEmissionValue(
       dto.amount,
       efVal,
-      dto.formula || efRecord?.formula,
+      dto.formula,
       dto.unit,
     );
 
@@ -987,26 +760,11 @@ export class ServicesService implements OnApplicationBootstrap {
 
     Object.assign(existing, dto);
 
-    const efRecord = await this.efRepo
-      .createQueryBuilder('ef')
-      .select(['ef.id', 'ef.factor', 'ef.formula'])
-      .where('ef.category = :category', { category: existing.category })
-      .andWhere('ef.fuelOrGasType = :name', { name: existing.name })
-      .andWhere('ef.isActive = :isActive', { isActive: true })
-      .getOne();
-
-    if (dto.ef === undefined || dto.ef === null) {
-      if (efRecord?.factor) {
-        existing.ef = efRecord.factor;
-      }
-    } else {
-      existing.ef = dto.ef;
-    }
-
+    const efVal = existing.ef ?? 0;
     existing.emission = this.calculateEmissionValue(
       existing.amount,
-      existing.ef,
-      dto.formula || efRecord?.formula,
+      efVal,
+      dto.formula,
       existing.unit,
     );
 
@@ -1081,16 +839,17 @@ export class ServicesService implements OnApplicationBootstrap {
     const orgId = this.resolveOrgId(user);
     const codeUpper = (activityCode || '').toUpperCase().trim();
 
-    // Dynamically resolve category from DB scopeItemRepo first
-    const scopeItem = await this.scopeItemRepo
+    // Dynamically resolve category from DB scopeCategoryMappingRepo first
+    const scopeItem = await this.scopeCategoryMappingRepo
       .createQueryBuilder('item')
-      .select(['item.name', 'item.code', 'item.scope', 'item.scopeCode'])
-      .where('UPPER(item.code) = :codeUpper', { codeUpper })
-      .orWhere('UPPER(item.scopeCode) = :codeUpper', { codeUpper })
+      .leftJoinAndSelect('item.masterScope', 'masterScope')
+      .leftJoinAndSelect('item.masterCategory', 'masterCategory')
+      .where('UPPER(masterCategory.code) = :codeUpper', { codeUpper })
+      .orWhere('UPPER(masterScope.code) = :codeUpper', { codeUpper })
       .getOne();
 
-    const categoryName = scopeItem
-      ? scopeItem.name
+    const categoryName = scopeItem?.masterCategory
+      ? scopeItem.masterCategory.name
       : this.activityToCategoryMap[codeUpper] || codeUpper;
 
     const query = this.inventoryRepo
@@ -1160,46 +919,27 @@ export class ServicesService implements OnApplicationBootstrap {
     const codeUpper = (activityCode || '').toUpperCase().trim();
 
     // 1. Query scope item dynamically from DB
-    const scopeItem = await this.scopeItemRepo
+    const scopeItem = await this.scopeCategoryMappingRepo
       .createQueryBuilder('item')
-      .select(['item.name', 'item.code', 'item.scope', 'item.scopeCode'])
-      .where('UPPER(item.code) = :codeUpper', { codeUpper })
+      .leftJoinAndSelect('item.masterScope', 'masterScope')
+      .leftJoinAndSelect('item.masterCategory', 'masterCategory')
+      .where('UPPER(masterCategory.code) = :codeUpper', { codeUpper })
       .getOne();
 
-    const categoryName = scopeItem
-      ? scopeItem.name
+    const categoryName = scopeItem?.masterCategory
+      ? scopeItem.masterCategory.name
       : this.activityToCategoryMap[codeUpper] || codeUpper;
 
-    // 2. Query distinct emission factors dynamically from DB
-    const efRecords = await this.efRepo
-      .createQueryBuilder('ef')
-      .select(['ef.source', 'ef.version', 'ef.unit', 'ef.formula'])
-      .where('LOWER(ef.category) = LOWER(:categoryName)', { categoryName })
-      .andWhere('ef.isActive = :isActive', { isActive: true })
-      .getMany();
-
-    const sourcesSet = new Set<string>();
-    const versionsSet = new Set<string>();
-    const unitsSet = new Set<string>();
-    let defaultFormula = '(amount * factor) / 1000';
-
-    efRecords.forEach((ef) => {
-      if (ef.source) sourcesSet.add(ef.source);
-      if (ef.version) versionsSet.add(ef.version);
-      if (ef.unit) unitsSet.add(ef.unit);
-      if (ef.formula) defaultFormula = ef.formula;
-    });
-
-    if (sourcesSet.size === 0)
-      sourcesSet.add('IPCC (Commercial & Institutional Use)');
-    if (versionsSet.size === 0) versionsSet.add('AR6');
-    if (unitsSet.size === 0) unitsSet.add('sm3');
+    const sourcesSet = new Set<string>(['IPCC (Commercial & Institutional Use)', 'DEFRA 2024', 'IEA 2023']);
+    const versionsSet = new Set<string>(['AR6', '2024', '2023']);
+    const unitsSet = new Set<string>(['sm3', 'L', 'kWh', 'kg', 'm3', 'ton', 'km', 'passenger.km']);
+    const defaultFormula = '(amount * factor) / 1000';
 
     return {
       statusCode: 200,
       scope: String(
         scopeId ||
-        (scopeItem?.scope ? scopeItem.scope.replace(/\D/g, '') : '1'),
+        (scopeItem?.masterScope?.scope ? scopeItem.masterScope.scope.replace(/\D/g, '') : '1'),
       ),
       activity: codeUpper,
       based_option: basedOption || 'activity',
@@ -1214,16 +954,17 @@ export class ServicesService implements OnApplicationBootstrap {
    * Fetch all supported scope activity codes dynamically from DB table
    */
   async getAllActivityCodes() {
-    const scopeItems = await this.scopeItemRepo.find({
+    const scopeItems = await this.scopeCategoryMappingRepo.find({
       where: { isActive: true },
+      relations: { masterScope: true, masterCategory: true },
       order: { sortOrder: 'ASC' },
     });
 
     return scopeItems.map((item) => ({
-      code: item.code,
-      name: item.name,
-      scope: item.scope ? item.scope.replace(/\D/g, '') : '1',
-      scopeCode: item.scopeCode,
+      code: item.masterCategory?.code || '',
+      name: item.masterCategory?.name || '',
+      scope: item.masterScope?.scope ? item.masterScope.scope.replace(/\D/g, '') : '1',
+      scopeCode: item.masterScope?.code || '',
     }));
   }
 }

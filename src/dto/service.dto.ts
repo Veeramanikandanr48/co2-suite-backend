@@ -140,13 +140,6 @@ export class GetSummaryQueryDto {
   facility?: string;
 }
 
-export class GetEmissionFactorsQueryDto {
-  @ApiProperty({ example: 'Stationary Combustion', required: false })
-  @IsString()
-  @IsOptional()
-  category?: string;
-}
-
 export class GetInventoryEntriesQueryDto {
   @ApiProperty({ example: 'Stationary Combustion', required: false })
   @IsString()

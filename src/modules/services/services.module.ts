@@ -6,8 +6,7 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { Service } from 'src/entities/service.entity';
 import { OrganizationService } from 'src/entities/organization-service.entity';
-import { ServiceScopeItem } from 'src/entities/service-scope-item.entity';
-import { EmissionFactor } from 'src/entities/emission-factor.entity';
+import { ScopeCategoryMapping } from 'src/entities/scope-category-mapping.entity';
 import { InventoryEntry } from 'src/entities/inventory-entry.entity';
 import { Facility } from 'src/entities/facility.entity';
 import { Organization } from 'src/entities/organization.entity';
@@ -23,8 +22,7 @@ import { CalculationEngine } from './engine/calculation-engine';
     TypeOrmModule.forFeature([
       Service,
       OrganizationService,
-      ServiceScopeItem,
-      EmissionFactor,
+      ScopeCategoryMapping,
       InventoryEntry,
       Facility,
       Organization,

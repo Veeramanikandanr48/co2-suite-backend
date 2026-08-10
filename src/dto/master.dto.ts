@@ -161,6 +161,12 @@ export class CreateMasterDatasourceDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ example: [1, 2, 3], required: false, type: [Number] })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  categoryIds?: number[];
 }
 
 // ─── Master Factor Version ────────────────────────────────────────────────────
@@ -229,9 +235,71 @@ export class CreateMasterFormulaDto {
   description?: string;
 }
 
+// ─── Scope Category Mapping ───────────────────────────────────────────────────
+
+export class CreateScopeCategoryMappingDto {
+  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @IsNumber()
+  @IsOptional()
+  id?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'FK to master_scope' })
+  @IsNumber()
+  @IsOptional()
+  scopeId?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'FK to master_category' })
+  @IsNumber()
+  @IsOptional()
+  categoryId?: number;
+
+  @ApiProperty({ example: 'Fuel burnt in stationary equipment', required: false })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiProperty({ example: 1, required: false })
+  @IsNumber()
+  @IsOptional()
+  sortOrder?: number;
+}
+
+// ─── Category Datasource Mapping ─────────────────────────────────────────────
+
+export class CreateCategoryDatasourceMappingDto {
+  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @IsNumber()
+  @IsOptional()
+  id?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'FK to master_category' })
+  @IsNumber()
+  @IsOptional()
+  categoryId?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'FK to master_datasource' })
+  @IsNumber()
+  @IsOptional()
+  datasourceId?: number;
+
+  @ApiProperty({ example: 'Stationary combustion emission factors source', required: false })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiProperty({ example: 1, required: false })
+  @IsNumber()
+  @IsOptional()
+  sortOrder?: number;
+}
+
 export class UpdateMasterScopeDto extends PartialType(CreateMasterScopeDto) { }
 export class UpdateMasterFuelDto extends PartialType(CreateMasterFuelDto) { }
 export class UpdateMasterUnitDto extends PartialType(CreateMasterUnitDto) { }
 export class UpdateMasterDatasourceDto extends PartialType(CreateMasterDatasourceDto) { }
 export class UpdateMasterFactorVersionDto extends PartialType(CreateMasterFactorVersionDto) { }
 export class UpdateMasterFormulaDto extends PartialType(CreateMasterFormulaDto) { }
+export class UpdateScopeCategoryMappingDto extends PartialType(CreateScopeCategoryMappingDto) { }
+export class UpdateCategoryDatasourceMappingDto extends PartialType(CreateCategoryDatasourceMappingDto) { }
+
+

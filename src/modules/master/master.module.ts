@@ -8,6 +8,8 @@ import { MasterUnit } from 'src/entities/master-unit.entity';
 import { MasterDatasource } from 'src/entities/master-datasource.entity';
 import { MasterFactorVersion } from 'src/entities/master-factor-version.entity';
 import { MasterFormula } from 'src/entities/master-formula.entity';
+import { ScopeCategoryMapping } from 'src/entities/scope-category-mapping.entity';
+import { CategoryDatasourceMapping } from 'src/entities/category-datasource-mapping.entity';
 import { MasterController } from './master.controller';
 import { UtilService } from 'src/utility/util/util.service';
 import { MasterService } from './master.service';
@@ -24,6 +26,8 @@ import { MasterService } from './master.service';
       MasterDatasource,
       MasterFactorVersion,
       MasterFormula,
+      ScopeCategoryMapping,
+      CategoryDatasourceMapping,
     ]),
   ],
   controllers: [MasterController],
