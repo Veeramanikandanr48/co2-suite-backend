@@ -34,6 +34,9 @@ import {
   CreateMasterFormulaDto,
   CreateScopeCategoryMappingDto,
   CreateCategoryDatasourceMappingDto,
+  CreateVersionFuelMappingDto,
+  CreateFuelUnitMappingDto,
+  CreateUnitFormulaMappingDto,
 } from 'src/dto/master.dto';
 import { MasterEntityType } from './master.service';
 
@@ -513,6 +516,162 @@ export class MasterController {
       return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save category datasource mapping.');
     } finally {
       logger.info('Method ended: upsertCategoryDatasourceMapping');
+    }
+  }
+
+  // ─── GET: Version Fuel Mappings ───────────────────────────────────────────
+
+  @Get('version-fuel-mappings')
+  @ApiOperation({ summary: 'Get all active factor version to fuel mappings' })
+  @ApiResponse({ status: 200, description: 'Successfully fetched version fuel mappings' })
+  @ApiResponse({ status: 400, description: 'Failed to fetch version fuel mappings' })
+  async getMasterVersionFuelMappings(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query() query: CommonListPayloadDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: getMasterVersionFuelMappings');
+    try {
+      const result = await this.masterService.getMasterVersionFuelMappings(query);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Successfully fetched version fuel mappings', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to fetch version fuel mappings. Please try again later.');
+    } finally {
+      logger.info('Method ended: getMasterVersionFuelMappings');
+    }
+  }
+
+  // ─── POST (Upsert): Version Fuel Mapping ──────────────────────────────────
+
+  @Post('version-fuel-mappings')
+  @ApiOperation({ summary: 'Create or update a version fuel mapping. Omit id to create; include id to update.' })
+  @ApiBody({ type: CreateVersionFuelMappingDto })
+  @ApiResponse({ status: 200, description: 'Version fuel mapping saved successfully' })
+  @ApiResponse({ status: 400, description: 'Failed to save version fuel mapping' })
+  async upsertVersionFuelMapping(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Body() dto: CreateVersionFuelMappingDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: upsertVersionFuelMapping');
+    try {
+      const result = await this.masterService.upsertMasterRecord('version-fuel-mapping' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Version fuel mapping saved successfully', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save version fuel mapping.');
+    } finally {
+      logger.info('Method ended: upsertVersionFuelMapping');
+    }
+  }
+
+  // ─── GET: Fuel Unit Mappings ──────────────────────────────────────────────
+
+  @Get('fuel-unit-mappings')
+  @ApiOperation({ summary: 'Get all active fuel to unit mappings' })
+  @ApiResponse({ status: 200, description: 'Successfully fetched fuel unit mappings' })
+  @ApiResponse({ status: 400, description: 'Failed to fetch fuel unit mappings' })
+  async getMasterFuelUnitMappings(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query() query: CommonListPayloadDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: getMasterFuelUnitMappings');
+    try {
+      const result = await this.masterService.getMasterFuelUnitMappings(query);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Successfully fetched fuel unit mappings', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to fetch fuel unit mappings. Please try again later.');
+    } finally {
+      logger.info('Method ended: getMasterFuelUnitMappings');
+    }
+  }
+
+  // ─── POST (Upsert): Fuel Unit Mapping ─────────────────────────────────────
+
+  @Post('fuel-unit-mappings')
+  @ApiOperation({ summary: 'Create or update a fuel unit mapping. Omit id to create; include id to update.' })
+  @ApiBody({ type: CreateFuelUnitMappingDto })
+  @ApiResponse({ status: 200, description: 'Fuel unit mapping saved successfully' })
+  @ApiResponse({ status: 400, description: 'Failed to save fuel unit mapping' })
+  async upsertFuelUnitMapping(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Body() dto: CreateFuelUnitMappingDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: upsertFuelUnitMapping');
+    try {
+      const result = await this.masterService.upsertMasterRecord('fuel-unit-mapping' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Fuel unit mapping saved successfully', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save fuel unit mapping.');
+    } finally {
+      logger.info('Method ended: upsertFuelUnitMapping');
+    }
+  }
+
+  // ─── GET: Unit Formula Mappings ───────────────────────────────────────────
+
+  @Get('unit-formula-mappings')
+  @ApiOperation({ summary: 'Get all active unit to formula mappings' })
+  @ApiResponse({ status: 200, description: 'Successfully fetched unit formula mappings' })
+  @ApiResponse({ status: 400, description: 'Failed to fetch unit formula mappings' })
+  async getMasterUnitFormulaMappings(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query() query: CommonListPayloadDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: getMasterUnitFormulaMappings');
+    try {
+      const result = await this.masterService.getMasterUnitFormulaMappings(query);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Successfully fetched unit formula mappings', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to fetch unit formula mappings. Please try again later.');
+    } finally {
+      logger.info('Method ended: getMasterUnitFormulaMappings');
+    }
+  }
+
+  // ─── POST (Upsert): Unit Formula Mapping ──────────────────────────────────
+
+  @Post('unit-formula-mappings')
+  @ApiOperation({ summary: 'Create or update a unit formula mapping. Omit id to create; include id to update.' })
+  @ApiBody({ type: CreateUnitFormulaMappingDto })
+  @ApiResponse({ status: 200, description: 'Unit formula mapping saved successfully' })
+  @ApiResponse({ status: 400, description: 'Failed to save unit formula mapping' })
+  async upsertUnitFormulaMapping(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Body() dto: CreateUnitFormulaMappingDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: upsertUnitFormulaMapping');
+    try {
+      const result = await this.masterService.upsertMasterRecord('unit-formula-mapping' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Unit formula mapping saved successfully', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save unit formula mapping.');
+    } finally {
+      logger.info('Method ended: upsertUnitFormulaMapping');
     }
   }
 }

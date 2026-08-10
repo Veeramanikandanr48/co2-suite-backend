@@ -104,6 +104,12 @@ export class CreateMasterFuelDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ example: [1, 2, 3], required: false, type: [Number] })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  unitIds?: number[];
 }
 
 // ─── Master Unit ──────────────────────────────────────────────────────────────
@@ -130,6 +136,12 @@ export class CreateMasterUnitDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ example: [1, 2, 3], required: false, type: [Number] })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  formulaIds?: number[];
 }
 
 // ─── Master Datasource ────────────────────────────────────────────────────────
@@ -167,6 +179,18 @@ export class CreateMasterDatasourceDto {
   @IsNumber({}, { each: true })
   @IsOptional()
   categoryIds?: number[];
+
+  @ApiProperty({ example: [1, 2, 3], required: false, type: [Number] })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  versionIds?: number[];
+
+  @ApiProperty({ example: ['2024', '2023'], required: false, type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  versions?: string[];
 }
 
 // ─── Master Factor Version ────────────────────────────────────────────────────
@@ -197,6 +221,12 @@ export class CreateMasterFactorVersionDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ example: [1, 2, 3], required: false, type: [Number] })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  fuelIds?: number[];
 }
 
 // ─── Master Formula ───────────────────────────────────────────────────────────
@@ -293,6 +323,78 @@ export class CreateCategoryDatasourceMappingDto {
   sortOrder?: number;
 }
 
+// ─── Version Fuel Mapping ─────────────────────────────────────────────────────
+
+export class CreateVersionFuelMappingDto {
+  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @IsNumber()
+  @IsOptional()
+  id?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'FK to master_factor_version' })
+  @IsNumber()
+  @IsOptional()
+  factorVersionId?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'FK to master_fuel' })
+  @IsNumber()
+  @IsOptional()
+  fuelId?: number;
+
+  @ApiProperty({ example: 'Natural Gas factors for 2024 version', required: false })
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
+// ─── Fuel Unit Mapping ────────────────────────────────────────────────────────
+
+export class CreateFuelUnitMappingDto {
+  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @IsNumber()
+  @IsOptional()
+  id?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'FK to master_fuel' })
+  @IsNumber()
+  @IsOptional()
+  fuelId?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'FK to master_unit' })
+  @IsNumber()
+  @IsOptional()
+  unitId?: number;
+
+  @ApiProperty({ example: 'Standard cubic metres for Natural Gas', required: false })
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
+// ─── Unit Formula Mapping ─────────────────────────────────────────────────────
+
+export class CreateUnitFormulaMappingDto {
+  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @IsNumber()
+  @IsOptional()
+  id?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'FK to master_unit' })
+  @IsNumber()
+  @IsOptional()
+  unitId?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'FK to master_formula' })
+  @IsNumber()
+  @IsOptional()
+  formulaId?: number;
+
+  @ApiProperty({ example: 'Formula construction for kWh measurement', required: false })
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
 export class UpdateMasterScopeDto extends PartialType(CreateMasterScopeDto) { }
 export class UpdateMasterFuelDto extends PartialType(CreateMasterFuelDto) { }
 export class UpdateMasterUnitDto extends PartialType(CreateMasterUnitDto) { }
@@ -301,5 +403,8 @@ export class UpdateMasterFactorVersionDto extends PartialType(CreateMasterFactor
 export class UpdateMasterFormulaDto extends PartialType(CreateMasterFormulaDto) { }
 export class UpdateScopeCategoryMappingDto extends PartialType(CreateScopeCategoryMappingDto) { }
 export class UpdateCategoryDatasourceMappingDto extends PartialType(CreateCategoryDatasourceMappingDto) { }
+export class UpdateVersionFuelMappingDto extends PartialType(CreateVersionFuelMappingDto) { }
+export class UpdateFuelUnitMappingDto extends PartialType(CreateFuelUnitMappingDto) { }
+export class UpdateUnitFormulaMappingDto extends PartialType(CreateUnitFormulaMappingDto) { }
 
 

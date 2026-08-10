@@ -10,6 +10,9 @@ import { MasterFactorVersion } from 'src/entities/master-factor-version.entity';
 import { MasterFormula } from 'src/entities/master-formula.entity';
 import { ScopeCategoryMapping } from 'src/entities/scope-category-mapping.entity';
 import { CategoryDatasourceMapping } from 'src/entities/category-datasource-mapping.entity';
+import { VersionFuelMapping } from 'src/entities/version-fuel-mapping.entity';
+import { FuelUnitMapping } from 'src/entities/fuel-unit-mapping.entity';
+import { UnitFormulaMapping } from 'src/entities/unit-formula-mapping.entity';
 import { MasterController } from './master.controller';
 import { UtilService } from 'src/utility/util/util.service';
 import { MasterService } from './master.service';
@@ -28,6 +31,9 @@ import { MasterService } from './master.service';
       MasterFormula,
       ScopeCategoryMapping,
       CategoryDatasourceMapping,
+      VersionFuelMapping,
+      FuelUnitMapping,
+      UnitFormulaMapping,
     ]),
   ],
   controllers: [MasterController],

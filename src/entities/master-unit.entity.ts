@@ -1,5 +1,7 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
+import type { FuelUnitMapping } from './fuel-unit-mapping.entity';
+import type { UnitFormulaMapping } from './unit-formula-mapping.entity';
 
 @Entity({ name: 'master_unit' })
 export class MasterUnit extends BaseColumns {
@@ -14,4 +16,10 @@ export class MasterUnit extends BaseColumns {
 
   @Column({ type: 'text', nullable: true })
   description: string;
+
+  @OneToMany('FuelUnitMapping', 'masterUnit')
+  fuelMappings: FuelUnitMapping[];
+
+  @OneToMany('UnitFormulaMapping', 'masterUnit')
+  formulaMappings: UnitFormulaMapping[];
 }

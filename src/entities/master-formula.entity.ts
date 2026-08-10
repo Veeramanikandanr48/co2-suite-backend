@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
+import type { UnitFormulaMapping } from './unit-formula-mapping.entity';
 
 @Entity({ name: 'master_formula' })
 export class MasterFormula extends BaseColumns {
@@ -20,4 +21,7 @@ export class MasterFormula extends BaseColumns {
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   outputUnit: string; // e.g. 'tCO2e', 'kgCO2e'
+
+  @OneToMany('UnitFormulaMapping', 'masterFormula')
+  unitMappings: UnitFormulaMapping[];
 }

@@ -3,10 +3,12 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import type { MasterDatasource } from './master-datasource.entity';
+import type { VersionFuelMapping } from './version-fuel-mapping.entity';
 
 @Entity({ name: 'master_factor_version' })
 export class MasterFactorVersion extends BaseColumns {
@@ -28,4 +30,7 @@ export class MasterFactorVersion extends BaseColumns {
 
   @Column({ type: 'text', nullable: true })
   description: string;
+
+  @OneToMany('VersionFuelMapping', 'masterFactorVersion')
+  fuelMappings: VersionFuelMapping[];
 }

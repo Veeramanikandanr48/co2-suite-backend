@@ -11,6 +11,9 @@ import { MasterFactorVersion } from 'src/entities/master-factor-version.entity';
 import { MasterFormula } from 'src/entities/master-formula.entity';
 import { ScopeCategoryMapping } from 'src/entities/scope-category-mapping.entity';
 import { CategoryDatasourceMapping } from 'src/entities/category-datasource-mapping.entity';
+import { VersionFuelMapping } from 'src/entities/version-fuel-mapping.entity';
+import { FuelUnitMapping } from 'src/entities/fuel-unit-mapping.entity';
+import { UnitFormulaMapping } from 'src/entities/unit-formula-mapping.entity';
 import { UtilService } from 'src/utility/util/util.service';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import {
@@ -23,6 +26,9 @@ import {
   CreateMasterFormulaDto,
   CreateScopeCategoryMappingDto,
   CreateCategoryDatasourceMappingDto,
+  CreateVersionFuelMappingDto,
+  CreateFuelUnitMappingDto,
+  CreateUnitFormulaMappingDto,
 } from 'src/dto/master.dto';
 
 export type MasterEntityType =
@@ -34,7 +40,10 @@ export type MasterEntityType =
   | 'factor-version'
   | 'formula'
   | 'scope-category-mapping'
-  | 'category-datasource-mapping';
+  | 'category-datasource-mapping'
+  | 'version-fuel-mapping'
+  | 'fuel-unit-mapping'
+  | 'unit-formula-mapping';
 
 export interface IMasterListResult<T> {
   listData: T[];
@@ -76,6 +85,15 @@ export class MasterService {
 
     @InjectRepository(CategoryDatasourceMapping)
     private readonly categoryDatasourceMappingRepo: Repository<CategoryDatasourceMapping>,
+
+    @InjectRepository(VersionFuelMapping)
+    private readonly versionFuelMappingRepo: Repository<VersionFuelMapping>,
+
+    @InjectRepository(FuelUnitMapping)
+    private readonly fuelUnitMappingRepo: Repository<FuelUnitMapping>,
+
+    @InjectRepository(UnitFormulaMapping)
+    private readonly unitFormulaMappingRepo: Repository<UnitFormulaMapping>,
 
     private readonly utilService: UtilService,
   ) { }
@@ -200,7 +218,7 @@ export class MasterService {
       'id',
       payload,
       ['name', 'code', 'description'],
-      ['scope'],
+      ['scope', 'unitMappings', 'unitMappings.masterUnit', 'versionMappings', 'versionMappings.masterFactorVersion'],
     );
   }
 
@@ -216,6 +234,7 @@ export class MasterService {
       'id',
       payload,
       ['name', 'symbol', 'description'],
+      ['fuelMappings', 'fuelMappings.masterFuel', 'formulaMappings', 'formulaMappings.masterFormula'],
     );
   }
 
@@ -231,7 +250,7 @@ export class MasterService {
       'id',
       payload,
       ['name', 'code', 'description'],
-      ['categoryMappings', 'categoryMappings.masterCategory'],
+      ['categoryMappings', 'categoryMappings.masterCategory', 'versions'],
     );
   }
 
@@ -247,7 +266,7 @@ export class MasterService {
       'id',
       payload,
       ['version', 'description'],
-      ['datasource'],
+      ['datasource', 'fuelMappings', 'fuelMappings.masterFuel'],
     );
   }
 
@@ -263,6 +282,7 @@ export class MasterService {
       'id',
       payload,
       ['name', 'formula', 'description'],
+      ['unitMappings', 'unitMappings.masterUnit'],
     );
   }
 
@@ -295,6 +315,54 @@ export class MasterService {
       payload,
       ['description'],
       ['masterCategory', 'masterDatasource'],
+    );
+  }
+
+  // ─── Version Fuel Mapping List ──────────────────────────────────────────
+
+  async getMasterVersionFuelMappings(
+    payload: CommonListPayloadDto,
+  ): Promise<IMasterListResult<VersionFuelMapping>> {
+    return this.getMasterList(
+      this.versionFuelMappingRepo,
+      'versionFuelMapping',
+      ['id', 'createdAt'],
+      'id',
+      payload,
+      ['description'],
+      ['masterFactorVersion', 'masterFuel'],
+    );
+  }
+
+  // ─── Fuel Unit Mapping List ─────────────────────────────────────────────
+
+  async getMasterFuelUnitMappings(
+    payload: CommonListPayloadDto,
+  ): Promise<IMasterListResult<FuelUnitMapping>> {
+    return this.getMasterList(
+      this.fuelUnitMappingRepo,
+      'fuelUnitMapping',
+      ['id', 'createdAt'],
+      'id',
+      payload,
+      ['description'],
+      ['masterFuel', 'masterUnit'],
+    );
+  }
+
+  // ─── Unit Formula Mapping List ──────────────────────────────────────────
+
+  async getMasterUnitFormulaMappings(
+    payload: CommonListPayloadDto,
+  ): Promise<IMasterListResult<UnitFormulaMapping>> {
+    return this.getMasterList(
+      this.unitFormulaMappingRepo,
+      'unitFormulaMapping',
+      ['id', 'createdAt'],
+      'id',
+      payload,
+      ['description'],
+      ['masterUnit', 'masterFormula'],
     );
   }
 
@@ -355,30 +423,84 @@ export class MasterService {
 
   // ─── Master Fuel Create ───────────────────────────────────────────────────
 
+  // ─── Master Fuel Create ───────────────────────────────────────────────────
+
+  private async syncFuelUnitMappings(
+    fuelId: number,
+    unitIds: number[],
+    userId: number,
+  ): Promise<void> {
+    await this.fuelUnitMappingRepo.delete({ fuelId });
+    if (unitIds.length > 0) {
+      const mappings = unitIds.map((unitId) =>
+        this.fuelUnitMappingRepo.create({
+          fuelId,
+          unitId,
+          createdBy: userId,
+          isActive: true,
+        }),
+      );
+      await this.fuelUnitMappingRepo.save(mappings);
+    }
+  }
+
   async createMasterFuel(
     dto: CreateMasterFuelDto,
     createdBy: number,
   ): Promise<MasterFuel> {
-    return this.createMaster(
+    const { unitIds, ...rest } = dto;
+    const fuel = await this.createMaster(
       this.masterFuelRepo,
-      dto as Partial<MasterFuel>,
+      rest as Partial<MasterFuel>,
       { name: dto.name } as FindOptionsWhere<MasterFuel>,
       createdBy,
     );
+
+    if (Array.isArray(unitIds)) {
+      await this.syncFuelUnitMappings(fuel.id, unitIds, createdBy);
+    }
+
+    return fuel;
   }
 
   // ─── Master Unit Create ───────────────────────────────────────────────────
+
+  private async syncUnitFormulaMappings(
+    unitId: number,
+    formulaIds: number[],
+    userId: number,
+  ): Promise<void> {
+    await this.unitFormulaMappingRepo.delete({ unitId });
+    if (formulaIds.length > 0) {
+      const mappings = formulaIds.map((formulaId) =>
+        this.unitFormulaMappingRepo.create({
+          unitId,
+          formulaId,
+          createdBy: userId,
+          isActive: true,
+        }),
+      );
+      await this.unitFormulaMappingRepo.save(mappings);
+    }
+  }
 
   async createMasterUnit(
     dto: CreateMasterUnitDto,
     createdBy: number,
   ): Promise<MasterUnit> {
-    return this.createMaster(
+    const { formulaIds, ...rest } = dto;
+    const unit = await this.createMaster(
       this.masterUnitRepo,
-      dto as Partial<MasterUnit>,
+      rest as Partial<MasterUnit>,
       { symbol: dto.symbol } as FindOptionsWhere<MasterUnit>,
       createdBy,
     );
+
+    if (Array.isArray(formulaIds)) {
+      await this.syncUnitFormulaMappings(unit.id, formulaIds, createdBy);
+    }
+
+    return unit;
   }
 
   // ─── Master Datasource Create ─────────────────────────────────────────────
@@ -402,11 +524,61 @@ export class MasterService {
     }
   }
 
+  private async syncDatasourceVersions(
+    datasourceId: number,
+    versionIds: number[] | undefined,
+    versions: string[] | undefined,
+    userId: number,
+  ): Promise<void> {
+    if (Array.isArray(versionIds)) {
+      const existing = await this.masterFactorVersionRepo.find({
+        where: { datasourceId },
+      });
+      for (const ver of existing) {
+        if (!versionIds.includes(ver.id)) {
+          ver.datasourceId = null as any;
+          ver.updatedBy = userId;
+          await this.masterFactorVersionRepo.save(ver);
+        }
+      }
+
+      for (const verId of versionIds) {
+        const ver = await this.masterFactorVersionRepo.findOne({ where: { id: verId } });
+        if (ver && ver.datasourceId !== datasourceId) {
+          ver.datasourceId = datasourceId;
+          ver.updatedBy = userId;
+          await this.masterFactorVersionRepo.save(ver);
+        }
+      }
+    } else if (Array.isArray(versions)) {
+      const cleanVersions = versions.map((v) => (typeof v === 'string' ? v.trim() : '')).filter(Boolean);
+
+      const existing = await this.masterFactorVersionRepo.find({
+        where: { datasourceId, isActive: true },
+      });
+      const existingNames = existing.map((e) => e.version);
+
+      for (const vStr of cleanVersions) {
+        if (!existingNames.includes(vStr)) {
+          const yearVal = parseInt(vStr, 10);
+          const newVersion = this.masterFactorVersionRepo.create({
+            version: vStr,
+            year: isNaN(yearVal) ? undefined : yearVal,
+            datasourceId,
+            createdBy: userId,
+            isActive: true,
+          });
+          await this.masterFactorVersionRepo.save(newVersion);
+        }
+      }
+    }
+  }
+
   async createMasterDatasource(
     dto: CreateMasterDatasourceDto,
     createdBy: number,
   ): Promise<MasterDatasource> {
-    const { categoryIds, ...rest } = dto;
+    const { categoryIds, versionIds, versions, ...rest } = dto;
     const ds = await this.createMaster(
       this.masterDatasourceRepo,
       rest as Partial<MasterDatasource>,
@@ -417,22 +589,51 @@ export class MasterService {
     if (Array.isArray(categoryIds)) {
       await this.syncCategoryDatasourceMappings(ds.id, categoryIds, createdBy);
     }
+    if (Array.isArray(versionIds) || Array.isArray(versions)) {
+      await this.syncDatasourceVersions(ds.id, versionIds, versions, createdBy);
+    }
 
     return ds;
   }
 
   // ─── Master Factor Version Create ─────────────────────────────────────────
 
+  private async syncVersionFuelMappings(
+    factorVersionId: number,
+    fuelIds: number[],
+    userId: number,
+  ): Promise<void> {
+    await this.versionFuelMappingRepo.delete({ factorVersionId });
+    if (fuelIds.length > 0) {
+      const mappings = fuelIds.map((fuelId) =>
+        this.versionFuelMappingRepo.create({
+          factorVersionId,
+          fuelId,
+          createdBy: userId,
+          isActive: true,
+        }),
+      );
+      await this.versionFuelMappingRepo.save(mappings);
+    }
+  }
+
   async createMasterFactorVersion(
     dto: CreateMasterFactorVersionDto,
     createdBy: number,
   ): Promise<MasterFactorVersion> {
-    return this.createMaster(
+    const { fuelIds, ...rest } = dto;
+    const fv = await this.createMaster(
       this.masterFactorVersionRepo,
-      dto as Partial<MasterFactorVersion>,
+      rest as Partial<MasterFactorVersion>,
       { version: dto.version, datasourceId: dto.datasourceId } as FindOptionsWhere<MasterFactorVersion>,
       createdBy,
     );
+
+    if (Array.isArray(fuelIds)) {
+      await this.syncVersionFuelMappings(fv.id, fuelIds, createdBy);
+    }
+
+    return fv;
   }
 
   // ─── Master Formula Create ────────────────────────────────────────────────
@@ -477,6 +678,48 @@ export class MasterService {
     );
   }
 
+  // ─── Version Fuel Mapping Create ──────────────────────────────────────────
+
+  async createVersionFuelMapping(
+    dto: CreateVersionFuelMappingDto,
+    createdBy: number,
+  ): Promise<VersionFuelMapping> {
+    return this.createMaster(
+      this.versionFuelMappingRepo,
+      dto as Partial<VersionFuelMapping>,
+      { factorVersionId: dto.factorVersionId, fuelId: dto.fuelId } as FindOptionsWhere<VersionFuelMapping>,
+      createdBy,
+    );
+  }
+
+  // ─── Fuel Unit Mapping Create ─────────────────────────────────────────────
+
+  async createFuelUnitMapping(
+    dto: CreateFuelUnitMappingDto,
+    createdBy: number,
+  ): Promise<FuelUnitMapping> {
+    return this.createMaster(
+      this.fuelUnitMappingRepo,
+      dto as Partial<FuelUnitMapping>,
+      { fuelId: dto.fuelId, unitId: dto.unitId } as FindOptionsWhere<FuelUnitMapping>,
+      createdBy,
+    );
+  }
+
+  // ─── Unit Formula Mapping Create ──────────────────────────────────────────
+
+  async createUnitFormulaMapping(
+    dto: CreateUnitFormulaMappingDto,
+    createdBy: number,
+  ): Promise<UnitFormulaMapping> {
+    return this.createMaster(
+      this.unitFormulaMappingRepo,
+      dto as Partial<UnitFormulaMapping>,
+      { unitId: dto.unitId, formulaId: dto.formulaId } as FindOptionsWhere<UnitFormulaMapping>,
+      createdBy,
+    );
+  }
+
   // ─── Reusable Update ─────────────────────────────────────────────────────
 
   /**
@@ -484,7 +727,7 @@ export class MasterService {
    * Resolves the correct repository via a repo map keyed by entityType,
    * finds the record by ID, merges the partial DTO, and saves.
    *
-   * @param entityType - 'scope' | 'category' | 'fuel' | 'unit' | 'datasource' | 'factor-version' | 'formula' | 'scope-category-mapping' | 'category-datasource-mapping'
+   * @param entityType - 'scope' | 'category' | 'fuel' | 'unit' | 'datasource' | 'factor-version' | 'formula' | 'scope-category-mapping' | 'category-datasource-mapping' | 'version-fuel-mapping' | 'fuel-unit-mapping' | 'unit-formula-mapping'
    * @param id         - Primary key of the record to update
    * @param dto        - Partial fields to apply (only provided keys are changed)
    * @param updatedBy  - ID of the user performing the action
@@ -495,7 +738,14 @@ export class MasterService {
     dto: Record<string, unknown>,
     updatedBy: number,
   ): Promise<unknown> {
-    const { categoryIds, ...fields } = dto as Record<string, unknown> & { categoryIds?: number[] };
+    const { categoryIds, versionIds, versions, fuelIds, unitIds, formulaIds, ...fields } = dto as Record<string, unknown> & {
+      categoryIds?: number[];
+      versionIds?: number[];
+      versions?: string[];
+      fuelIds?: number[];
+      unitIds?: number[];
+      formulaIds?: number[];
+    };
     const repoMap: Record<MasterEntityType, Repository<{ id: number }>> = {
       scope: this.masterScopeRepo as Repository<{ id: number }>,
       category: this.masterCategoryRepo as Repository<{ id: number }>,
@@ -506,6 +756,9 @@ export class MasterService {
       formula: this.masterFormulaRepo as Repository<{ id: number }>,
       'scope-category-mapping': this.scopeCategoryMappingRepo as Repository<{ id: number }>,
       'category-datasource-mapping': this.categoryDatasourceMappingRepo as Repository<{ id: number }>,
+      'version-fuel-mapping': this.versionFuelMappingRepo as Repository<{ id: number }>,
+      'fuel-unit-mapping': this.fuelUnitMappingRepo as Repository<{ id: number }>,
+      'unit-formula-mapping': this.unitFormulaMappingRepo as Repository<{ id: number }>,
     };
 
     const repo = repoMap[entityType];
@@ -520,13 +773,23 @@ export class MasterService {
     Object.assign(record, fields, { updatedBy });
     const saved = await repo.save(record);
 
-    if (entityType === 'datasource' && Array.isArray(categoryIds)) {
-      await this.syncCategoryDatasourceMappings(id, categoryIds, updatedBy);
+    if (entityType === 'datasource') {
+      if (Array.isArray(categoryIds)) {
+        await this.syncCategoryDatasourceMappings(id, categoryIds, updatedBy);
+      }
+      if (Array.isArray(versionIds) || Array.isArray(versions)) {
+        await this.syncDatasourceVersions(id, versionIds, versions, updatedBy);
+      }
+    } else if (entityType === 'factor-version' && Array.isArray(fuelIds)) {
+      await this.syncVersionFuelMappings(id, fuelIds, updatedBy);
+    } else if (entityType === 'fuel' && Array.isArray(unitIds)) {
+      await this.syncFuelUnitMappings(id, unitIds, updatedBy);
+    } else if (entityType === 'unit' && Array.isArray(formulaIds)) {
+      await this.syncUnitFormulaMappings(id, formulaIds, updatedBy);
     }
 
     return saved;
   }
-
   // ─── Upsert: Create or Update based on presence of id ────────────────────
 
   /**
@@ -558,6 +821,9 @@ export class MasterService {
       formula: () => this.createMasterFormula(fields as unknown as CreateMasterFormulaDto, userId),
       'scope-category-mapping': () => this.createScopeCategoryMapping(fields as unknown as CreateScopeCategoryMappingDto, userId),
       'category-datasource-mapping': () => this.createCategoryDatasourceMapping(fields as unknown as CreateCategoryDatasourceMappingDto, userId),
+      'version-fuel-mapping': () => this.createVersionFuelMapping(fields as unknown as CreateVersionFuelMappingDto, userId),
+      'fuel-unit-mapping': () => this.createFuelUnitMapping(fields as unknown as CreateFuelUnitMappingDto, userId),
+      'unit-formula-mapping': () => this.createUnitFormulaMapping(fields as unknown as CreateUnitFormulaMappingDto, userId),
     };
 
     return createMap[entityType]();
