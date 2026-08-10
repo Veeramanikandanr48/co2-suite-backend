@@ -26,6 +26,7 @@ import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
 import { CurrentUser } from 'src/utility/decorators/current-user.decorator';
 import {
   CreateMasterScopeDto,
+  CreateMasterCategoryDto,
   CreateMasterFuelDto,
   CreateMasterUnitDto,
   CreateMasterDatasourceDto,
@@ -66,6 +67,31 @@ export class MasterController {
       return this.utilService.sendErrorResponse(res, 'Failed to fetch master scopes. Please try again later.');
     } finally {
       logger.info('Method ended: getMasterScopes');
+    }
+  }
+
+  // ─── GET: Master Category ─────────────────────────────────────────────────
+
+  @Get('categories')
+  @ApiOperation({ summary: 'Get all active master categories' })
+  @ApiResponse({ status: 200, description: 'Successfully fetched master categories' })
+  @ApiResponse({ status: 400, description: 'Failed to fetch master categories' })
+  async getMasterCategories(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query() query: CommonListPayloadDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: getMasterCategories');
+    try {
+      const result = await this.masterService.getMasterCategories(query);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Successfully fetched master categories', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to fetch master categories. Please try again later.');
+    } finally {
+      logger.info('Method ended: getMasterCategories');
     }
   }
 
@@ -219,6 +245,33 @@ export class MasterController {
       return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save master scope.');
     } finally {
       logger.info('Method ended: upsertMasterScope');
+    }
+  }
+
+  // ─── POST (Upsert): Master Category ───────────────────────────────────────
+
+  @Post('categories')
+  @ApiOperation({ summary: 'Create or update a master category. Omit id to create; include id to update.' })
+  @ApiBody({ type: CreateMasterCategoryDto })
+  @ApiResponse({ status: 200, description: 'Master category saved successfully' })
+  @ApiResponse({ status: 400, description: 'Failed to save master category' })
+  async upsertMasterCategory(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Body() dto: CreateMasterCategoryDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: upsertMasterCategory');
+    try {
+      const result = await this.masterService.upsertMasterRecord('category' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Master category saved successfully', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save master category.');
+    } finally {
+      logger.info('Method ended: upsertMasterCategory');
     }
   }
 

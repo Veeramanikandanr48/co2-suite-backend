@@ -16,6 +16,11 @@ export class CreateMasterScopeDto {
   @IsOptional()
   id?: number;
 
+  @ApiProperty({ example: 'Scope 1', required: false })
+  @IsString()
+  @IsOptional()
+  scope?: string;
+
   @ApiProperty({ example: 'Stationary Combustion' })
   @IsString()
   @IsNotEmpty()
@@ -29,6 +34,42 @@ export class CreateMasterScopeDto {
   code?: string;
 
   @ApiProperty({ example: 'Emissions from fuel burned in stationary equipment', required: false })
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
+// ─── Master Category ──────────────────────────────────────────────────────────
+
+export class CreateMasterCategoryDto {
+  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @IsNumber()
+  @IsOptional()
+  id?: number;
+
+  @ApiProperty({ example: 'Scope 1', required: false })
+  @IsString()
+  @IsOptional()
+  scope?: string;
+
+  @ApiProperty({ example: 1, required: false, description: 'FK to master_scope' })
+  @IsNumber()
+  @IsOptional()
+  scopeId?: number;
+
+  @ApiProperty({ example: 'Stationary Combustion' })
+  @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }) => value.trim())
+  name: string;
+
+  @ApiProperty({ example: 'SC', required: false })
+  @IsString()
+  @IsOptional()
+  @Transform(({ value }) => (value ? value.trim().toUpperCase() : value))
+  code?: string;
+
+  @ApiProperty({ example: 'Category for fuel burned in stationary equipment', required: false })
   @IsString()
   @IsOptional()
   description?: string;

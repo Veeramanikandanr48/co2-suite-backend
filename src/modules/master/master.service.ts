@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { MasterRoles, MasterApprovalStatus } from 'src/entities/master.entity';
 import { MasterScope } from 'src/entities/master-scope.entity';
+import { MasterCategory } from 'src/entities/master-category.entity';
 import { MasterFuel } from 'src/entities/master-fuel.entity';
 import { MasterUnit } from 'src/entities/master-unit.entity';
 import { MasterDatasource } from 'src/entities/master-datasource.entity';
@@ -12,6 +13,7 @@ import { UtilService } from 'src/utility/util/util.service';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import {
   CreateMasterScopeDto,
+  CreateMasterCategoryDto,
   CreateMasterFuelDto,
   CreateMasterUnitDto,
   CreateMasterDatasourceDto,
@@ -21,6 +23,7 @@ import {
 
 export type MasterEntityType =
   | 'scope'
+  | 'category'
   | 'fuel'
   | 'unit'
   | 'datasource'
@@ -43,6 +46,9 @@ export class MasterService {
 
     @InjectRepository(MasterScope)
     private readonly masterScopeRepo: Repository<MasterScope>,
+
+    @InjectRepository(MasterCategory)
+    private readonly masterCategoryRepo: Repository<MasterCategory>,
 
     @InjectRepository(MasterFuel)
     private readonly masterFuelRepo: Repository<MasterFuel>,
@@ -141,10 +147,25 @@ export class MasterService {
     return this.getMasterList(
       this.masterScopeRepo,
       'masterScope',
-      ['id', 'name', 'code', 'createdAt'],
+      ['id', 'scope', 'name', 'code', 'createdAt'],
       'id',
       payload,
-      ['name', 'code', 'description'],
+      ['scope', 'name', 'code', 'description'],
+    );
+  }
+
+  // ─── Master Category ──────────────────────────────────────────────────────
+
+  async getMasterCategories(
+    payload: CommonListPayloadDto,
+  ): Promise<IMasterListResult<MasterCategory>> {
+    return this.getMasterList(
+      this.masterCategoryRepo,
+      'masterCategory',
+      ['id', 'scope', 'name', 'code', 'createdAt'],
+      'id',
+      payload,
+      ['scope', 'name', 'code', 'description'],
     );
   }
 
@@ -266,6 +287,20 @@ export class MasterService {
     );
   }
 
+  // ─── Master Category Create ───────────────────────────────────────────────
+
+  async createMasterCategory(
+    dto: CreateMasterCategoryDto,
+    createdBy: number,
+  ): Promise<MasterCategory> {
+    return this.createMaster(
+      this.masterCategoryRepo,
+      dto as Partial<MasterCategory>,
+      { name: dto.name } as FindOptionsWhere<MasterCategory>,
+      createdBy,
+    );
+  }
+
   // ─── Master Fuel Create ───────────────────────────────────────────────────
 
   async createMasterFuel(
@@ -343,7 +378,7 @@ export class MasterService {
    * Resolves the correct repository via a repo map keyed by entityType,
    * finds the record by ID, merges the partial DTO, and saves.
    *
-   * @param entityType - 'scope' | 'fuel' | 'unit' | 'datasource' | 'factor-version' | 'formula'
+   * @param entityType - 'scope' | 'category' | 'fuel' | 'unit' | 'datasource' | 'factor-version' | 'formula'
    * @param id         - Primary key of the record to update
    * @param dto        - Partial fields to apply (only provided keys are changed)
    * @param updatedBy  - ID of the user performing the action
@@ -356,6 +391,7 @@ export class MasterService {
   ): Promise<unknown> {
     const repoMap: Record<MasterEntityType, Repository<{ id: number }>> = {
       scope: this.masterScopeRepo as Repository<{ id: number }>,
+      category: this.masterCategoryRepo as Repository<{ id: number }>,
       fuel: this.masterFuelRepo as Repository<{ id: number }>,
       unit: this.masterUnitRepo as Repository<{ id: number }>,
       datasource: this.masterDatasourceRepo as Repository<{ id: number }>,
@@ -383,7 +419,7 @@ export class MasterService {
    * - If dto.id is provided → update the existing record.
    * - If dto.id is absent   → create a new record.
    *
-   * @param entityType - The master entity key (scope | fuel | unit | …)
+   * @param entityType - The master entity key (scope | category | fuel | unit | …)
    * @param dto        - DTO with optional id field
    * @param userId     - ID of the calling user
    */
@@ -399,6 +435,7 @@ export class MasterService {
 
     const createMap: Record<MasterEntityType, () => Promise<unknown>> = {
       scope: () => this.createMasterScope(fields as unknown as CreateMasterScopeDto, userId),
+      category: () => this.createMasterCategory(fields as unknown as CreateMasterCategoryDto, userId),
       fuel: () => this.createMasterFuel(fields as unknown as CreateMasterFuelDto, userId),
       unit: () => this.createMasterUnit(fields as unknown as CreateMasterUnitDto, userId),
       datasource: () => this.createMasterDatasource(fields as unknown as CreateMasterDatasourceDto, userId),

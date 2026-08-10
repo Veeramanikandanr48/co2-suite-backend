@@ -1,0 +1,23 @@
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { BaseColumns } from './base-columns.entity';
+
+@Entity({ name: 'master_category' })
+export class MasterCategory extends BaseColumns {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  scope: string; // e.g. 'Scope 1', 'Scope 2', 'Scope 3'
+
+  @Column({ type: 'int', nullable: true })
+  scopeId: number;
+
+  @Column({ type: 'varchar', length: 255 })
+  name: string; // e.g. 'Stationary Combustion'
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  code: string; // e.g. 'SC'
+
+  @Column({ type: 'text', nullable: true })
+  description: string;
+}

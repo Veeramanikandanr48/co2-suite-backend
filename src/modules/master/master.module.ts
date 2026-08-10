@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MasterRoles, MasterApprovalStatus } from 'src/entities/master.entity';
 import { MasterScope } from 'src/entities/master-scope.entity';
+import { MasterCategory } from 'src/entities/master-category.entity';
 import { MasterFuel } from 'src/entities/master-fuel.entity';
 import { MasterUnit } from 'src/entities/master-unit.entity';
 import { MasterDatasource } from 'src/entities/master-datasource.entity';
@@ -17,6 +18,7 @@ import { MasterService } from './master.service';
       MasterRoles,
       MasterApprovalStatus,
       MasterScope,
+      MasterCategory,
       MasterFuel,
       MasterUnit,
       MasterDatasource,
