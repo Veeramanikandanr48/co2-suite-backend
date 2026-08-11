@@ -12,8 +12,9 @@ import { FactorResolutionService } from '../master/factor-resolution.service';
 import { UnitNormalizationService } from '../master/unit-normalization.service';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
 import { MasterUnit } from 'src/entities/master-unit.entity';
-
 import { MasterCategory } from 'src/entities/master-category.entity';
+import { ReportingPeriod } from 'src/entities/reporting-period.entity';
+import { InventoryAuditLog } from 'src/entities/inventory-audit-log.entity';
 import { CalculationMethodEngine } from './engine/calculation-method.engine';
 
 describe('ServicesService (Inventory Pipeline & Audit Snapshotting)', () => {
@@ -75,6 +76,14 @@ describe('ServicesService (Inventory Pipeline & Audit Snapshotting)', () => {
         {
           provide: getRepositoryToken(MasterCategory),
           useValue: { findOne: jest.fn().mockResolvedValue({ id: 1, scopeType: 'SCOPE_1', calculationMethod: 'FUEL_BASED' }) },
+        },
+        {
+          provide: getRepositoryToken(ReportingPeriod),
+          useValue: { findOne: jest.fn().mockResolvedValue(null), find: jest.fn().mockResolvedValue([]), create: jest.fn((dto) => dto), save: jest.fn((dto) => dto) },
+        },
+        {
+          provide: getRepositoryToken(InventoryAuditLog),
+          useValue: { create: jest.fn((dto) => dto), save: jest.fn((dto) => dto), find: jest.fn().mockResolvedValue([]) },
         },
         {
           provide: UtilService,

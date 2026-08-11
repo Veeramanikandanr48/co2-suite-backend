@@ -1,0 +1,45 @@
+{
+  "title": "ESG / GHG Scope 1, 2 and 3 — Full 25 Markdown Documentation",
+  "markdown_count": 25,
+  "coverage": {
+    "scope_1": [
+      "stationary combustion",
+      "mobile combustion",
+      "process emissions",
+      "fugitive emissions"
+    ],
+    "scope_2": [
+      "purchased energy"
+    ],
+    "scope_3": "all 15 categories",
+    "cross_cutting": [
+      "organization boundary",
+      "calculation engine",
+      "emission factors and GWP",
+      "validation/approval/audit",
+      "reporting/dashboard/implementation"
+    ]
+  },
+  "status": "Deep-audited methodology/application specification",
+  "validated_against": "GHG Protocol Corporate Standard, Scope 2 Guidance, Corporate Value Chain (Scope 3) Standard, Scope 3 Calculation Guidance, GHG Protocol IPCC GWP Values (August 2024), IPCC AR6 GWP tables, current GHG Protocol revision-status publications checked 2026-08-11, PCAF official Part A 3rd edition (2025), and CEA Indian power-sector baseline database availability.",
+  "important_note": "Current GHG Protocol standards are distinguished from draft 2025-2026 revisions. Draft proposals must not be treated as production requirements.",
+  "corrections": [
+    "Scope 2 location-based and market-based architecture",
+    "Scope 3 Category 1 hybrid method",
+    "Category 2 cradle-to-gate boundary and transport separation",
+    "Category 6 travel methodology controls",
+    "Category 8/13/14 boundary controls",
+    "Category 11 direct/indirect use-phase and lifetime assumptions",
+    "Category 15 investment-type and PCAF-aligned methodology controls",
+    "factor/GWP versioning",
+    "unit normalization and auditability",
+    "validation, double-count and recalculation controls"
+  ],
+  "audit_notes": [
+    "Current GHG Protocol corporate standards remain the operative baseline; 2025-2026 revision materials are not production requirements.",
+    "GHG Protocol announced on 2026-07-29 a new GHGP/ISO harmonized corporate-standard development timeline, with consolidated public consultation planned for Q2 2027 and publication planned for Q4 2028.",
+    "The supplied 2025 conversion-factor workbook is not a universal 2026 factor set; factor selection must be geography- and applicability-year-aware.",
+    "PCAF Part A 3rd edition (2025) should be used/versioned where Category 15 financed-emissions methods apply.",
+    "The documentation is methodology-focused; numeric factor validation cannot be completed from this ZIP alone because the referenced source workbooks/PDFs are not included in the uploaded archive."
+  ]
+}

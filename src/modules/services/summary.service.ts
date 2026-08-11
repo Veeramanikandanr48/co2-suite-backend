@@ -75,6 +75,9 @@ export class SummaryService {
         'entry.dateTo',
         'entry.facility',
         'entry.emission',
+        'entry.scopeType',
+        'entry.scope3CategoryNumber',
+        'entry.calculationMethod',
         'entry.status',
         'entry.approvalStatus',
         'entry.createdAt',
@@ -202,26 +205,12 @@ export class SummaryService {
       totalEmissions += em;
 
       const catLower = (entry.category || '').toLowerCase();
-      let scopeName = categoryToScopeMap.get(catLower);
-      if (!scopeName) {
-        if (
-          catLower.includes('purchased electricity') ||
-          catLower.includes('heating')
-        ) {
-          scopeName = 'Scope 2';
-        } else if (
-          catLower.includes('goods') ||
-          catLower.includes('capital') ||
-          catLower.includes('travel') ||
-          catLower.includes('commuting') ||
-          catLower.includes('transportation') ||
-          catLower.includes('waste') ||
-          catLower.includes('sold')
-        ) {
-          scopeName = 'Scope 3';
-        } else {
-          scopeName = 'Scope 1';
-        }
+      let scopeName = 'Scope 1';
+      if (entry.scopeType === 'SCOPE_2') scopeName = 'Scope 2';
+      else if (entry.scopeType === 'SCOPE_3') scopeName = 'Scope 3';
+      else if (entry.scopeType === 'SCOPE_1') scopeName = 'Scope 1';
+      else {
+        scopeName = categoryToScopeMap.get(catLower) || 'Scope 1';
       }
 
       if (scopeName === 'Scope 1') {
