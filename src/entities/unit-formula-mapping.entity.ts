@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import type { MasterUnit } from './master-unit.entity';
 import type { MasterFormula } from './master-formula.entity';
@@ -11,14 +17,20 @@ export class UnitFormulaMapping extends BaseColumns {
   @Column({ type: 'int', nullable: true })
   unitId: number;
 
-  @ManyToOne('MasterUnit', 'formulaMappings', { nullable: true, onDelete: 'CASCADE' })
+  @ManyToOne('MasterUnit', 'formulaMappings', {
+    nullable: true,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'unitId' })
   masterUnit: MasterUnit;
 
   @Column({ type: 'int', nullable: true })
   formulaId: number;
 
-  @ManyToOne('MasterFormula', 'unitMappings', { nullable: true, onDelete: 'CASCADE' })
+  @ManyToOne('MasterFormula', 'unitMappings', {
+    nullable: true,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'formulaId' })
   masterFormula: MasterFormula;
 

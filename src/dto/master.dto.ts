@@ -12,7 +12,11 @@ import {
 // ─── Master Scope ─────────────────────────────────────────────────────────────
 
 export class CreateMasterScopeDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
@@ -34,7 +38,10 @@ export class CreateMasterScopeDto {
   @Transform(({ value }) => (value ? value.trim().toUpperCase() : value))
   code?: string;
 
-  @ApiProperty({ example: 'Emissions from fuel burned in stationary equipment', required: false })
+  @ApiProperty({
+    example: 'Emissions from fuel burned in stationary equipment',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -48,7 +55,11 @@ export class CreateMasterScopeDto {
 // ─── Master Category ──────────────────────────────────────────────────────────
 
 export class CreateMasterCategoryDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
@@ -58,7 +69,11 @@ export class CreateMasterCategoryDto {
   @IsOptional()
   scope?: string;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_scope' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_scope',
+  })
   @IsNumber()
   @IsOptional()
   scopeId?: number;
@@ -75,7 +90,10 @@ export class CreateMasterCategoryDto {
   @Transform(({ value }) => (value ? value.trim().toUpperCase() : value))
   code?: string;
 
-  @ApiProperty({ example: 'Category for fuel burned in stationary equipment', required: false })
+  @ApiProperty({
+    example: 'Category for fuel burned in stationary equipment',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -89,7 +107,11 @@ export class CreateMasterCategoryDto {
 // ─── Master Fuel ──────────────────────────────────────────────────────────────
 
 export class CreateMasterFuelDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
@@ -106,12 +128,19 @@ export class CreateMasterFuelDto {
   @Transform(({ value }) => (value ? value.trim().toUpperCase() : value))
   code?: string;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_scope' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_scope',
+  })
   @IsNumber()
   @IsOptional()
   scopeId?: number;
 
-  @ApiProperty({ example: 'Gaseous fossil fuel used for heating and power', required: false })
+  @ApiProperty({
+    example: 'Gaseous fossil fuel used for heating and power',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -136,7 +165,11 @@ export class CreateMasterFuelDto {
 // ─── Master Unit ──────────────────────────────────────────────────────────────
 
 export class CreateMasterUnitDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
@@ -153,7 +186,10 @@ export class CreateMasterUnitDto {
   @Transform(({ value }) => value.trim())
   symbol: string;
 
-  @ApiProperty({ example: 'Standard unit for greenhouse gas emissions', required: false })
+  @ApiProperty({
+    example: 'Standard unit for greenhouse gas emissions',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -173,7 +209,11 @@ export class CreateMasterUnitDto {
 // ─── Master Datasource ────────────────────────────────────────────────────────
 
 export class CreateMasterDatasourceDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
@@ -190,12 +230,19 @@ export class CreateMasterDatasourceDto {
   @Transform(({ value }) => value.trim().toUpperCase())
   code: string;
 
-  @ApiProperty({ example: 'https://www.gov.uk/government/publications/greenhouse-gas-reporting-conversion-factors-2024', required: false })
+  @ApiProperty({
+    example:
+      'https://www.gov.uk/government/publications/greenhouse-gas-reporting-conversion-factors-2024',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   website?: string;
 
-  @ApiProperty({ example: 'UK government GHG conversion factors publisher', required: false })
+  @ApiProperty({
+    example: 'UK government GHG conversion factors publisher',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -219,7 +266,15 @@ export class CreateMasterDatasourceDto {
   @Transform(({ value }) => {
     if (!Array.isArray(value)) return undefined;
     const clean = value
-      .map((v) => (typeof v === 'object' && v !== null && 'version' in v ? String(v.version) : typeof v === 'number' ? String(v) : typeof v === 'string' ? v.trim() : null))
+      .map((v) =>
+        typeof v === 'object' && v !== null && 'version' in v
+          ? String(v.version)
+          : typeof v === 'number'
+            ? String(v)
+            : typeof v === 'string'
+              ? v.trim()
+              : null,
+      )
       .filter((v): v is string => Boolean(v));
     return clean.length ? clean : undefined;
   })
@@ -234,7 +289,11 @@ export class CreateMasterDatasourceDto {
 // ─── Master Factor Version ────────────────────────────────────────────────────
 
 export class CreateMasterFactorVersionDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
@@ -250,12 +309,19 @@ export class CreateMasterFactorVersionDto {
   @IsOptional()
   year?: number;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_datasource' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_datasource',
+  })
   @IsNumber()
   @IsOptional()
   datasourceId?: number;
 
-  @ApiProperty({ example: 'DEFRA 2024 conversion factors release', required: false })
+  @ApiProperty({
+    example: 'DEFRA 2024 conversion factors release',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -286,7 +352,11 @@ export class CreateMasterFactorVersionDto {
 // ─── Master Formula ───────────────────────────────────────────────────────────
 
 export class CreateMasterFormulaDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
@@ -302,7 +372,11 @@ export class CreateMasterFormulaDto {
   @IsNotEmpty()
   formula: string;
 
-  @ApiProperty({ example: ['amount', 'factor'], required: false, type: [String] })
+  @ApiProperty({
+    example: ['amount', 'factor'],
+    required: false,
+    type: [String],
+  })
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
@@ -313,7 +387,10 @@ export class CreateMasterFormulaDto {
   @IsOptional()
   outputUnit?: string;
 
-  @ApiProperty({ example: 'Converts raw consumption to tonnes CO2e', required: false })
+  @ApiProperty({
+    example: 'Converts raw consumption to tonnes CO2e',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -327,22 +404,37 @@ export class CreateMasterFormulaDto {
 // ─── Scope Category Mapping ───────────────────────────────────────────────────
 
 export class CreateScopeCategoryMappingDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_scope' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_scope',
+  })
   @IsNumber()
   @IsOptional()
   scopeId?: number;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_category' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_category',
+  })
   @IsNumber()
   @IsOptional()
   categoryId?: number;
 
-  @ApiProperty({ example: 'Fuel burnt in stationary equipment', required: false })
+  @ApiProperty({
+    example: 'Fuel burnt in stationary equipment',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -361,22 +453,37 @@ export class CreateScopeCategoryMappingDto {
 // ─── Category Datasource Mapping ─────────────────────────────────────────────
 
 export class CreateCategoryDatasourceMappingDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_category' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_category',
+  })
   @IsNumber()
   @IsOptional()
   categoryId?: number;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_datasource' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_datasource',
+  })
   @IsNumber()
   @IsOptional()
   datasourceId?: number;
 
-  @ApiProperty({ example: 'Stationary combustion emission factors source', required: false })
+  @ApiProperty({
+    example: 'Stationary combustion emission factors source',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -395,17 +502,29 @@ export class CreateCategoryDatasourceMappingDto {
 // ─── Version Fuel Mapping ─────────────────────────────────────────────────────
 
 export class CreateVersionFuelMappingDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_factor_version' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_factor_version',
+  })
   @IsNumber()
   @IsOptional()
   factorVersionId?: number;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_fuel' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_fuel',
+  })
   @IsNumber()
   @IsOptional()
   fuelId?: number;
@@ -415,7 +534,10 @@ export class CreateVersionFuelMappingDto {
   @IsOptional()
   emissionFactor?: number;
 
-  @ApiProperty({ example: 'Natural Gas factors for 2024 version', required: false })
+  @ApiProperty({
+    example: 'Natural Gas factors for 2024 version',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -429,17 +551,29 @@ export class CreateVersionFuelMappingDto {
 // ─── Fuel Unit Mapping ────────────────────────────────────────────────────────
 
 export class CreateFuelUnitMappingDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_fuel' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_fuel',
+  })
   @IsNumber()
   @IsOptional()
   fuelId?: number;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_unit' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_unit',
+  })
   @IsNumber()
   @IsOptional()
   unitId?: number;
@@ -449,7 +583,10 @@ export class CreateFuelUnitMappingDto {
   @IsOptional()
   emissionFactor?: number;
 
-  @ApiProperty({ example: 'Standard cubic metres for Natural Gas', required: false })
+  @ApiProperty({
+    example: 'Standard cubic metres for Natural Gas',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -463,22 +600,37 @@ export class CreateFuelUnitMappingDto {
 // ─── Unit Formula Mapping ─────────────────────────────────────────────────────
 
 export class CreateUnitFormulaMappingDto {
-  @ApiProperty({ example: 1, required: false, description: 'Provide id to update existing record' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Provide id to update existing record',
+  })
   @IsNumber()
   @IsOptional()
   id?: number;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_unit' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_unit',
+  })
   @IsNumber()
   @IsOptional()
   unitId?: number;
 
-  @ApiProperty({ example: 1, required: false, description: 'FK to master_formula' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'FK to master_formula',
+  })
   @IsNumber()
   @IsOptional()
   formulaId?: number;
 
-  @ApiProperty({ example: 'Formula construction for kWh measurement', required: false })
+  @ApiProperty({
+    example: 'Formula construction for kWh measurement',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -489,64 +641,116 @@ export class CreateUnitFormulaMappingDto {
   isActive?: boolean;
 }
 
-export class UpdateMasterScopeDto extends PartialType(CreateMasterScopeDto) { }
-export class UpdateMasterFuelDto extends PartialType(CreateMasterFuelDto) { }
-export class UpdateMasterUnitDto extends PartialType(CreateMasterUnitDto) { }
-export class UpdateMasterDatasourceDto extends PartialType(CreateMasterDatasourceDto) { }
-export class UpdateMasterFactorVersionDto extends PartialType(CreateMasterFactorVersionDto) { }
-export class UpdateMasterFormulaDto extends PartialType(CreateMasterFormulaDto) { }
-export class UpdateScopeCategoryMappingDto extends PartialType(CreateScopeCategoryMappingDto) { }
-export class UpdateCategoryDatasourceMappingDto extends PartialType(CreateCategoryDatasourceMappingDto) { }
-export class UpdateVersionFuelMappingDto extends PartialType(CreateVersionFuelMappingDto) { }
-export class UpdateFuelUnitMappingDto extends PartialType(CreateFuelUnitMappingDto) { }
-export class UpdateUnitFormulaMappingDto extends PartialType(CreateUnitFormulaMappingDto) { }
+export class UpdateMasterScopeDto extends PartialType(CreateMasterScopeDto) {}
+export class UpdateMasterFuelDto extends PartialType(CreateMasterFuelDto) {}
+export class UpdateMasterUnitDto extends PartialType(CreateMasterUnitDto) {}
+export class UpdateMasterDatasourceDto extends PartialType(
+  CreateMasterDatasourceDto,
+) {}
+export class UpdateMasterFactorVersionDto extends PartialType(
+  CreateMasterFactorVersionDto,
+) {}
+export class UpdateMasterFormulaDto extends PartialType(
+  CreateMasterFormulaDto,
+) {}
+export class UpdateScopeCategoryMappingDto extends PartialType(
+  CreateScopeCategoryMappingDto,
+) {}
+export class UpdateCategoryDatasourceMappingDto extends PartialType(
+  CreateCategoryDatasourceMappingDto,
+) {}
+export class UpdateVersionFuelMappingDto extends PartialType(
+  CreateVersionFuelMappingDto,
+) {}
+export class UpdateFuelUnitMappingDto extends PartialType(
+  CreateFuelUnitMappingDto,
+) {}
+export class UpdateUnitFormulaMappingDto extends PartialType(
+  CreateUnitFormulaMappingDto,
+) {}
 
 // ─── Master Matrix Filter DTO ──────────────────────────────────────────────────
 
 export class MasterMatrixFilterDto {
-  @ApiProperty({ required: false, example: 0, description: 'Offset pagination' })
+  @ApiProperty({
+    required: false,
+    example: 0,
+    description: 'Offset pagination',
+  })
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsNumber()
   offSet?: number;
 
-  @ApiProperty({ required: false, example: 50, description: 'Limit items per page' })
+  @ApiProperty({
+    required: false,
+    example: 50,
+    description: 'Limit items per page',
+  })
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsNumber()
   limit?: number;
 
-  @ApiProperty({ required: false, example: 'Diesel', description: 'Search term for fuel, category, source' })
+  @ApiProperty({
+    required: false,
+    example: 'Diesel',
+    description: 'Search term for fuel, category, source',
+  })
   @IsOptional()
   @IsString()
   searchInput?: string;
 
-  @ApiProperty({ required: false, example: 'Scope 1', description: 'Filter by scope' })
+  @ApiProperty({
+    required: false,
+    example: 'Scope 1',
+    description: 'Filter by scope',
+  })
   @IsOptional()
   @IsString()
   scope?: string;
 
-  @ApiProperty({ required: false, example: 'Stationary Combustion', description: 'Filter by category' })
+  @ApiProperty({
+    required: false,
+    example: 'Stationary Combustion',
+    description: 'Filter by category',
+  })
   @IsOptional()
   @IsString()
   category?: string;
 
-  @ApiProperty({ required: false, example: 'IPCC', description: 'Filter by datasource' })
+  @ApiProperty({
+    required: false,
+    example: 'IPCC',
+    description: 'Filter by datasource',
+  })
   @IsOptional()
   @IsString()
   datasource?: string;
 
-  @ApiProperty({ required: false, example: 'all', description: 'Filter by status: active, inactive, all' })
+  @ApiProperty({
+    required: false,
+    example: 'all',
+    description: 'Filter by status: active, inactive, all',
+  })
   @IsOptional()
   @IsString()
   status?: string;
 
-  @ApiProperty({ required: false, example: 'scopeName', description: 'Field to sort by' })
+  @ApiProperty({
+    required: false,
+    example: 'scopeName',
+    description: 'Field to sort by',
+  })
   @IsOptional()
   @IsString()
   sortField?: string;
 
-  @ApiProperty({ required: false, example: 1, description: 'Sort direction: 1 (ASC), -1 (DESC)' })
+  @ApiProperty({
+    required: false,
+    example: 1,
+    description: 'Sort direction: 1 (ASC), -1 (DESC)',
+  })
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsNumber()

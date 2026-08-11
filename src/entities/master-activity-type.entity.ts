@@ -1,8 +1,16 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Unique,
+} from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import { MasterCategory } from './master-category.entity';
 
 @Entity({ name: 'master_activity_type' })
+@Unique(['code'])
 export class MasterActivityType extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;

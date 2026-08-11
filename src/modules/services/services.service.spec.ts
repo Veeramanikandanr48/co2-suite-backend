@@ -71,19 +71,36 @@ describe('ServicesService (Inventory Pipeline & Audit Snapshotting)', () => {
         },
         {
           provide: getRepositoryToken(MasterUnit),
-          useValue: { findOne: jest.fn().mockResolvedValue({ id: 3, symbol: 'l' }) },
+          useValue: {
+            findOne: jest.fn().mockResolvedValue({ id: 3, symbol: 'l' }),
+          },
         },
         {
           provide: getRepositoryToken(MasterCategory),
-          useValue: { findOne: jest.fn().mockResolvedValue({ id: 1, scopeType: 'SCOPE_1', calculationMethod: 'FUEL_BASED' }) },
+          useValue: {
+            findOne: jest.fn().mockResolvedValue({
+              id: 1,
+              scopeType: 'SCOPE_1',
+              calculationMethod: 'FUEL_BASED',
+            }),
+          },
         },
         {
           provide: getRepositoryToken(ReportingPeriod),
-          useValue: { findOne: jest.fn().mockResolvedValue(null), find: jest.fn().mockResolvedValue([]), create: jest.fn((dto) => dto), save: jest.fn((dto) => dto) },
+          useValue: {
+            findOne: jest.fn().mockResolvedValue(null),
+            find: jest.fn().mockResolvedValue([]),
+            create: jest.fn((dto) => dto),
+            save: jest.fn((dto) => dto),
+          },
         },
         {
           provide: getRepositoryToken(InventoryAuditLog),
-          useValue: { create: jest.fn((dto) => dto), save: jest.fn((dto) => dto), find: jest.fn().mockResolvedValue([]) },
+          useValue: {
+            create: jest.fn((dto) => dto),
+            save: jest.fn((dto) => dto),
+            find: jest.fn().mockResolvedValue([]),
+          },
         },
         {
           provide: UtilService,

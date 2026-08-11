@@ -1,7 +1,8 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, Unique } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 
 @Entity({ name: 'master_category' })
+@Unique(['code'])
 export class MasterCategory extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
@@ -15,7 +16,7 @@ export class MasterCategory extends BaseColumns {
   @Column({ type: 'varchar', length: 255 })
   name: string; // e.g. 'Stationary Combustion'
 
-  @Column({ type: 'varchar', length: 50, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true, unique: true })
   code: string; // e.g. 'SC'
 
   /** Scope Type classification (SCOPE_1, SCOPE_2, SCOPE_3) */
@@ -27,7 +28,12 @@ export class MasterCategory extends BaseColumns {
   scope3CategoryNumber: number;
 
   /** Calculation methodology routing key (FUEL_BASED, DISTANCE_BASED, SPEND_BASED, LOCATION_BASED, MARKET_BASED, MASS_BASED, SUPPLIER_SPECIFIC) */
-  @Column({ type: 'varchar', length: 100, nullable: true, default: 'FUEL_BASED' })
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+    default: 'FUEL_BASED',
+  })
   calculationMethod: string;
 
   @Column({ type: 'text', nullable: true })

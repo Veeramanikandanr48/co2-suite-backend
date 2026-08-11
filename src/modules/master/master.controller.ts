@@ -56,9 +56,17 @@ export class MasterController {
   ) {}
 
   @Post('resolve-factor')
-  @ApiOperation({ summary: 'Explicit 5-tier factor resolution engine endpoint' })
-  @ApiResponse({ status: 200, description: 'Successfully resolved emission factor' })
-  @ApiResponse({ status: 400, description: 'Failed to resolve emission factor' })
+  @ApiOperation({
+    summary: 'Explicit 5-tier factor resolution engine endpoint',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully resolved emission factor',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to resolve emission factor',
+  })
   async resolveEmissionFactor(
     @Req() req: Request,
     @Res() res: Response,
@@ -67,12 +75,20 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: resolveEmissionFactor');
     try {
-      const result = await this.factorResolutionService.resolveEmissionFactor(dto);
+      const result =
+        await this.factorResolutionService.resolveEmissionFactor(dto);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully resolved emission factor', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully resolved emission factor',
+        result,
+      );
     } catch (error: any) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error.message || 'Failed to resolve emission factor.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error.message || 'Failed to resolve emission factor.',
+      );
     } finally {
       logger.info('Method ended: resolveEmissionFactor');
     }
@@ -81,8 +97,14 @@ export class MasterController {
   // ─── GET: Master Overview Matrix ──────────────────────────────────────────
 
   @Get('matrix')
-  @ApiOperation({ summary: 'Get overview emission factor matrix with server-side search, filtering, sorting, and pagination' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched master matrix' })
+  @ApiOperation({
+    summary:
+      'Get overview emission factor matrix with server-side search, filtering, sorting, and pagination',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched master matrix',
+  })
   @ApiResponse({ status: 400, description: 'Failed to fetch master matrix' })
   async getOverviewMatrix(
     @Req() req: Request,
@@ -94,10 +116,17 @@ export class MasterController {
     try {
       const result = await this.masterService.getOverviewMatrix(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched master matrix', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched master matrix',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch master matrix. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch master matrix. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getOverviewMatrix');
     }
@@ -106,8 +135,13 @@ export class MasterController {
   // ─── GET: Master Scope ────────────────────────────────────────────────────
 
   @Get('scopes')
-  @ApiOperation({ summary: 'Get all active master scopes (emission categories)' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched master scopes' })
+  @ApiOperation({
+    summary: 'Get all active master scopes (emission categories)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched master scopes',
+  })
   @ApiResponse({ status: 400, description: 'Failed to fetch master scopes' })
   async getMasterScopes(
     @Req() req: Request,
@@ -119,10 +153,17 @@ export class MasterController {
     try {
       const result = await this.masterService.getMasterScopes(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched master scopes', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched master scopes',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch master scopes. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch master scopes. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterScopes');
     }
@@ -132,8 +173,14 @@ export class MasterController {
 
   @Get('categories')
   @ApiOperation({ summary: 'Get all active master categories' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched master categories' })
-  @ApiResponse({ status: 400, description: 'Failed to fetch master categories' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched master categories',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to fetch master categories',
+  })
   async getMasterCategories(
     @Req() req: Request,
     @Res() res: Response,
@@ -144,10 +191,17 @@ export class MasterController {
     try {
       const result = await this.masterService.getMasterCategories(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched master categories', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched master categories',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch master categories. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch master categories. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterCategories');
     }
@@ -157,7 +211,10 @@ export class MasterController {
 
   @Get('fuels')
   @ApiOperation({ summary: 'Get all active master fuels (fuel / gas types)' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched master fuels' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched master fuels',
+  })
   @ApiResponse({ status: 400, description: 'Failed to fetch master fuels' })
   async getMasterFuels(
     @Req() req: Request,
@@ -169,10 +226,17 @@ export class MasterController {
     try {
       const result = await this.masterService.getMasterFuels(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched master fuels', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched master fuels',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch master fuels. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch master fuels. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterFuels');
     }
@@ -182,7 +246,10 @@ export class MasterController {
 
   @Get('units')
   @ApiOperation({ summary: 'Get all active master units of measurement' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched master units' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched master units',
+  })
   @ApiResponse({ status: 400, description: 'Failed to fetch master units' })
   async getMasterUnits(
     @Req() req: Request,
@@ -194,10 +261,17 @@ export class MasterController {
     try {
       const result = await this.masterService.getMasterUnits(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched master units', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched master units',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch master units. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch master units. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterUnits');
     }
@@ -206,9 +280,17 @@ export class MasterController {
   // ─── GET: Master Datasource ───────────────────────────────────────────────
 
   @Get('datasources')
-  @ApiOperation({ summary: 'Get all active master data sources (DEFRA, IPCC, EPA…)' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched master datasources' })
-  @ApiResponse({ status: 400, description: 'Failed to fetch master datasources' })
+  @ApiOperation({
+    summary: 'Get all active master data sources (DEFRA, IPCC, EPA…)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched master datasources',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to fetch master datasources',
+  })
   async getMasterDatasources(
     @Req() req: Request,
     @Res() res: Response,
@@ -219,10 +301,17 @@ export class MasterController {
     try {
       const result = await this.masterService.getMasterDatasources(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched master datasources', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched master datasources',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch master datasources. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch master datasources. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterDatasources');
     }
@@ -231,9 +320,17 @@ export class MasterController {
   // ─── GET: Master Factor Version ───────────────────────────────────────────
 
   @Get('factor-versions')
-  @ApiOperation({ summary: 'Get all active master factor versions (e.g. AR6, 2024)' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched master factor versions' })
-  @ApiResponse({ status: 400, description: 'Failed to fetch master factor versions' })
+  @ApiOperation({
+    summary: 'Get all active master factor versions (e.g. AR6, 2024)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched master factor versions',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to fetch master factor versions',
+  })
   async getMasterFactorVersions(
     @Req() req: Request,
     @Res() res: Response,
@@ -244,10 +341,17 @@ export class MasterController {
     try {
       const result = await this.masterService.getMasterFactorVersions(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched master factor versions', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched master factor versions',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch master factor versions. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch master factor versions. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterFactorVersions');
     }
@@ -257,7 +361,10 @@ export class MasterController {
 
   @Get('formulas')
   @ApiOperation({ summary: 'Get all active master formula templates' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched master formulas' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched master formulas',
+  })
   @ApiResponse({ status: 400, description: 'Failed to fetch master formulas' })
   async getMasterFormulas(
     @Req() req: Request,
@@ -269,10 +376,17 @@ export class MasterController {
     try {
       const result = await this.masterService.getMasterFormulas(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched master formulas', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched master formulas',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch master formulas. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch master formulas. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterFormulas');
     }
@@ -282,7 +396,10 @@ export class MasterController {
   // No id in body → CREATE  |  id in body → UPDATE
 
   @Post('scopes')
-  @ApiOperation({ summary: 'Create or update a master scope. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a master scope. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateMasterScopeDto })
   @ApiResponse({ status: 200, description: 'Master scope saved successfully' })
   @ApiResponse({ status: 400, description: 'Failed to save master scope' })
@@ -295,12 +412,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertMasterScope');
     try {
-      const result = await this.masterService.upsertMasterRecord('scope' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'scope' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Master scope saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Master scope saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save master scope.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save master scope.',
+      );
     } finally {
       logger.info('Method ended: upsertMasterScope');
     }
@@ -309,9 +437,15 @@ export class MasterController {
   // ─── POST (Upsert): Master Category ───────────────────────────────────────
 
   @Post('categories')
-  @ApiOperation({ summary: 'Create or update a master category. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a master category. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateMasterCategoryDto })
-  @ApiResponse({ status: 200, description: 'Master category saved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Master category saved successfully',
+  })
   @ApiResponse({ status: 400, description: 'Failed to save master category' })
   async upsertMasterCategory(
     @Req() req: Request,
@@ -322,12 +456,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertMasterCategory');
     try {
-      const result = await this.masterService.upsertMasterRecord('category' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'category' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Master category saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Master category saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save master category.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save master category.',
+      );
     } finally {
       logger.info('Method ended: upsertMasterCategory');
     }
@@ -336,7 +481,10 @@ export class MasterController {
   // ─── POST (Upsert): Master Fuel ───────────────────────────────────────────
 
   @Post('fuels')
-  @ApiOperation({ summary: 'Create or update a master fuel. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a master fuel. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateMasterFuelDto })
   @ApiResponse({ status: 200, description: 'Master fuel saved successfully' })
   @ApiResponse({ status: 400, description: 'Failed to save master fuel' })
@@ -349,12 +497,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertMasterFuel');
     try {
-      const result = await this.masterService.upsertMasterRecord('fuel' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'fuel' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Master fuel saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Master fuel saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save master fuel.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save master fuel.',
+      );
     } finally {
       logger.info('Method ended: upsertMasterFuel');
     }
@@ -363,7 +522,10 @@ export class MasterController {
   // ─── POST (Upsert): Master Unit ───────────────────────────────────────────
 
   @Post('units')
-  @ApiOperation({ summary: 'Create or update a master unit. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a master unit. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateMasterUnitDto })
   @ApiResponse({ status: 200, description: 'Master unit saved successfully' })
   @ApiResponse({ status: 400, description: 'Failed to save master unit' })
@@ -376,12 +538,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertMasterUnit');
     try {
-      const result = await this.masterService.upsertMasterRecord('unit' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'unit' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Master unit saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Master unit saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save master unit.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save master unit.',
+      );
     } finally {
       logger.info('Method ended: upsertMasterUnit');
     }
@@ -390,9 +563,15 @@ export class MasterController {
   // ─── POST (Upsert): Master Datasource ────────────────────────────────────
 
   @Post('datasources')
-  @ApiOperation({ summary: 'Create or update a master datasource. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a master datasource. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateMasterDatasourceDto })
-  @ApiResponse({ status: 200, description: 'Master datasource saved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Master datasource saved successfully',
+  })
   @ApiResponse({ status: 400, description: 'Failed to save master datasource' })
   async upsertMasterDatasource(
     @Req() req: Request,
@@ -403,12 +582,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertMasterDatasource');
     try {
-      const result = await this.masterService.upsertMasterRecord('datasource' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'datasource' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Master datasource saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Master datasource saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save master datasource.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save master datasource.',
+      );
     } finally {
       logger.info('Method ended: upsertMasterDatasource');
     }
@@ -417,10 +607,19 @@ export class MasterController {
   // ─── POST (Upsert): Master Factor Version ────────────────────────────────
 
   @Post('factor-versions')
-  @ApiOperation({ summary: 'Create or update a master factor version. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a master factor version. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateMasterFactorVersionDto })
-  @ApiResponse({ status: 200, description: 'Master factor version saved successfully' })
-  @ApiResponse({ status: 400, description: 'Failed to save master factor version' })
+  @ApiResponse({
+    status: 200,
+    description: 'Master factor version saved successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to save master factor version',
+  })
   async upsertMasterFactorVersion(
     @Req() req: Request,
     @Res() res: Response,
@@ -430,12 +629,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertMasterFactorVersion');
     try {
-      const result = await this.masterService.upsertMasterRecord('factor-version' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'factor-version' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Master factor version saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Master factor version saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save master factor version.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save master factor version.',
+      );
     } finally {
       logger.info('Method ended: upsertMasterFactorVersion');
     }
@@ -444,9 +654,15 @@ export class MasterController {
   // ─── POST (Upsert): Master Formula ───────────────────────────────────────
 
   @Post('formulas')
-  @ApiOperation({ summary: 'Create or update a master formula. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a master formula. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateMasterFormulaDto })
-  @ApiResponse({ status: 200, description: 'Master formula saved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Master formula saved successfully',
+  })
   @ApiResponse({ status: 400, description: 'Failed to save master formula' })
   async upsertMasterFormula(
     @Req() req: Request,
@@ -457,12 +673,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertMasterFormula');
     try {
-      const result = await this.masterService.upsertMasterRecord('formula' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'formula' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Master formula saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Master formula saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save master formula.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save master formula.',
+      );
     } finally {
       logger.info('Method ended: upsertMasterFormula');
     }
@@ -472,8 +699,14 @@ export class MasterController {
 
   @Get('scope-category-mappings')
   @ApiOperation({ summary: 'Get all active scope category mappings' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched scope category mappings' })
-  @ApiResponse({ status: 400, description: 'Failed to fetch scope category mappings' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched scope category mappings',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to fetch scope category mappings',
+  })
   async getMasterScopeCategoryMappings(
     @Req() req: Request,
     @Res() res: Response,
@@ -482,12 +715,20 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: getMasterScopeCategoryMappings');
     try {
-      const result = await this.masterService.getMasterScopeCategoryMappings(query);
+      const result =
+        await this.masterService.getMasterScopeCategoryMappings(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched scope category mappings', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched scope category mappings',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch scope category mappings. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch scope category mappings. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterScopeCategoryMappings');
     }
@@ -496,10 +737,19 @@ export class MasterController {
   // ─── POST (Upsert): Scope Category Mapping ────────────────────────────────
 
   @Post('scope-category-mappings')
-  @ApiOperation({ summary: 'Create or update a scope category mapping. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a scope category mapping. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateScopeCategoryMappingDto })
-  @ApiResponse({ status: 200, description: 'Scope category mapping saved successfully' })
-  @ApiResponse({ status: 400, description: 'Failed to save scope category mapping' })
+  @ApiResponse({
+    status: 200,
+    description: 'Scope category mapping saved successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to save scope category mapping',
+  })
   async upsertScopeCategoryMapping(
     @Req() req: Request,
     @Res() res: Response,
@@ -509,12 +759,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertScopeCategoryMapping');
     try {
-      const result = await this.masterService.upsertMasterRecord('scope-category-mapping' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'scope-category-mapping' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Scope category mapping saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Scope category mapping saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save scope category mapping.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save scope category mapping.',
+      );
     } finally {
       logger.info('Method ended: upsertScopeCategoryMapping');
     }
@@ -524,8 +785,14 @@ export class MasterController {
 
   @Get('category-datasource-mappings')
   @ApiOperation({ summary: 'Get all active category datasource mappings' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched category datasource mappings' })
-  @ApiResponse({ status: 400, description: 'Failed to fetch category datasource mappings' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched category datasource mappings',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to fetch category datasource mappings',
+  })
   async getMasterCategoryDatasourceMappings(
     @Req() req: Request,
     @Res() res: Response,
@@ -534,12 +801,20 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: getMasterCategoryDatasourceMappings');
     try {
-      const result = await this.masterService.getMasterCategoryDatasourceMappings(query);
+      const result =
+        await this.masterService.getMasterCategoryDatasourceMappings(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched category datasource mappings', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched category datasource mappings',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch category datasource mappings. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch category datasource mappings. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterCategoryDatasourceMappings');
     }
@@ -548,10 +823,19 @@ export class MasterController {
   // ─── POST (Upsert): Category Datasource Mapping ───────────────────────────
 
   @Post('category-datasource-mappings')
-  @ApiOperation({ summary: 'Create or update a category datasource mapping. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a category datasource mapping. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateCategoryDatasourceMappingDto })
-  @ApiResponse({ status: 200, description: 'Category datasource mapping saved successfully' })
-  @ApiResponse({ status: 400, description: 'Failed to save category datasource mapping' })
+  @ApiResponse({
+    status: 200,
+    description: 'Category datasource mapping saved successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to save category datasource mapping',
+  })
   async upsertCategoryDatasourceMapping(
     @Req() req: Request,
     @Res() res: Response,
@@ -561,12 +845,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertCategoryDatasourceMapping');
     try {
-      const result = await this.masterService.upsertMasterRecord('category-datasource-mapping' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'category-datasource-mapping' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Category datasource mapping saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Category datasource mapping saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save category datasource mapping.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save category datasource mapping.',
+      );
     } finally {
       logger.info('Method ended: upsertCategoryDatasourceMapping');
     }
@@ -576,8 +871,14 @@ export class MasterController {
 
   @Get('version-fuel-mappings')
   @ApiOperation({ summary: 'Get all active factor version to fuel mappings' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched version fuel mappings' })
-  @ApiResponse({ status: 400, description: 'Failed to fetch version fuel mappings' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched version fuel mappings',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to fetch version fuel mappings',
+  })
   async getMasterVersionFuelMappings(
     @Req() req: Request,
     @Res() res: Response,
@@ -586,12 +887,20 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: getMasterVersionFuelMappings');
     try {
-      const result = await this.masterService.getMasterVersionFuelMappings(query);
+      const result =
+        await this.masterService.getMasterVersionFuelMappings(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched version fuel mappings', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched version fuel mappings',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch version fuel mappings. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch version fuel mappings. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterVersionFuelMappings');
     }
@@ -600,10 +909,19 @@ export class MasterController {
   // ─── POST (Upsert): Version Fuel Mapping ──────────────────────────────────
 
   @Post('version-fuel-mappings')
-  @ApiOperation({ summary: 'Create or update a version fuel mapping. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a version fuel mapping. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateVersionFuelMappingDto })
-  @ApiResponse({ status: 200, description: 'Version fuel mapping saved successfully' })
-  @ApiResponse({ status: 400, description: 'Failed to save version fuel mapping' })
+  @ApiResponse({
+    status: 200,
+    description: 'Version fuel mapping saved successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to save version fuel mapping',
+  })
   async upsertVersionFuelMapping(
     @Req() req: Request,
     @Res() res: Response,
@@ -613,12 +931,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertVersionFuelMapping');
     try {
-      const result = await this.masterService.upsertMasterRecord('version-fuel-mapping' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'version-fuel-mapping' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Version fuel mapping saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Version fuel mapping saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save version fuel mapping.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save version fuel mapping.',
+      );
     } finally {
       logger.info('Method ended: upsertVersionFuelMapping');
     }
@@ -628,8 +957,14 @@ export class MasterController {
 
   @Get('fuel-unit-mappings')
   @ApiOperation({ summary: 'Get all active fuel to unit mappings' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched fuel unit mappings' })
-  @ApiResponse({ status: 400, description: 'Failed to fetch fuel unit mappings' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched fuel unit mappings',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to fetch fuel unit mappings',
+  })
   async getMasterFuelUnitMappings(
     @Req() req: Request,
     @Res() res: Response,
@@ -640,10 +975,17 @@ export class MasterController {
     try {
       const result = await this.masterService.getMasterFuelUnitMappings(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched fuel unit mappings', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched fuel unit mappings',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch fuel unit mappings. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch fuel unit mappings. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterFuelUnitMappings');
     }
@@ -652,9 +994,15 @@ export class MasterController {
   // ─── POST (Upsert): Fuel Unit Mapping ─────────────────────────────────────
 
   @Post('fuel-unit-mappings')
-  @ApiOperation({ summary: 'Create or update a fuel unit mapping. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a fuel unit mapping. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateFuelUnitMappingDto })
-  @ApiResponse({ status: 200, description: 'Fuel unit mapping saved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Fuel unit mapping saved successfully',
+  })
   @ApiResponse({ status: 400, description: 'Failed to save fuel unit mapping' })
   async upsertFuelUnitMapping(
     @Req() req: Request,
@@ -665,12 +1013,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertFuelUnitMapping');
     try {
-      const result = await this.masterService.upsertMasterRecord('fuel-unit-mapping' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'fuel-unit-mapping' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Fuel unit mapping saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Fuel unit mapping saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save fuel unit mapping.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save fuel unit mapping.',
+      );
     } finally {
       logger.info('Method ended: upsertFuelUnitMapping');
     }
@@ -680,8 +1039,14 @@ export class MasterController {
 
   @Get('unit-formula-mappings')
   @ApiOperation({ summary: 'Get all active unit to formula mappings' })
-  @ApiResponse({ status: 200, description: 'Successfully fetched unit formula mappings' })
-  @ApiResponse({ status: 400, description: 'Failed to fetch unit formula mappings' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully fetched unit formula mappings',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to fetch unit formula mappings',
+  })
   async getMasterUnitFormulaMappings(
     @Req() req: Request,
     @Res() res: Response,
@@ -690,12 +1055,20 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: getMasterUnitFormulaMappings');
     try {
-      const result = await this.masterService.getMasterUnitFormulaMappings(query);
+      const result =
+        await this.masterService.getMasterUnitFormulaMappings(query);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Successfully fetched unit formula mappings', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Successfully fetched unit formula mappings',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch unit formula mappings. Please try again later.');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch unit formula mappings. Please try again later.',
+      );
     } finally {
       logger.info('Method ended: getMasterUnitFormulaMappings');
     }
@@ -704,10 +1077,19 @@ export class MasterController {
   // ─── POST (Upsert): Unit Formula Mapping ──────────────────────────────────
 
   @Post('unit-formula-mappings')
-  @ApiOperation({ summary: 'Create or update a unit formula mapping. Omit id to create; include id to update.' })
+  @ApiOperation({
+    summary:
+      'Create or update a unit formula mapping. Omit id to create; include id to update.',
+  })
   @ApiBody({ type: CreateUnitFormulaMappingDto })
-  @ApiResponse({ status: 200, description: 'Unit formula mapping saved successfully' })
-  @ApiResponse({ status: 400, description: 'Failed to save unit formula mapping' })
+  @ApiResponse({
+    status: 200,
+    description: 'Unit formula mapping saved successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Failed to save unit formula mapping',
+  })
   async upsertUnitFormulaMapping(
     @Req() req: Request,
     @Res() res: Response,
@@ -717,12 +1099,23 @@ export class MasterController {
     const logger = this.utilService.createLogger(MasterController.name, req);
     logger.info('Method started: upsertUnitFormulaMapping');
     try {
-      const result = await this.masterService.upsertMasterRecord('unit-formula-mapping' as MasterEntityType, dto as unknown as Record<string, unknown>, user?.id);
+      const result = await this.masterService.upsertMasterRecord(
+        'unit-formula-mapping' as MasterEntityType,
+        dto as unknown as Record<string, unknown>,
+        user?.id,
+      );
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(res, 'Unit formula mapping saved successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Unit formula mapping saved successfully',
+        result,
+      );
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save unit formula mapping.');
+      return this.utilService.sendErrorResponse(
+        res,
+        error?.message ?? 'Failed to save unit formula mapping.',
+      );
     } finally {
       logger.info('Method ended: upsertUnitFormulaMapping');
     }

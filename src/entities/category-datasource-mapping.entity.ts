@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import { MasterCategory } from './master-category.entity';
 import { MasterDatasource } from './master-datasource.entity';

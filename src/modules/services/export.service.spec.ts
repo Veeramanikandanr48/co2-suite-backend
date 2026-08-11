@@ -62,7 +62,7 @@ function makeEntry(overrides: Partial<InventoryEntry>): InventoryEntry {
     activityTypeCode: 'S1_STATIONARY',
     radiativeForcingType: null,
     efType: 'CO2E',
-    emission: 9.146,                // 50000 × 0.18292 / 1000 = 9.146 tCO₂e
+    emission: 9.146, // 50000 × 0.18292 / 1000 = 9.146 tCO₂e
     status: 'completed',
     reportingPeriodId: 1,
     reportingPeriodYear: 2025,
@@ -71,7 +71,11 @@ function makeEntry(overrides: Partial<InventoryEntry>): InventoryEntry {
     comment: null,
     approvalStatus: null,
     documentPath: null,
-    methodologyInputsSnapshot: { fuelType: 'Natural Gas', quantity: 50000, unit: 'kWh' },
+    methodologyInputsSnapshot: {
+      fuelType: 'Natural Gas',
+      quantity: 50000,
+      unit: 'kWh',
+    },
     isActive: true,
     createdBy: 1,
     updatedBy: 1,
@@ -114,7 +118,7 @@ const S2_ENTRY = makeEntry({
   scopeType: 'SCOPE_2',
   category: 'Purchased Electricity',
   name: 'DEWA Grid Electricity',
-  emission: 172.485,   // 450000 × 0.3833 / 1000
+  emission: 172.485, // 450000 × 0.3833 / 1000
   ef: 0.3833,
   calculationMethod: 'LOCATION_BASED',
   factorDataset: 'DEWA 2025',
@@ -126,7 +130,7 @@ const S3_CAT6_ENTRY = makeEntry({
   scope3CategoryNumber: 6,
   category: 'Business Travel Air',
   name: 'Dubai → London Long Haul Economy',
-  emission: 1.887750,  // 12500 × 0.15102 / 1000
+  emission: 1.88775, // 12500 × 0.15102 / 1000
   ef: 0.15102,
   calculationMethod: 'BUSINESS_TRAVEL_AIR',
   radiativeForcingType: 'WITH_RFI',
@@ -138,10 +142,14 @@ const S3_CAT15_ENTRY = makeEntry({
   scope3CategoryNumber: 15,
   category: 'Investments',
   name: 'Green Tech Ltd Equity Investment',
-  emission: 0.300000,  // 8000000 × 0.25 × 0.00015 / 1000
+  emission: 0.3, // 8000000 × 0.25 × 0.00015 / 1000
   ef: 0.00015,
   calculationMethod: 'INVESTMENT_BASED',
-  methodologyInputsSnapshot: { equityShare: 0.25, investeeRevenue: 8000000, investmentType: 'EQUITY' },
+  methodologyInputsSnapshot: {
+    equityShare: 0.25,
+    investeeRevenue: 8000000,
+    investmentType: 'EQUITY',
+  },
 });
 
 const ALL_ENTRIES = [S1_ENTRY, S2_ENTRY, S3_CAT6_ENTRY, S3_CAT15_ENTRY];
@@ -293,17 +301,18 @@ describe('EXPORT ACCEPTANCE SUITE — CSV / XLSX / PDF', () => {
 
       expect(summary.scope1).toBeCloseTo(9.146, 5);
       expect(summary.scope2).toBeCloseTo(172.485, 5);
-      expect(summary.scope3).toBeCloseTo(1.887750 + 0.300000, 5);
+      expect(summary.scope3).toBeCloseTo(1.88775 + 0.3, 5);
       expect(summary.grandTotal).toBeCloseTo(
-        summary.scope1 + summary.scope2 + summary.scope3, 10,
+        summary.scope1 + summary.scope2 + summary.scope3,
+        10,
       );
     });
 
     it('D2: Scope 3 category breakdown routes Cat 6 and Cat 15 to correct slots', () => {
       const summary = service.buildScopeSummary(ALL_ENTRIES);
 
-      expect(summary.scope3Categories[6]).toBeCloseTo(1.887750, 5);
-      expect(summary.scope3Categories[15]).toBeCloseTo(0.300000, 5);
+      expect(summary.scope3Categories[6]).toBeCloseTo(1.88775, 5);
+      expect(summary.scope3Categories[15]).toBeCloseTo(0.3, 5);
     });
 
     it('D3: All 15 Scope 3 category slots are initialised (including zero-value categories)', () => {
@@ -322,15 +331,31 @@ describe('EXPORT ACCEPTANCE SUITE — CSV / XLSX / PDF', () => {
     it('E1: CSV header contains all mandatory audit columns', () => {
       const metadata = buildTestMetadata(ALL_ENTRIES);
       const csv = service.generateCsvReport(ALL_ENTRIES, metadata);
-      const headerLine = csv.split('\n').find((line) => line.includes('Emission (tCO2e)')) ?? '';
+      const headerLine =
+        csv.split('\n').find((line) => line.includes('Emission (tCO2e)')) ?? '';
 
       const REQUIRED_COLUMNS = [
-        'ID', 'Scope', 'Category', 'Activity Name', 'Facility',
-        'Original Amount', 'Original Unit', 'Normalized Amount', 'Normalized Unit',
-        'EF (kgCO2e/unit)', 'Factor Dataset', 'Factor Version', 'Factor Basis',
-        'GWP Source', 'Gas Breakdown Available',
-        'Calculation Strategy', 'Engine Version', 'Emission (tCO2e)',
-        'Status', 'Reporting Period', 'Methodology Inputs Snapshot',
+        'ID',
+        'Scope',
+        'Category',
+        'Activity Name',
+        'Facility',
+        'Original Amount',
+        'Original Unit',
+        'Normalized Amount',
+        'Normalized Unit',
+        'EF (kgCO2e/unit)',
+        'Factor Dataset',
+        'Factor Version',
+        'Factor Basis',
+        'GWP Source',
+        'Gas Breakdown Available',
+        'Calculation Strategy',
+        'Engine Version',
+        'Emission (tCO2e)',
+        'Status',
+        'Reporting Period',
+        'Methodology Inputs Snapshot',
       ];
 
       REQUIRED_COLUMNS.forEach((col) => {
@@ -341,7 +366,8 @@ describe('EXPORT ACCEPTANCE SUITE — CSV / XLSX / PDF', () => {
     it('E2: CSV contains gas species columns (CO2, CH4, N2O, HFC, PFC, SF6, NF3)', () => {
       const metadata = buildTestMetadata(ALL_ENTRIES);
       const csv = service.generateCsvReport(ALL_ENTRIES, metadata);
-      const headerLine = csv.split('\n').find((line) => line.includes('Emission (tCO2e)')) ?? '';
+      const headerLine =
+        csv.split('\n').find((line) => line.includes('Emission (tCO2e)')) ?? '';
 
       expect(headerLine).toContain('CO2 (tCO2e)');
       expect(headerLine).toContain('CH4 (tCO2e)');
@@ -443,7 +469,7 @@ describe('EXPORT ACCEPTANCE SUITE — CSV / XLSX / PDF', () => {
       const buffer = await service.generateXlsxReport(ALL_ENTRIES, metadata);
       // .xlsx is a ZIP archive — first two bytes are PK (0x50, 0x4B)
       expect(buffer[0]).toBe(0x50); // 'P'
-      expect(buffer[1]).toBe(0x4B); // 'K'
+      expect(buffer[1]).toBe(0x4b); // 'K'
     });
 
     it('J2: XLSX can be re-parsed by exceljs without error', async () => {

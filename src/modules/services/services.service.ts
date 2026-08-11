@@ -65,9 +65,12 @@ export class ServicesService implements OnApplicationBootstrap {
     private readonly factorResolutionService: FactorResolutionService,
     private readonly unitNormalizationService: UnitNormalizationService,
     private readonly calculationMethodEngine: CalculationMethodEngine,
-  ) { }
+  ) {}
 
-  private async resolveAndAssertReportingPeriod(orgId: number, dateStr?: string): Promise<ReportingPeriod | null> {
+  private async resolveAndAssertReportingPeriod(
+    orgId: number,
+    dateStr?: string,
+  ): Promise<ReportingPeriod | null> {
     if (!dateStr) return null;
     const yearMatch = dateStr.match(/\b(20\d\d)\b/);
     if (!yearMatch) return null;
@@ -356,7 +359,9 @@ export class ServicesService implements OnApplicationBootstrap {
       .createQueryBuilder('mapping')
       .select(['mapping.id', 'mapping.scopeId', 'mapping.categoryId'])
       .where('mapping.scopeId = :scopeId', { scopeId: dto.scopeId })
-      .andWhere('mapping.categoryId = :categoryId', { categoryId: dto.categoryId })
+      .andWhere('mapping.categoryId = :categoryId', {
+        categoryId: dto.categoryId,
+      })
       .andWhere('mapping.isActive = :isActive', { isActive: true })
       .getOne();
 
@@ -747,7 +752,10 @@ export class ServicesService implements OnApplicationBootstrap {
     const userId = user.id;
 
     // Reporting Period Lock Enforcement & Resolution
-    const period = await this.resolveAndAssertReportingPeriod(orgId, dto.dateFrom || dto.dateTo);
+    const period = await this.resolveAndAssertReportingPeriod(
+      orgId,
+      dto.dateFrom || dto.dateTo,
+    );
 
     // 1. Physical Unit Normalization
     const normResult = this.unitNormalizationService.normalizeUnit(
@@ -772,13 +780,17 @@ export class ServicesService implements OnApplicationBootstrap {
       }
     }
 
-    if ((dto.fuelId || targetUnitId || dto.factorVersionId) && (dto.ef == null || dto.ef === 0)) {
+    if (
+      (dto.fuelId || targetUnitId || dto.factorVersionId) &&
+      (dto.ef == null || dto.ef === 0)
+    ) {
       try {
-        const resolved = await this.factorResolutionService.resolveEmissionFactor({
-          fuelId: dto.fuelId,
-          unitId: targetUnitId,
-          factorVersionId: dto.factorVersionId,
-        });
+        const resolved =
+          await this.factorResolutionService.resolveEmissionFactor({
+            fuelId: dto.fuelId,
+            unitId: targetUnitId,
+            factorVersionId: dto.factorVersionId,
+          });
         efVal = resolved.emissionFactor;
         efSourceVal = resolved.efSource;
       } catch {
@@ -788,21 +800,25 @@ export class ServicesService implements OnApplicationBootstrap {
 
     // 3. Category & Scope Method Resolution
     const categoryEntity = await this.masterCategoryRepo.findOne({
-      where: [
-        { name: dto.category },
-        { code: dto.category },
-      ],
+      where: [{ name: dto.category }, { code: dto.category }],
     });
 
-    const scopeTypeVal = dto.scopeType || categoryEntity?.scopeType || 'SCOPE_1';
-    const scope3CatNumVal = dto.scope3CategoryNumber ?? categoryEntity?.scope3CategoryNumber;
-    const calcMethodVal = dto.calculationMethod || categoryEntity?.calculationMethod || 'FUEL_BASED';
+    const scopeTypeVal =
+      dto.scopeType || categoryEntity?.scopeType || 'SCOPE_1';
+    const scope3CatNumVal =
+      dto.scope3CategoryNumber ?? categoryEntity?.scope3CategoryNumber;
+    const calcMethodVal =
+      dto.calculationMethod ||
+      categoryEntity?.calculationMethod ||
+      'FUEL_BASED';
 
     // Scope 1 Mobile Ownership Boundary Validation
     if (
-      (scopeTypeVal === 'SCOPE_1' || dto.category?.toLowerCase().includes('mobile')) &&
+      (scopeTypeVal === 'SCOPE_1' ||
+        dto.category?.toLowerCase().includes('mobile')) &&
       dto.ownershipControl &&
-      (dto.ownershipControl === 'EMPLOYEE_OWNED' || dto.ownershipControl === 'THIRD_PARTY')
+      (dto.ownershipControl === 'EMPLOYEE_OWNED' ||
+        dto.ownershipControl === 'THIRD_PARTY')
     ) {
       throw new BadRequestException(
         `Operational control boundary violation: ${dto.ownershipControl} vehicles belong to Scope 3 (Category 6 Business Travel or Category 7 Commuting) and cannot be recorded under Scope 1 direct emissions.`,
@@ -819,7 +835,9 @@ export class ServicesService implements OnApplicationBootstrap {
       radiativeForcingType: dto.radiativeForcingType,
       distanceType: dto.distanceType as any,
       factorBasis: dto.factorBasis as any,
-      efType: (dto.efType as any) || (calcMethodVal.includes('GAS') ? 'GAS_SPECIFIC' : 'CO2E'),
+      efType:
+        (dto.efType as any) ||
+        (calcMethodVal.includes('GAS') ? 'GAS_SPECIFIC' : 'CO2E'),
       ch4Origin: dto.ch4Origin as any,
       gwpSource: dto.gwpSource,
       gwpVersion: dto.gwpVersion,
@@ -860,7 +878,9 @@ export class ServicesService implements OnApplicationBootstrap {
       efSource: efSourceVal,
       emission: calcResult.emission,
       biogenicEmission: calcResult.biogenicEmission,
-      isBiogenic: Boolean(dto.isBiogenic || calcResult.inputsSnapshot?.isBiogenic),
+      isBiogenic: Boolean(
+        dto.isBiogenic || calcResult.inputsSnapshot?.isBiogenic,
+      ),
       emissionMode: calcResult.inputsSnapshot?.emissionMode || dto.emissionMode,
       ownershipControl: dto.ownershipControl,
       scopeType: scopeTypeVal,
@@ -895,7 +915,8 @@ export class ServicesService implements OnApplicationBootstrap {
           organizationId: orgId,
           action: 'CREATE',
           changedBy: userId,
-          calculationEngineVersion: savedEntity.calculationEngineVersion || '1.0.0',
+          calculationEngineVersion:
+            savedEntity.calculationEngineVersion || '1.0.0',
           beforeSnapshot: null,
           afterSnapshot: { ...savedEntity },
           changeReason: dto.comment || 'Initial entry creation',
@@ -926,11 +947,12 @@ export class ServicesService implements OnApplicationBootstrap {
 
     if (efVal === 0) {
       try {
-        const resolved = await this.factorResolutionService.resolveEmissionFactor({
-          fuelId: dto.fuelId,
-          unitId: dto.unitId,
-          factorVersionId: dto.factorVersionId,
-        });
+        const resolved =
+          await this.factorResolutionService.resolveEmissionFactor({
+            fuelId: dto.fuelId,
+            unitId: dto.unitId,
+            factorVersionId: dto.factorVersionId,
+          });
         efVal = resolved.emissionFactor;
         efSourceVal = resolved.efSource;
       } catch {
@@ -939,13 +961,13 @@ export class ServicesService implements OnApplicationBootstrap {
     }
 
     const categoryEntity = await this.masterCategoryRepo.findOne({
-      where: [
-        { name: dto.category },
-        { code: dto.category },
-      ],
+      where: [{ name: dto.category }, { code: dto.category }],
     });
 
-    const calcMethodVal = dto.calculationMethod || categoryEntity?.calculationMethod || 'FUEL_BASED';
+    const calcMethodVal =
+      dto.calculationMethod ||
+      categoryEntity?.calculationMethod ||
+      'FUEL_BASED';
 
     const calcResult = this.calculationMethodEngine.calculateEmission({
       amount: normResult.normalizedAmount,
@@ -956,7 +978,9 @@ export class ServicesService implements OnApplicationBootstrap {
       radiativeForcingType: dto.radiativeForcingType,
       distanceType: dto.distanceType as any,
       factorBasis: dto.factorBasis as any,
-      efType: (dto.efType as any) || (calcMethodVal.includes('GAS') ? 'GAS_SPECIFIC' : 'CO2E'),
+      efType:
+        (dto.efType as any) ||
+        (calcMethodVal.includes('GAS') ? 'GAS_SPECIFIC' : 'CO2E'),
       ch4Origin: dto.ch4Origin as any,
       gwpSource: dto.gwpSource,
       gwpVersion: dto.gwpVersion,
@@ -1069,10 +1093,15 @@ export class ServicesService implements OnApplicationBootstrap {
     }
 
     if (!dto.comment && !(dto as any).changeReason) {
-      throw new BadRequestException('changeReason (comment) is required when updating an inventory entry for audit history compliance');
+      throw new BadRequestException(
+        'changeReason (comment) is required when updating an inventory entry for audit history compliance',
+      );
     }
 
-    const period = await this.resolveAndAssertReportingPeriod(orgId, existing.dateFrom || existing.dateTo || dto.dateFrom || dto.dateTo);
+    const period = await this.resolveAndAssertReportingPeriod(
+      orgId,
+      existing.dateFrom || existing.dateTo || dto.dateFrom || dto.dateTo,
+    );
     if (period) {
       existing.reportingPeriodId = period.id;
       existing.reportingPeriodYear = period.year;
@@ -1107,11 +1136,12 @@ export class ServicesService implements OnApplicationBootstrap {
 
     if (dto.fuelId || targetUnitId || dto.factorVersionId) {
       try {
-        const resolved = await this.factorResolutionService.resolveEmissionFactor({
-          fuelId: dto.fuelId,
-          unitId: targetUnitId,
-          factorVersionId: dto.factorVersionId,
-        });
+        const resolved =
+          await this.factorResolutionService.resolveEmissionFactor({
+            fuelId: dto.fuelId,
+            unitId: targetUnitId,
+            factorVersionId: dto.factorVersionId,
+          });
         existing.ef = resolved.emissionFactor;
         existing.efSource = resolved.efSource;
       } catch {
@@ -1120,15 +1150,23 @@ export class ServicesService implements OnApplicationBootstrap {
     }
 
     const categoryEntity = await this.masterCategoryRepo.findOne({
-      where: [
-        { name: existing.category },
-        { code: existing.category },
-      ],
+      where: [{ name: existing.category }, { code: existing.category }],
     });
 
-    existing.scopeType = dto.scopeType || existing.scopeType || categoryEntity?.scopeType || 'SCOPE_1';
-    existing.scope3CategoryNumber = dto.scope3CategoryNumber ?? existing.scope3CategoryNumber ?? categoryEntity?.scope3CategoryNumber;
-    existing.calculationMethod = dto.calculationMethod || existing.calculationMethod || categoryEntity?.calculationMethod || 'FUEL_BASED';
+    existing.scopeType =
+      dto.scopeType ||
+      existing.scopeType ||
+      categoryEntity?.scopeType ||
+      'SCOPE_1';
+    existing.scope3CategoryNumber =
+      dto.scope3CategoryNumber ??
+      existing.scope3CategoryNumber ??
+      categoryEntity?.scope3CategoryNumber;
+    existing.calculationMethod =
+      dto.calculationMethod ||
+      existing.calculationMethod ||
+      categoryEntity?.calculationMethod ||
+      'FUEL_BASED';
 
     if (dto.ownershipControl !== undefined) {
       existing.ownershipControl = dto.ownershipControl;
@@ -1142,9 +1180,11 @@ export class ServicesService implements OnApplicationBootstrap {
 
     // Scope 1 Mobile Ownership Boundary Validation
     if (
-      (existing.scopeType === 'SCOPE_1' || existing.category?.toLowerCase().includes('mobile')) &&
+      (existing.scopeType === 'SCOPE_1' ||
+        existing.category?.toLowerCase().includes('mobile')) &&
       existing.ownershipControl &&
-      (existing.ownershipControl === 'EMPLOYEE_OWNED' || existing.ownershipControl === 'THIRD_PARTY')
+      (existing.ownershipControl === 'EMPLOYEE_OWNED' ||
+        existing.ownershipControl === 'THIRD_PARTY')
     ) {
       throw new BadRequestException(
         `Operational control boundary violation: ${existing.ownershipControl} vehicles belong to Scope 3 (Category 6 Business Travel or Category 7 Commuting) and cannot be recorded under Scope 1 direct emissions.`,
@@ -1187,8 +1227,11 @@ export class ServicesService implements OnApplicationBootstrap {
     existing.ef = calcResult.exactEF;
     existing.emission = calcResult.emission;
     existing.biogenicEmission = calcResult.biogenicEmission;
-    existing.isBiogenic = Boolean(existing.isBiogenic || calcResult.inputsSnapshot?.isBiogenic);
-    existing.emissionMode = calcResult.inputsSnapshot?.emissionMode || existing.emissionMode;
+    existing.isBiogenic = Boolean(
+      existing.isBiogenic || calcResult.inputsSnapshot?.isBiogenic,
+    );
+    existing.emissionMode =
+      calcResult.inputsSnapshot?.emissionMode || existing.emissionMode;
     existing.normalizedAmount = calcResult.derivedAmount;
     existing.calculationMethod = calcResult.methodUsed;
     existing.calculationEngineVersion = calcResult.calculationEngineVersion;
@@ -1197,7 +1240,8 @@ export class ServicesService implements OnApplicationBootstrap {
     existing.ch4Origin = calcResult.gasBreakdown.ch4Origin;
     existing.gwpHorizon = calcResult.gasBreakdown.gwpHorizon;
     existing.gwpValuesSnapshot = calcResult.gasBreakdown.gwpValuesSnapshot;
-    existing.gasBreakdownAvailable = calcResult.gasBreakdown.gasBreakdownAvailable;
+    existing.gasBreakdownAvailable =
+      calcResult.gasBreakdown.gasBreakdownAvailable;
     existing.gasCO2 = calcResult.gasBreakdown.CO2;
     existing.gasCH4 = calcResult.gasBreakdown.CH4;
     existing.gasN2O = calcResult.gasBreakdown.N2O;
@@ -1238,7 +1282,14 @@ export class ServicesService implements OnApplicationBootstrap {
     const orgId = this.resolveOrgId(user);
     const existing = await this.inventoryRepo
       .createQueryBuilder('entry')
-      .select(['entry.id', 'entry.organizationId', 'entry.isActive', 'entry.dateFrom', 'entry.dateTo', 'entry.calculationEngineVersion'])
+      .select([
+        'entry.id',
+        'entry.organizationId',
+        'entry.isActive',
+        'entry.dateFrom',
+        'entry.dateTo',
+        'entry.calculationEngineVersion',
+      ])
       .where('entry.id = :id', { id })
       .andWhere('entry.organizationId = :orgId', { orgId })
       .andWhere('entry.isActive = :isActive', { isActive: true })
@@ -1247,7 +1298,10 @@ export class ServicesService implements OnApplicationBootstrap {
       throw new BadRequestException('Inventory entry not found');
     }
 
-    await this.resolveAndAssertReportingPeriod(orgId, existing.dateFrom || existing.dateTo);
+    await this.resolveAndAssertReportingPeriod(
+      orgId,
+      existing.dateFrom || existing.dateTo,
+    );
 
     const beforeSnapshot = { ...existing };
     existing.isActive = false;
@@ -1412,16 +1466,31 @@ export class ServicesService implements OnApplicationBootstrap {
       ? scopeItem.masterCategory.name
       : this.activityToCategoryMap[codeUpper] || codeUpper;
 
-    const sourcesSet = new Set<string>(['IPCC (Commercial & Institutional Use)', 'DEFRA 2024', 'IEA 2023']);
+    const sourcesSet = new Set<string>([
+      'IPCC (Commercial & Institutional Use)',
+      'DEFRA 2024',
+      'IEA 2023',
+    ]);
     const versionsSet = new Set<string>(['AR6', '2024', '2023']);
-    const unitsSet = new Set<string>(['sm3', 'L', 'kWh', 'kg', 'm3', 'ton', 'km', 'passenger.km']);
+    const unitsSet = new Set<string>([
+      'sm3',
+      'L',
+      'kWh',
+      'kg',
+      'm3',
+      'ton',
+      'km',
+      'passenger.km',
+    ]);
     const defaultFormula = '(amount * factor) / 1000';
 
     return {
       statusCode: 200,
       scope: String(
         scopeId ||
-        (scopeItem?.masterScope?.scope ? scopeItem.masterScope.scope.replace(/\D/g, '') : '1'),
+          (scopeItem?.masterScope?.scope
+            ? scopeItem.masterScope.scope.replace(/\D/g, '')
+            : '1'),
       ),
       activity: codeUpper,
       based_option: basedOption || 'activity',
@@ -1445,7 +1514,9 @@ export class ServicesService implements OnApplicationBootstrap {
     return scopeItems.map((item) => ({
       code: item.masterCategory?.code || '',
       name: item.masterCategory?.name || '',
-      scope: item.masterScope?.scope ? item.masterScope.scope.replace(/\D/g, '') : '1',
+      scope: item.masterScope?.scope
+        ? item.masterScope.scope.replace(/\D/g, '')
+        : '1',
       scopeCode: item.masterScope?.code || '',
     }));
   }
@@ -1485,7 +1556,11 @@ export class ServicesService implements OnApplicationBootstrap {
     return list;
   }
 
-  async closeReportingPeriod(user: IDecodeUserDetails, periodId: number, reason?: string) {
+  async closeReportingPeriod(
+    user: IDecodeUserDetails,
+    periodId: number,
+    reason?: string,
+  ) {
     const orgId = this.resolveOrgId(user);
     const period = await this.reportingPeriodRepo.findOne({
       where: { id: periodId, organizationId: orgId },
@@ -1496,7 +1571,9 @@ export class ServicesService implements OnApplicationBootstrap {
     }
 
     if (period.status === 'LOCKED') {
-      throw new ForbiddenException('Reporting period is LOCKED and cannot be changed to CLOSED');
+      throw new ForbiddenException(
+        'Reporting period is LOCKED and cannot be changed to CLOSED',
+      );
     }
 
     period.status = 'CLOSED';
@@ -1504,7 +1581,11 @@ export class ServicesService implements OnApplicationBootstrap {
     return this.reportingPeriodRepo.save(period);
   }
 
-  async lockReportingPeriod(user: IDecodeUserDetails, periodId: number, lockReason?: string) {
+  async lockReportingPeriod(
+    user: IDecodeUserDetails,
+    periodId: number,
+    lockReason?: string,
+  ) {
     const orgId = this.resolveOrgId(user);
     const period = await this.reportingPeriodRepo.findOne({
       where: { id: periodId, organizationId: orgId },
@@ -1517,12 +1598,17 @@ export class ServicesService implements OnApplicationBootstrap {
     period.status = 'LOCKED';
     period.lockedBy = user.id;
     period.lockedAt = new Date();
-    period.lockReason = lockReason || 'Period locked for GHG Protocol audit verification';
+    period.lockReason =
+      lockReason || 'Period locked for GHG Protocol audit verification';
 
     return this.reportingPeriodRepo.save(period);
   }
 
-  async reopenReportingPeriod(user: IDecodeUserDetails, periodId: number, reason?: string) {
+  async reopenReportingPeriod(
+    user: IDecodeUserDetails,
+    periodId: number,
+    reason?: string,
+  ) {
     this.assertSuperAdmin(user);
     const orgId = this.resolveOrgId(user);
     const period = await this.reportingPeriodRepo.findOne({
@@ -1534,7 +1620,9 @@ export class ServicesService implements OnApplicationBootstrap {
     }
 
     if (period.status === 'LOCKED') {
-      throw new ForbiddenException('LOCKED reporting period cannot be reopened. Hard audit lock in effect.');
+      throw new ForbiddenException(
+        'LOCKED reporting period cannot be reopened. Hard audit lock in effect.',
+      );
     }
 
     period.status = 'OPEN';
@@ -1550,9 +1638,14 @@ export class ServicesService implements OnApplicationBootstrap {
     });
   }
 
-  async exportInventoryReport(user: IDecodeUserDetails, format: 'csv' | 'json' = 'csv', periodYear?: number) {
+  async exportInventoryReport(
+    user: IDecodeUserDetails,
+    format: 'csv' | 'json' = 'csv',
+    periodYear?: number,
+  ) {
     const orgId = this.resolveOrgId(user);
-    const query = this.inventoryRepo.createQueryBuilder('entry')
+    const query = this.inventoryRepo
+      .createQueryBuilder('entry')
       .where('entry.organizationId = :orgId', { orgId })
       .andWhere('entry.isActive = true');
 
@@ -1569,7 +1662,10 @@ export class ServicesService implements OnApplicationBootstrap {
       generatedAt: timestamp,
       generatedBy: user.email || `User #${user.id}`,
       totalEntries: entries.length,
-      totalEmissionsTCO2e: entries.reduce((acc, curr) => acc + (curr.emission || 0), 0),
+      totalEmissionsTCO2e: entries.reduce(
+        (acc, curr) => acc + (curr.emission || 0),
+        0,
+      ),
     };
 
     if (format === 'json' || (format as string) === 'xlsx') {
@@ -1583,20 +1679,34 @@ export class ServicesService implements OnApplicationBootstrap {
 
       doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
-      doc.fontSize(18).text('GHG Protocol Audit Report Certificate', { align: 'center' });
+      doc
+        .fontSize(18)
+        .text('GHG Protocol Audit Report Certificate', { align: 'center' });
       doc.moveDown();
-      doc.fontSize(10).text(`Calculation Engine Version: ${metadata.calculationEngineVersion}`);
+      doc
+        .fontSize(10)
+        .text(
+          `Calculation Engine Version: ${metadata.calculationEngineVersion}`,
+        );
       doc.text(`Reporting Period: ${metadata.reportingPeriod}`);
       doc.text(`Generated At: ${metadata.generatedAt}`);
       doc.text(`Generated By: ${metadata.generatedBy}`);
       doc.text(`Total Entries: ${metadata.totalEntries}`);
-      doc.text(`Total Carbon Footprint: ${metadata.totalEmissionsTCO2e.toFixed(4)} tCO2e`);
+      doc.text(
+        `Total Carbon Footprint: ${metadata.totalEmissionsTCO2e.toFixed(4)} tCO2e`,
+      );
       doc.moveDown();
-      doc.text('--------------------------------------------------------------------------------');
+      doc.text(
+        '--------------------------------------------------------------------------------',
+      );
       doc.moveDown();
 
       entries.forEach((e: any, idx: number) => {
-        doc.fontSize(9).text(`${idx + 1}. [${e.scopeType}] ${e.category} - ${e.name}: ${e.emission} tCO2e (EF: ${e.ef} kgCO2e/${e.unit || 'unit'})`);
+        doc
+          .fontSize(9)
+          .text(
+            `${idx + 1}. [${e.scopeType}] ${e.category} - ${e.name}: ${e.emission} tCO2e (EF: ${e.ef} kgCO2e/${e.unit || 'unit'})`,
+          );
       });
 
       doc.end();
@@ -1607,7 +1717,8 @@ export class ServicesService implements OnApplicationBootstrap {
     }
 
     // CSV format generation
-    const csvHeader = '# GHG PROTOCOL AUDIT REPORT METADATA\n' +
+    const csvHeader =
+      '# GHG PROTOCOL AUDIT REPORT METADATA\n' +
       `# Calculation Engine Version,${metadata.calculationEngineVersion}\n` +
       `# Reporting Period,${metadata.reportingPeriod}\n` +
       `# Generated At,${metadata.generatedAt}\n` +
@@ -1616,9 +1727,12 @@ export class ServicesService implements OnApplicationBootstrap {
       `# Total Emissions (tCO2e),${metadata.totalEmissionsTCO2e.toFixed(4)}\n\n` +
       'ID,Scope,Category,Activity,Original Amount,Original Unit,Normalized Amount,Normalized Unit,EF (kgCO2e/unit),EF Dataset,EF Version,Factor Basis,GWP Source,Emission (tCO2e),Status,Calculation Engine Version\n';
 
-    const csvRows = entries.map((e) =>
-      `"${e.id}","${e.scopeType}","${e.category}","${e.name}",${e.originalAmount ?? e.amount},"${e.originalUnit ?? e.unit}",${e.normalizedAmount ?? e.amount},"${e.normalizedUnit ?? e.unit}",${e.ef},"${e.factorDataset || ''}","${e.factorVersion || ''}","${e.factorBasis || 'CO2E_TOTAL'}","${e.gwpSource || 'IPCC AR6'}",${e.emission},"${e.status}","${e.calculationEngineVersion || '1.0.0'}"`
-    ).join('\n');
+    const csvRows = entries
+      .map(
+        (e) =>
+          `"${e.id}","${e.scopeType}","${e.category}","${e.name}",${e.originalAmount ?? e.amount},"${e.originalUnit ?? e.unit}",${e.normalizedAmount ?? e.amount},"${e.normalizedUnit ?? e.unit}",${e.ef},"${e.factorDataset || ''}","${e.factorVersion || ''}","${e.factorBasis || 'CO2E_TOTAL'}","${e.gwpSource || 'IPCC AR6'}",${e.emission},"${e.status}","${e.calculationEngineVersion || '1.0.0'}"`,
+      )
+      .join('\n');
 
     return csvHeader + csvRows;
   }
@@ -1634,10 +1748,14 @@ export class ServicesService implements OnApplicationBootstrap {
   async getEntriesForExport(
     user: IDecodeUserDetails,
     periodYear?: number,
-  ): Promise<{ entries: InventoryEntry[]; metadata: import('./export.service').ExportMetadata }> {
+  ): Promise<{
+    entries: InventoryEntry[];
+    metadata: import('./export.service').ExportMetadata;
+  }> {
     const orgId = this.resolveOrgId(user);
 
-    const query = this.inventoryRepo.createQueryBuilder('entry')
+    const query = this.inventoryRepo
+      .createQueryBuilder('entry')
       .where('entry.organizationId = :orgId', { orgId })
       .andWhere('entry.isActive = true')
       .orderBy('entry.scopeType', 'ASC')
@@ -1654,9 +1772,14 @@ export class ServicesService implements OnApplicationBootstrap {
     const organizationName =
       (user as any).organizationName ??
       (user as any).orgName ??
-      (user.email ? user.email.split('@')[1]?.split('.')[0] ?? `Org #${orgId}` : `Org #${orgId}`);
+      (user.email
+        ? (user.email.split('@')[1]?.split('.')[0] ?? `Org #${orgId}`)
+        : `Org #${orgId}`);
 
-    const totalEmissions = entries.reduce((acc, e) => acc + (e.emission ?? 0), 0);
+    const totalEmissions = entries.reduce(
+      (acc, e) => acc + (e.emission ?? 0),
+      0,
+    );
 
     const metadata: import('./export.service').ExportMetadata = {
       organization: organizationName,

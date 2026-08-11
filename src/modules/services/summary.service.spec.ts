@@ -138,7 +138,9 @@ describe('SummaryService (Facility, Org & Scope Aggregation Rollups)', () => {
               select: jest.fn().mockReturnThis(),
               where: jest.fn().mockReturnThis(),
               orderBy: jest.fn().mockReturnThis(),
-              getMany: jest.fn().mockResolvedValue([{ id: 1, name: 'Test Org', code: 'TEST' }]),
+              getMany: jest
+                .fn()
+                .mockResolvedValue([{ id: 1, name: 'Test Org', code: 'TEST' }]),
             }),
           },
         },
@@ -164,21 +166,25 @@ describe('SummaryService (Facility, Org & Scope Aggregation Rollups)', () => {
   it('should aggregate total emissions (70.00 tCO2e), Scope 1 (12.4), Scope 2 (42.7), Scope 3 (14.9) from saved entries without recalculating', async () => {
     const summary = await service.getCarbonSummary(1, 'CARBON');
 
-    expect(summary.kpis.totalEmissions).toBe(70.00);
-    expect(summary.kpis.scope1Emissions).toBe(12.40);
-    expect(summary.kpis.scope2Emissions).toBe(42.70);
-    expect(summary.kpis.scope3Emissions).toBe(14.90);
+    expect(summary.kpis.totalEmissions).toBe(70.0);
+    expect(summary.kpis.scope1Emissions).toBe(12.4);
+    expect(summary.kpis.scope2Emissions).toBe(42.7);
+    expect(summary.kpis.scope3Emissions).toBe(14.9);
   });
 
   it('should aggregate emissions accurately per Facility (Chennai Facility: 60.2 tCO2e, London HQ: 9.8 tCO2e)', async () => {
     const summary = await service.getCarbonSummary(1, 'CARBON');
 
-    const chennai = summary.emissionsByFacility.find((f) => f.facility === 'Chennai Facility');
-    const london = summary.emissionsByFacility.find((f) => f.facility === 'London HQ');
+    const chennai = summary.emissionsByFacility.find(
+      (f) => f.facility === 'Chennai Facility',
+    );
+    const london = summary.emissionsByFacility.find(
+      (f) => f.facility === 'London HQ',
+    );
 
     expect(chennai).toBeDefined();
-    expect(chennai?.emission).toBe(60.20);
+    expect(chennai?.emission).toBe(60.2);
     expect(london).toBeDefined();
-    expect(london?.emission).toBe(9.80);
+    expect(london?.emission).toBe(9.8);
   });
 });

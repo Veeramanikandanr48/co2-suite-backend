@@ -22,7 +22,10 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { CalculationMethodEngine, CalculationInput } from './calculation-method.engine';
+import {
+  CalculationMethodEngine,
+  CalculationInput,
+} from './calculation-method.engine';
 
 /** Convenience: run engine and validate non-zero emission + engine version */
 function accept(engine: CalculationMethodEngine, input: CalculationInput) {
@@ -56,12 +59,19 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         efCH4: 0.00028,
         efN2O: 0.00009,
         gwpSource: 'DEFRA 2025',
-        methodologyInputsSnapshot: { fuelType: 'Natural Gas', quantity: 50000, unit: 'kWh' },
+        methodologyInputsSnapshot: {
+          fuelType: 'Natural Gas',
+          quantity: 50000,
+          unit: 'kWh',
+        },
       });
 
       expect(result.inputsSnapshot.fuelType).toBe('Natural Gas');
       expect(result.methodUsed).toBe('FUEL_BASED');
-      expect(result.emission).toBeCloseTo(Number(((50000 * 0.18296) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((50000 * 0.18296) / 1000).toFixed(6)),
+        5,
+      );
       expect(result.gasBreakdown.gasBreakdownAvailable).toBe(true);
       expect(result.gasBreakdown.factorBasis).toBe('CO2E_COMPONENT');
     });
@@ -74,12 +84,20 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         ef: 2.51599,
         method: 'FUEL_BASED',
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { vehicleType: 'Van', fuelType: 'Diesel', quantity: 2000, unit: 'litre' },
+        methodologyInputsSnapshot: {
+          vehicleType: 'Van',
+          fuelType: 'Diesel',
+          quantity: 2000,
+          unit: 'litre',
+        },
       });
 
       expect(result.inputsSnapshot.vehicleType).toBe('Van');
       expect(result.methodUsed).toBe('FUEL_BASED');
-      expect(result.emission).toBeCloseTo(Number(((2000 * 2.51599) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((2000 * 2.51599) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -90,12 +108,19 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         ef: 0.44,
         method: 'PROCESS_EMISSION_BASED',
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { emissionSource: 'Lime kiln', quantity: 5000, unit: 'kg' },
+        methodologyInputsSnapshot: {
+          emissionSource: 'Lime kiln',
+          quantity: 5000,
+          unit: 'kg',
+        },
       });
 
       expect(result.inputsSnapshot.emissionSource).toBe('Lime kiln');
       expect(result.methodUsed).toBe('PROCESS_EMISSION_BASED');
-      expect(result.emission).toBeCloseTo(Number(((5000 * 0.44) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((5000 * 0.44) / 1000).toFixed(6)),
+        5,
+      );
       expect(result.formulaApplied).toContain('Process_EF');
     });
   });
@@ -105,7 +130,7 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       // Store Makers actual: R410A, net gas quantity, 5% leakage applied upstream
       const result = accept(engine, {
         amount: 12.5,
-        ef: 2088,              // R410A GWP100 IPCC AR6
+        ef: 2088, // R410A GWP100 IPCC AR6
         method: 'REFRIGERANT_BASED',
         factorBasis: 'CO2E_TOTAL',
         methodologyInputsSnapshot: {
@@ -120,7 +145,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       expect(result.inputsSnapshot.refrigerantType).toBe('R410A');
       expect(result.inputsSnapshot.leakageRate).toBe(0.05);
       expect(result.methodUsed).toBe('REFRIGERANT_BASED');
-      expect(result.emission).toBeCloseTo(Number(((12.5 * 2088) / 1000).toFixed(6)), 4);
+      expect(result.emission).toBeCloseTo(
+        Number(((12.5 * 2088) / 1000).toFixed(6)),
+        4,
+      );
     });
   });
 
@@ -146,7 +174,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       expect(result.inputsSnapshot.gridRegion).toBe('UAE - DEWA');
       expect(result.inputsSnapshot.factorSource).toBe('DEWA 2025');
       expect(result.methodUsed).toBe('LOCATION_BASED');
-      expect(result.emission).toBeCloseTo(Number(((450000 * 0.3833) / 1000).toFixed(6)), 4);
+      expect(result.emission).toBeCloseTo(
+        Number(((450000 * 0.3833) / 1000).toFixed(6)),
+        4,
+      );
     });
   });
 
@@ -157,12 +188,20 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         ef: 66.28,
         method: 'PURCHASED_STEAM',
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { quantity: 200, unit: 'GJ', factorSource: 'DEFRA 2025', energyType: 'STEAM' },
+        methodologyInputsSnapshot: {
+          quantity: 200,
+          unit: 'GJ',
+          factorSource: 'DEFRA 2025',
+          energyType: 'STEAM',
+        },
       });
 
       expect(result.inputsSnapshot.energyType).toBe('STEAM');
       expect(result.methodUsed).toBe('PURCHASED_STEAM');
-      expect(result.emission).toBeCloseTo(Number(((200 * 66.28) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((200 * 66.28) / 1000).toFixed(6)),
+        5,
+      );
       expect(result.formulaApplied).toContain('Steam_EF');
     });
   });
@@ -174,12 +213,19 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         ef: 55.0,
         method: 'PURCHASED_HEATING',
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { quantity: 150, unit: 'GJ', energyType: 'DISTRICT_HEAT' },
+        methodologyInputsSnapshot: {
+          quantity: 150,
+          unit: 'GJ',
+          energyType: 'DISTRICT_HEAT',
+        },
       });
 
       expect(result.inputsSnapshot.energyType).toBe('DISTRICT_HEAT');
       expect(result.methodUsed).toBe('PURCHASED_HEATING');
-      expect(result.emission).toBeCloseTo(Number(((150 * 55.0) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((150 * 55.0) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -190,12 +236,19 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         ef: 0.233,
         method: 'PURCHASED_COOLING',
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { quantity: 80, unit: 'MWh', energyType: 'DISTRICT_COOL' },
+        methodologyInputsSnapshot: {
+          quantity: 80,
+          unit: 'MWh',
+          energyType: 'DISTRICT_COOL',
+        },
       });
 
       expect(result.inputsSnapshot.energyType).toBe('DISTRICT_COOL');
       expect(result.methodUsed).toBe('PURCHASED_COOLING');
-      expect(result.emission).toBeCloseTo(Number(((80 * 0.233) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((80 * 0.233) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -211,13 +264,22 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         method: 'SPEND_BASED',
         spend: 250000,
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { category: 'Office Supplies', spend: 250000, currency: 'GBP', eeioSource: 'DEFRA 2025', goodsType: 'PURCHASED_GOODS' },
+        methodologyInputsSnapshot: {
+          category: 'Office Supplies',
+          spend: 250000,
+          currency: 'GBP',
+          eeioSource: 'DEFRA 2025',
+          goodsType: 'PURCHASED_GOODS',
+        },
       });
 
       expect(result.inputsSnapshot.goodsType).toBe('PURCHASED_GOODS');
       expect(result.inputsSnapshot.currency).toBe('GBP');
       expect(result.methodUsed).toBe('SPEND_BASED');
-      expect(result.emission).toBeCloseTo(Number(((250000 * 0.32) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((250000 * 0.32) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -229,12 +291,20 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         method: 'SPEND_BASED',
         spend: 500000,
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { category: 'Manufacturing Equipment', spend: 500000, currency: 'GBP', goodsType: 'CAPITAL_GOODS' },
+        methodologyInputsSnapshot: {
+          category: 'Manufacturing Equipment',
+          spend: 500000,
+          currency: 'GBP',
+          goodsType: 'CAPITAL_GOODS',
+        },
       });
 
       expect(result.inputsSnapshot.goodsType).toBe('CAPITAL_GOODS');
       expect(result.methodUsed).toBe('SPEND_BASED');
-      expect(result.emission).toBeCloseTo(Number(((500000 * 0.45) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((500000 * 0.45) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -245,27 +315,43 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         ef: 0.01832,
         method: 'WTT_BASED',
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { energyType: 'ELECTRICITY', quantity: 450000, unit: 'kWh', wttSource: 'DEFRA 2025' },
+        methodologyInputsSnapshot: {
+          energyType: 'ELECTRICITY',
+          quantity: 450000,
+          unit: 'kWh',
+          wttSource: 'DEFRA 2025',
+        },
       });
 
       expect(result.inputsSnapshot.energyType).toBe('ELECTRICITY');
       expect(result.methodUsed).toBe('WTT_BASED');
-      expect(result.emission).toBeCloseTo(Number(((450000 * 0.01832) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((450000 * 0.01832) / 1000).toFixed(6)),
+        5,
+      );
       expect(result.formulaApplied).toContain('WTT_EF');
     });
 
     it('S3 Cat3 T&D: Transmission & distribution losses, kWh × T&D EF (DEFRA 2025)', () => {
       const result = accept(engine, {
         amount: 450000,
-        ef: 0.02040,
+        ef: 0.0204,
         method: 'TRANSMISSION_DISTRIBUTION',
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { energyType: 'ELECTRICITY', quantity: 450000, unit: 'kWh', region: 'UK' },
+        methodologyInputsSnapshot: {
+          energyType: 'ELECTRICITY',
+          quantity: 450000,
+          unit: 'kWh',
+          region: 'UK',
+        },
       });
 
       expect(result.inputsSnapshot.region).toBe('UK');
       expect(result.methodUsed).toBe('TRANSMISSION_DISTRIBUTION');
-      expect(result.emission).toBeCloseTo(Number(((450000 * 0.02040) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((450000 * 0.0204) / 1000).toFixed(6)),
+        5,
+      );
       expect(result.formulaApplied).toContain('T&D_Loss_EF');
     });
   });
@@ -279,13 +365,22 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         distance: 500,
         weight: 20,
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { freightMode: 'HGV_REFRIGERATED', weight: 20, distance: 500, unit: 'tonne-km', category: 'UPSTREAM_DISTRIBUTION' },
+        methodologyInputsSnapshot: {
+          freightMode: 'HGV_REFRIGERATED',
+          weight: 20,
+          distance: 500,
+          unit: 'tonne-km',
+          category: 'UPSTREAM_DISTRIBUTION',
+        },
       });
 
       expect(result.inputsSnapshot.category).toBe('UPSTREAM_DISTRIBUTION');
       expect(result.methodUsed).toBe('FREIGHT_BASED');
       expect(result.derivedAmount).toBe(20 * 500);
-      expect(result.emission).toBeCloseTo(Number(((10000 * 0.10406) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((10000 * 0.10406) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -297,12 +392,21 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         method: 'WASTE_DISPOSAL',
         treatmentMethod: 'LANDFILL',
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { wasteType: 'Mixed Waste', quantity: 50, unit: 'tonne', treatmentMethod: 'LANDFILL', wasteContext: 'CAT_5_OPERATIONAL' },
+        methodologyInputsSnapshot: {
+          wasteType: 'Mixed Waste',
+          quantity: 50,
+          unit: 'tonne',
+          treatmentMethod: 'LANDFILL',
+          wasteContext: 'CAT_5_OPERATIONAL',
+        },
       });
 
       expect(result.inputsSnapshot.wasteContext).toBe('CAT_5_OPERATIONAL');
       expect(result.methodUsed).toBe('WASTE_DISPOSAL');
-      expect(result.emission).toBeCloseTo(Number(((50 * 446.77) / 1000).toFixed(6)), 4);
+      expect(result.emission).toBeCloseTo(
+        Number(((50 * 446.77) / 1000).toFixed(6)),
+        4,
+      );
     });
   });
 
@@ -328,7 +432,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       expect(result.inputsSnapshot.origin).toBe('Dubai (DXB)');
       expect(result.inputsSnapshot.flightClass).toBe('ECONOMY');
       expect(result.methodUsed).toBe('BUSINESS_TRAVEL_AIR');
-      expect(result.emission).toBeCloseTo(Number(((12500 * 0.15102) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((12500 * 0.15102) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -341,13 +448,21 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         numberOfRooms: 2,
         numberOfNights: 3,
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { hotelType: 'City Hotel', numberOfRooms: 2, numberOfNights: 3, location: 'London' },
+        methodologyInputsSnapshot: {
+          hotelType: 'City Hotel',
+          numberOfRooms: 2,
+          numberOfNights: 3,
+          location: 'London',
+        },
       });
 
       expect(result.inputsSnapshot.hotelType).toBe('City Hotel');
       expect(result.methodUsed).toBe('HOTEL_STAY');
       expect(result.derivedAmount).toBe(6); // 2 × 3
-      expect(result.emission).toBeCloseTo(Number(((6 * 24.29) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((6 * 24.29) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -372,7 +487,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       expect(result.inputsSnapshot.transportMode).toBe('RAIL');
       expect(result.inputsSnapshot.origin).toBe('Manchester');
       expect(result.methodUsed).toBe('BUSINESS_TRAVEL_LAND_SEA');
-      expect(result.emission).toBeCloseTo(Number(((1200 * 0.04116) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((1200 * 0.04116) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -400,14 +518,17 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       expect(result.inputsSnapshot.transportMode).toBe('CAR_AVERAGE');
       expect(result.methodUsed).toBe('EMPLOYEE_COMMUTING_BASED');
       expect(result.derivedAmount).toBe(expectedDerived);
-      expect(result.emission).toBeCloseTo(Number(((expectedDerived * 0.17064) / 1000).toFixed(6)), 4);
+      expect(result.emission).toBeCloseTo(
+        Number(((expectedDerived * 0.17064) / 1000).toFixed(6)),
+        4,
+      );
     });
   });
 
   describe('Cat 7 — Remote Working / Homeworking', () => {
     it('S3 Cat7 Remote Work: Total homeworking hours x EF (DEFRA 2025)', () => {
       const result = accept(engine, {
-        amount: 440000,        // 250 employees × 220 days × 8 hours
+        amount: 440000, // 250 employees × 220 days × 8 hours
         ef: 0.00254,
         method: 'HOMEWORKING',
         factorBasis: 'CO2E_TOTAL',
@@ -422,7 +543,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
 
       expect(result.inputsSnapshot.employeeCount).toBe(250);
       expect(result.methodUsed).toBe('HOMEWORKING');
-      expect(result.emission).toBeCloseTo(Number(((440000 * 0.00254) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((440000 * 0.00254) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -444,7 +568,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
 
       expect(result.inputsSnapshot.assetCategory).toBe('UPSTREAM_LEASED');
       expect(result.methodUsed).toBe('LEASED_ASSET');
-      expect(result.emission).toBeCloseTo(Number(((85000 * 0.20493) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((85000 * 0.20493) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -457,13 +584,22 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         distance: 5500,
         weight: 0.5,
         factorBasis: 'CO2E_TOTAL',
-        methodologyInputsSnapshot: { freightMode: 'AIR', weight: 0.5, distance: 5500, unit: 'tonne-km', category: 'DOWNSTREAM_DISTRIBUTION' },
+        methodologyInputsSnapshot: {
+          freightMode: 'AIR',
+          weight: 0.5,
+          distance: 5500,
+          unit: 'tonne-km',
+          category: 'DOWNSTREAM_DISTRIBUTION',
+        },
       });
 
       expect(result.inputsSnapshot.category).toBe('DOWNSTREAM_DISTRIBUTION');
       expect(result.methodUsed).toBe('FREIGHT_BASED');
       expect(result.derivedAmount).toBe(0.5 * 5500);
-      expect(result.emission).toBeCloseTo(Number(((2750 * 1.44012) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((2750 * 1.44012) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -487,7 +623,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       expect(result.inputsSnapshot.category).toBe('CAT_10_PROCESSING');
       expect(result.inputsSnapshot.processingEnergyType).toBe('ELECTRICITY');
       expect(result.methodUsed).toBe('SOLD_PRODUCT_PROCESSING');
-      expect(result.emission).toBeCloseTo(Number(((30000 * 0.20493) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((30000 * 0.20493) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -515,7 +654,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       expect(result.inputsSnapshot.category).toBe('CAT_11_USE');
       expect(result.methodUsed).toBe('SOLD_PRODUCT_USE');
       expect(result.derivedAmount).toBe(expectedDerived);
-      expect(result.emission).toBeCloseTo(Number(((expectedDerived * 0.20493) / 1000).toFixed(6)), 4);
+      expect(result.emission).toBeCloseTo(
+        Number(((expectedDerived * 0.20493) / 1000).toFixed(6)),
+        4,
+      );
       expect(result.formulaApplied).toContain('Lifetime Uses');
     });
   });
@@ -541,7 +683,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       expect(result.methodUsed).toBe('END_OF_LIFE');
       // Critical: formula must explicitly distinguish Cat 12 from Cat 5
       expect(result.formulaApplied).toContain('Cat 12');
-      expect(result.emission).toBeCloseTo(Number(((8000 * 0.64) / 1000).toFixed(6)), 5);
+      expect(result.emission).toBeCloseTo(
+        Number(((8000 * 0.64) / 1000).toFixed(6)),
+        5,
+      );
     });
   });
 
@@ -565,7 +710,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       expect(result.inputsSnapshot.assetCategory).toBe('DOWNSTREAM_LEASED');
       expect(result.inputsSnapshot.lesseeType).toBe('TENANT');
       expect(result.methodUsed).toBe('LEASED_ASSET');
-      expect(result.emission).toBeCloseTo(Number(((120000 * 0.3833) / 1000).toFixed(6)), 4);
+      expect(result.emission).toBeCloseTo(
+        Number(((120000 * 0.3833) / 1000).toFixed(6)),
+        4,
+      );
     });
   });
 
@@ -590,7 +738,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       expect(result.inputsSnapshot.numberOfFranchises).toBe(12);
       expect(result.inputsSnapshot.buildingType).toBe('RETAIL_STORE');
       expect(result.methodUsed).toBe('FRANCHISE');
-      expect(result.emission).toBeCloseTo(Number(((280000 * 0.3833) / 1000).toFixed(6)), 4);
+      expect(result.emission).toBeCloseTo(
+        Number(((280000 * 0.3833) / 1000).toFixed(6)),
+        4,
+      );
     });
   });
 
@@ -617,7 +768,10 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
       expect(result.inputsSnapshot.investmentType).toBe('EQUITY');
       expect(result.methodUsed).toBe('INVESTMENT_BASED');
       expect(result.derivedAmount).toBe(expectedDerived);
-      expect(result.emission).toBeCloseTo(Number(((expectedDerived * 0.00015) / 1000).toFixed(6)), 6);
+      expect(result.emission).toBeCloseTo(
+        Number(((expectedDerived * 0.00015) / 1000).toFixed(6)),
+        6,
+      );
       expect(result.formulaApplied).toContain('Equity');
     });
 
@@ -626,23 +780,26 @@ describe('SOURCE DOCUMENT ACCEPTANCE SUITE — GHG Data Collection Workbook (24 
         amount: 20000000,
         ef: 0.00008,
         method: 'INVESTMENT_BASED',
-        equityShare: 0.40,
+        equityShare: 0.4,
         factorBasis: 'CO2E_TOTAL',
         methodologyInputsSnapshot: {
           projectType: 'RENEWABLE_ENERGY',
           projectPhase: 'CONSTRUCTION',
           projectCost: 20000000,
-          shareOfProjectCosts: 0.40,
+          shareOfProjectCosts: 0.4,
           investmentType: 'PROJECT_FINANCE',
           category: 'CAT_15_INVESTMENT',
         },
       });
 
-      const expectedDerived = 20000000 * 0.40; // 8,000,000
+      const expectedDerived = 20000000 * 0.4; // 8,000,000
       expect(result.inputsSnapshot.investmentType).toBe('PROJECT_FINANCE');
       expect(result.methodUsed).toBe('INVESTMENT_BASED');
       expect(result.derivedAmount).toBe(expectedDerived);
-      expect(result.emission).toBeCloseTo(Number(((expectedDerived * 0.00008) / 1000).toFixed(6)), 6);
+      expect(result.emission).toBeCloseTo(
+        Number(((expectedDerived * 0.00008) / 1000).toFixed(6)),
+        6,
+      );
     });
   });
 });

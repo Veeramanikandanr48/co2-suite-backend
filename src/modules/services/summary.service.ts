@@ -27,7 +27,7 @@ export class SummaryService {
     private readonly orgRepo: Repository<Organization>,
     @InjectRepository(UserDetails)
     private readonly userRepo: Repository<UserDetails>,
-  ) { }
+  ) {}
 
   /**
    * Calculate dynamic Carbon Summary metrics, graphs, charts, and activities strictly from DB data.
@@ -129,7 +129,9 @@ export class SummaryService {
     const scope3CategoriesSet = new Set<string>();
 
     scopeItems.forEach((item) => {
-      const catName = item.masterCategory?.name ? item.masterCategory.name.toLowerCase() : '';
+      const catName = item.masterCategory?.name
+        ? item.masterCategory.name.toLowerCase()
+        : '';
       const scopeLabel = item.masterScope?.scope || `Scope ${item.scopeId}`;
       if (catName) {
         categoryToScopeMap.set(catName, scopeLabel);

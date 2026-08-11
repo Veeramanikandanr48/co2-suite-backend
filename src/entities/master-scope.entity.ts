@@ -1,8 +1,15 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Unique,
+} from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import type { MasterFuel } from './master-fuel.entity';
 
 @Entity({ name: 'master_scope' })
+@Unique(['code'])
 export class MasterScope extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;

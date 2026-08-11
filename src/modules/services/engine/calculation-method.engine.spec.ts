@@ -41,10 +41,10 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('Regression Test 2: CO2E_COMPONENT -> does NOT re-apply GWP multipliers (DEFRA pre-converted kg CO2e species)', () => {
     const res = engine.calculateEmission({
       amount: 10000, // 10,000 kWh electricity
-      ef: 0.177,     // Published Total EF = 0.177 kg CO2e / kWh
+      ef: 0.177, // Published Total EF = 0.177 kg CO2e / kWh
       factorBasis: 'CO2E_COMPONENT',
       efCO2: 0.17489, // 0.17489 kg CO2e / kWh
-      efCH4: 0.0009,  // 0.0009 kg CO2e / kWh (already converted by DEFRA 2025!)
+      efCH4: 0.0009, // 0.0009 kg CO2e / kWh (already converted by DEFRA 2025!)
       efN2O: 0.00122, // 0.00122 kg CO2e / kWh (already converted by DEFRA 2025!)
       gwpSource: 'DEFRA 2025',
       method: 'LOCATION_BASED',
@@ -54,9 +54,9 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
     expect(res.gasBreakdown.gasBreakdownAvailable).toBe(true);
     expect(res.gasBreakdown.ch4Origin).toBeNull(); // No origin GWP selection needed for pre-converted factors
     expect(res.gasBreakdown.gwpValuesSnapshot).toBeNull(); // No GWP multipliers re-applied!
-    expect(res.gasBreakdown.CO2).toBe(1.7489);  // (10000 * 0.17489) / 1000 = 1.7489 tCO2e
-    expect(res.gasBreakdown.CH4).toBe(0.009);    // (10000 * 0.0009) / 1000 = 0.009 tCO2e
-    expect(res.gasBreakdown.N2O).toBe(0.0122);   // (10000 * 0.00122) / 1000 = 0.0122 tCO2e
+    expect(res.gasBreakdown.CO2).toBe(1.7489); // (10000 * 0.17489) / 1000 = 1.7489 tCO2e
+    expect(res.gasBreakdown.CH4).toBe(0.009); // (10000 * 0.0009) / 1000 = 0.009 tCO2e
+    expect(res.gasBreakdown.N2O).toBe(0.0122); // (10000 * 0.00122) / 1000 = 0.0122 tCO2e
   });
 
   it('Regression Test 3: GAS_MASS -> DOES apply explicit GWP multipliers (29.8 for Fossil CH4, 273 for N2O)', () => {
@@ -80,7 +80,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
     expect(res.gasBreakdown.gasBreakdownAvailable).toBe(true);
     expect(res.gasBreakdown.ch4Origin).toBe('FOSSIL');
     expect(res.gasBreakdown.gwpValuesSnapshot?.CH4).toBe(29.8); // AR6 Fossil CH4 GWP
-    expect(res.gasBreakdown.gwpValuesSnapshot?.N2O).toBe(273);  // AR6 N2O GWP
+    expect(res.gasBreakdown.gwpValuesSnapshot?.N2O).toBe(273); // AR6 N2O GWP
     expect(res.gasBreakdown.CO2).toBe(2.65); // (1000 * 2.65 * 1) / 1000
     expect(res.gasBreakdown.CH4).toBeCloseTo(0.0149, 4); // (1000 * 0.0005 * 29.8) / 1000 = 0.0149 tCO2e
     expect(res.gasBreakdown.N2O).toBeCloseTo(0.0273, 4); // (1000 * 0.0001 * 273) / 1000 = 0.0273 tCO2e
@@ -114,7 +114,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('Regression Test 6: Component EF Rounding Arithmetic -> 0.17489 + 0.0009 + 0.00122 = 0.17701 kg CO2e / kWh = 1.7701 tCO2e', () => {
     const res = engine.calculateEmission({
       amount: 10000, // 10,000 kWh
-      ef: 0.177,     // Published total EF (rounded)
+      ef: 0.177, // Published total EF (rounded)
       factorBasis: 'CO2E_COMPONENT',
       efCO2: 0.17489,
       efCH4: 0.0009,
@@ -177,7 +177,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('Scope 3 Category 5: should calculate WASTEWATER_TREATMENT emissions correctly (volume x EF)', () => {
     const res = engine.calculateEmission({
       amount: 500, // 500 m³ wastewater
-      ef: 0.72,    // 0.72 kg CO2e / m³
+      ef: 0.72, // 0.72 kg CO2e / m³
       method: 'WASTEWATER_TREATMENT',
       treatmentMethod: 'ANAEROBIC_DIGESTION',
     });
@@ -221,8 +221,8 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('should calculate Scope 1 / Scope 3 DISTANCE_BASED freight/travel emissions correctly', () => {
     const res = engine.calculateEmission({
       amount: 100, // 100 km
-      weight: 2,   // 2 tonnes cargo
-      ef: 0.15,    // 0.15 kg CO2e / t-km
+      weight: 2, // 2 tonnes cargo
+      ef: 0.15, // 0.15 kg CO2e / t-km
       method: 'DISTANCE_BASED',
       radiativeForcingType: 'WITH_RF',
     });
@@ -235,7 +235,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('should calculate Scope 3 SPEND_BASED EEIO emissions correctly', () => {
     const res = engine.calculateEmission({
       amount: 5000, // 5,000 USD
-      ef: 0.45,     // 0.45 kg CO2e / USD
+      ef: 0.45, // 0.45 kg CO2e / USD
       method: 'SPEND_BASED',
     });
     expect(res.methodUsed).toBe('SPEND_BASED');
@@ -246,7 +246,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('should calculate Scope 2 LOCATION_BASED grid emissions correctly', () => {
     const res = engine.calculateEmission({
       amount: 10000, // 10,000 kWh
-      ef: 0.42,      // Grid Location EF: 0.42 kg CO2e / kWh
+      ef: 0.42, // Grid Location EF: 0.42 kg CO2e / kWh
       method: 'LOCATION_BASED',
     });
     expect(res.methodUsed).toBe('LOCATION_BASED');
@@ -256,7 +256,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('should calculate Scope 2 MARKET_BASED supplier contract emissions correctly', () => {
     const res = engine.calculateEmission({
       amount: 10000, // 10,000 kWh
-      ef: 0.10,      // Supplier Market EF: 0.10 kg CO2e / kWh
+      ef: 0.1, // Supplier Market EF: 0.10 kg CO2e / kWh
       method: 'MARKET_BASED',
     });
     expect(res.methodUsed).toBe('MARKET_BASED');
@@ -266,7 +266,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('should calculate MASS_BASED waste/material emissions correctly', () => {
     const res = engine.calculateEmission({
       amount: 500, // 500 kg
-      ef: 0.85,    // 0.85 kg CO2e / kg
+      ef: 0.85, // 0.85 kg CO2e / kg
       method: 'MASS_BASED',
       treatmentMethod: 'INCINERATION',
     });
@@ -293,7 +293,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('PROCESS_EMISSION_BASED: should calculate S1 process emissions correctly (e.g. cement kiln CO2)', () => {
     const res = engine.calculateEmission({
       amount: 2000, // 2000 kg process output
-      ef: 0.52,     // 0.52 kg CO2 / kg product
+      ef: 0.52, // 0.52 kg CO2 / kg product
       method: 'PROCESS_EMISSION_BASED',
     });
     expect(res.methodUsed).toBe('PROCESS_EMISSION_BASED');
@@ -303,8 +303,8 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
 
   it('PURCHASED_STEAM: should calculate S2 purchased steam correctly', () => {
     const res = engine.calculateEmission({
-      amount: 50,   // 50 GJ steam
-      ef: 66.28,    // kg CO2e / GJ
+      amount: 50, // 50 GJ steam
+      ef: 66.28, // kg CO2e / GJ
       method: 'PURCHASED_STEAM',
     });
     expect(res.methodUsed).toBe('PURCHASED_STEAM');
@@ -314,7 +314,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
 
   it('PURCHASED_HEATING: should calculate S2 purchased district heating correctly', () => {
     const res = engine.calculateEmission({
-      amount: 30,   // 30 GJ
+      amount: 30, // 30 GJ
       ef: 55.0,
       method: 'PURCHASED_HEATING',
     });
@@ -325,7 +325,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
 
   it('PURCHASED_COOLING: should calculate S2 purchased cooling correctly', () => {
     const res = engine.calculateEmission({
-      amount: 20,   // 20 MWh
+      amount: 20, // 20 MWh
       ef: 0.233,
       method: 'PURCHASED_COOLING',
     });
@@ -337,7 +337,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('WTT_BASED: should calculate Cat 3 well-to-tank upstream fuel emissions correctly', () => {
     const res = engine.calculateEmission({
       amount: 1000, // 1000 kWh electricity
-      ef: 0.01832,  // DEFRA 2025 WTT electricity kWh
+      ef: 0.01832, // DEFRA 2025 WTT electricity kWh
       method: 'WTT_BASED',
     });
     expect(res.methodUsed).toBe('WTT_BASED');
@@ -348,11 +348,11 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('TRANSMISSION_DISTRIBUTION: should calculate Cat 3 T&D loss emissions correctly', () => {
     const res = engine.calculateEmission({
       amount: 10000, // 10,000 kWh
-      ef: 0.02040,   // DEFRA 2025 T&D loss factor
+      ef: 0.0204, // DEFRA 2025 T&D loss factor
       method: 'TRANSMISSION_DISTRIBUTION',
     });
     expect(res.methodUsed).toBe('TRANSMISSION_DISTRIBUTION');
-    expect(res.emission).toBe(Number(((10000 * 0.02040) / 1000).toFixed(6)));
+    expect(res.emission).toBe(Number(((10000 * 0.0204) / 1000).toFixed(6)));
     expect(res.formulaApplied).toContain('T&D_Loss_EF');
   });
 
@@ -380,7 +380,9 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
     const expectedDerived = 1000 * 200 * 0.5; // 100,000 kWh
     expect(res.methodUsed).toBe('SOLD_PRODUCT_USE');
     expect(res.derivedAmount).toBe(expectedDerived);
-    expect(res.emission).toBe(Number(((expectedDerived * 0.233) / 1000).toFixed(6)));
+    expect(res.emission).toBe(
+      Number(((expectedDerived * 0.233) / 1000).toFixed(6)),
+    );
     expect(res.inputsSnapshot.numberSold).toBe(1000);
     expect(res.inputsSnapshot.lifetimeUses).toBe(200);
     expect(res.inputsSnapshot.consumptionPerUse).toBe(0.5);
@@ -390,7 +392,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('END_OF_LIFE: should calculate Cat 12 end-of-life product disposal (distinct from Cat 5)', () => {
     const res = engine.calculateEmission({
       amount: 3000, // 3000 kg sold product mass
-      ef: 0.64,     // landfill EF
+      ef: 0.64, // landfill EF
       method: 'END_OF_LIFE',
       treatmentMethod: 'LANDFILL',
     });
@@ -404,7 +406,7 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
   it('FRANCHISE: should calculate Cat 14 franchise proxy emissions correctly', () => {
     const res = engine.calculateEmission({
       amount: 50000, // 50,000 kWh total franchisee electricity
-      ef: 0.3833,    // DEWA grid factor
+      ef: 0.3833, // DEWA grid factor
       method: 'FRANCHISE',
     });
     expect(res.methodUsed).toBe('FRANCHISE');
@@ -418,13 +420,15 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
       amount: 5000000,
       ef: 0.0002,
       method: 'INVESTMENT_BASED',
-      equityShare: 0.30,
+      equityShare: 0.3,
     });
-    const expectedDerived = 5000000 * 0.30; // 1,500,000
+    const expectedDerived = 5000000 * 0.3; // 1,500,000
     expect(res.methodUsed).toBe('INVESTMENT_BASED');
     expect(res.derivedAmount).toBe(expectedDerived);
-    expect(res.emission).toBe(Number(((expectedDerived * 0.0002) / 1000).toFixed(6)));
-    expect(res.inputsSnapshot.equityShare).toBe(0.30);
+    expect(res.emission).toBe(
+      Number(((expectedDerived * 0.0002) / 1000).toFixed(6)),
+    );
+    expect(res.inputsSnapshot.equityShare).toBe(0.3);
     expect(res.formulaApplied).toContain('Equity');
   });
 
@@ -476,7 +480,9 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
       expect(res.derivedAmount).toBe(30);
       expect(res.emission).toBeCloseTo((30 * 675) / 1000, 5);
       expect(res.inputsSnapshot.emissionMode).toBe('INVENTORY_DIFFERENCE');
-      expect(res.formulaApplied).toContain('Start [100 kg] + Purchased [50 kg]');
+      expect(res.formulaApplied).toContain(
+        'Start [100 kg] + Purchased [50 kg]',
+      );
     });
 
     it('Mode 3 Safeguard: INVENTORY_DIFFERENCE with negative loss throws 400 BadRequestException', () => {
@@ -510,7 +516,9 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
       expect(res.inputsSnapshot.equipmentCapacity).toBe(500);
       expect(res.inputsSnapshot.leakageRatePercent).toBe(0.08);
       expect(res.inputsSnapshot.emissionMode).toBe('ESTIMATED_LEAKAGE');
-      expect(res.formulaApplied).toContain('Equipment Capacity [500 kg] × Leakage Rate [8.00%]');
+      expect(res.formulaApplied).toContain(
+        'Equipment Capacity [500 kg] × Leakage Rate [8.00%]',
+      );
     });
 
     it('Mode 4 Safeguard: ESTIMATED_LEAKAGE with invalid rate (>100% or <=0%) throws 400', () => {
@@ -533,9 +541,9 @@ describe('CalculationMethodEngine (Complete Regression Test Suite)', () => {
         amount: 10000, // 10,000 litres biodiesel
         ef: 0.05,
         factorBasis: 'CO2E_COMPONENT',
-        efCO2: 2.50,   // 2.50 kg CO2e / L (Biogenic CO2 portion)
-        efCH4: 0.015,  // 0.015 kg CO2e / L (combustion CH4)
-        efN2O: 0.025,  // 0.025 kg CO2e / L (combustion N2O)
+        efCO2: 2.5, // 2.50 kg CO2e / L (Biogenic CO2 portion)
+        efCH4: 0.015, // 0.015 kg CO2e / L (combustion CH4)
+        efN2O: 0.025, // 0.025 kg CO2e / L (combustion N2O)
         isBiogenic: true,
         method: 'FUEL_BASED',
       });

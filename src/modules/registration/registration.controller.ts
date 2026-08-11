@@ -475,7 +475,10 @@ export class RegistrationController {
     );
     logger.info('Method started: changePassword');
     try {
-      const result = await this.registrationService.changePassword(userId, data);
+      const result = await this.registrationService.changePassword(
+        userId,
+        data,
+      );
       logger.info('Operation successful');
       return this.utilService.sendSuccessResponse(res, result.message);
     } catch (error) {
@@ -510,11 +513,9 @@ export class RegistrationController {
     try {
       const result = await this.registrationService.generateBackupCodes(userId);
       logger.info('Operation successful');
-      return this.utilService.sendSuccessResponse(
-        res,
-        result.message,
-        { codes: result.codes },
-      );
+      return this.utilService.sendSuccessResponse(res, result.message, {
+        codes: result.codes,
+      });
     } catch (error) {
       logger.error('Error occurred', error);
       return this.utilService.sendErrorResponse(
@@ -554,10 +555,7 @@ export class RegistrationController {
       return this.utilService.sendSuccessResponse(res, result.message);
     } catch (error) {
       logger.error('Error occurred', error);
-      return this.utilService.sendErrorResponse(
-        res,
-        'Invalid backup code.',
-      );
+      return this.utilService.sendErrorResponse(res, 'Invalid backup code.');
     } finally {
       logger.info('Method ended: recoverWithBackupCode');
     }

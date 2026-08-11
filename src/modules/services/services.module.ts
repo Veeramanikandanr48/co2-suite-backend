@@ -78,4 +78,4 @@ import { ExportService } from './export.service';
     ExportService,
   ],
 })
-export class ServicesModule { }
+export class ServicesModule {}

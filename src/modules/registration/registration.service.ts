@@ -501,7 +501,12 @@ export class RegistrationService {
 
   async updateProfile(
     id: number,
-    dto: Partial<Pick<UserDetails, 'userName' | 'firstName' | 'lastName' | 'profileImageKey'>>,
+    dto: Partial<
+      Pick<
+        UserDetails,
+        'userName' | 'firstName' | 'lastName' | 'profileImageKey'
+      >
+    >,
   ) {
     const user = await this.userRepository
       .createQueryBuilder('user')
@@ -527,10 +532,16 @@ export class RegistrationService {
 
   async changePassword(
     id: number,
-    dto: { currentPassword: string; newPassword: string; confirmPassword: string },
+    dto: {
+      currentPassword: string;
+      newPassword: string;
+      confirmPassword: string;
+    },
   ) {
     if (dto.newPassword !== dto.confirmPassword) {
-      throw new BadRequestException('New password and confirmation do not match');
+      throw new BadRequestException(
+        'New password and confirmation do not match',
+      );
     }
 
     const user = await this.userRepository
@@ -613,9 +624,7 @@ export class RegistrationService {
       throw new BadRequestException('Backup codes could not be read');
     }
 
-    const hashedInput = CryptoJS.SHA256(code.trim()).toString(
-      CryptoJS.enc.Hex,
-    );
+    const hashedInput = CryptoJS.SHA256(code.trim()).toString(CryptoJS.enc.Hex);
     const index = storedCodes.indexOf(hashedInput);
     if (index === -1) {
       throw new BadRequestException('Invalid backup code');

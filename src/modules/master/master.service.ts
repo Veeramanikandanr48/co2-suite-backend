@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { MasterRoles, MasterApprovalStatus } from 'src/entities/master.entity';
@@ -97,7 +101,7 @@ export class MasterService {
     private readonly unitFormulaMappingRepo: Repository<UnitFormulaMapping>,
 
     private readonly utilService: UtilService,
-  ) { }
+  ) {}
 
   /**
    * Reusable paginated GET for any master table repository.
@@ -219,7 +223,13 @@ export class MasterService {
       'id',
       payload,
       ['name', 'code', 'description'],
-      ['scope', 'unitMappings', 'unitMappings.masterUnit', 'versionMappings', 'versionMappings.masterFactorVersion'],
+      [
+        'scope',
+        'unitMappings',
+        'unitMappings.masterUnit',
+        'versionMappings',
+        'versionMappings.masterFactorVersion',
+      ],
     );
   }
 
@@ -235,7 +245,12 @@ export class MasterService {
       'id',
       payload,
       ['name', 'symbol', 'description'],
-      ['fuelMappings', 'fuelMappings.masterFuel', 'formulaMappings', 'formulaMappings.masterFormula'],
+      [
+        'fuelMappings',
+        'fuelMappings.masterFuel',
+        'formulaMappings',
+        'formulaMappings.masterFormula',
+      ],
     );
   }
 
@@ -544,7 +559,9 @@ export class MasterService {
       }
 
       for (const verId of versionIds) {
-        const ver = await this.masterFactorVersionRepo.findOne({ where: { id: verId } });
+        const ver = await this.masterFactorVersionRepo.findOne({
+          where: { id: verId },
+        });
         if (ver && ver.datasourceId !== datasourceId) {
           ver.datasourceId = datasourceId;
           ver.updatedBy = userId;
@@ -552,7 +569,9 @@ export class MasterService {
         }
       }
     } else if (Array.isArray(versions)) {
-      const cleanVersions = versions.map((v) => (typeof v === 'string' ? v.trim() : '')).filter(Boolean);
+      const cleanVersions = versions
+        .map((v) => (typeof v === 'string' ? v.trim() : ''))
+        .filter(Boolean);
 
       const existing = await this.masterFactorVersionRepo.find({
         where: { datasourceId, isActive: true },
@@ -628,12 +647,20 @@ export class MasterService {
     const fv = await this.createMaster(
       this.masterFactorVersionRepo,
       rest as Partial<MasterFactorVersion>,
-      { version: dto.version, datasourceId: dto.datasourceId } as FindOptionsWhere<MasterFactorVersion>,
+      {
+        version: dto.version,
+        datasourceId: dto.datasourceId,
+      } as FindOptionsWhere<MasterFactorVersion>,
       createdBy,
     );
 
     if (Array.isArray(fuelIds)) {
-      await this.syncVersionFuelMappings(fv.id, fuelIds, createdBy, dto.emissionFactor);
+      await this.syncVersionFuelMappings(
+        fv.id,
+        fuelIds,
+        createdBy,
+        dto.emissionFactor,
+      );
     }
 
     return fv;
@@ -662,7 +689,10 @@ export class MasterService {
     return this.createMaster(
       this.scopeCategoryMappingRepo,
       dto as Partial<ScopeCategoryMapping>,
-      { scopeId: dto.scopeId, categoryId: dto.categoryId } as FindOptionsWhere<ScopeCategoryMapping>,
+      {
+        scopeId: dto.scopeId,
+        categoryId: dto.categoryId,
+      } as FindOptionsWhere<ScopeCategoryMapping>,
       createdBy,
     );
   }
@@ -676,7 +706,10 @@ export class MasterService {
     return this.createMaster(
       this.categoryDatasourceMappingRepo,
       dto as Partial<CategoryDatasourceMapping>,
-      { categoryId: dto.categoryId, datasourceId: dto.datasourceId } as FindOptionsWhere<CategoryDatasourceMapping>,
+      {
+        categoryId: dto.categoryId,
+        datasourceId: dto.datasourceId,
+      } as FindOptionsWhere<CategoryDatasourceMapping>,
       createdBy,
     );
   }
@@ -690,7 +723,10 @@ export class MasterService {
     return this.createMaster(
       this.versionFuelMappingRepo,
       dto as Partial<VersionFuelMapping>,
-      { factorVersionId: dto.factorVersionId, fuelId: dto.fuelId } as FindOptionsWhere<VersionFuelMapping>,
+      {
+        factorVersionId: dto.factorVersionId,
+        fuelId: dto.fuelId,
+      } as FindOptionsWhere<VersionFuelMapping>,
       createdBy,
     );
   }
@@ -704,7 +740,10 @@ export class MasterService {
     return this.createMaster(
       this.fuelUnitMappingRepo,
       dto as Partial<FuelUnitMapping>,
-      { fuelId: dto.fuelId, unitId: dto.unitId } as FindOptionsWhere<FuelUnitMapping>,
+      {
+        fuelId: dto.fuelId,
+        unitId: dto.unitId,
+      } as FindOptionsWhere<FuelUnitMapping>,
       createdBy,
     );
   }
@@ -718,7 +757,10 @@ export class MasterService {
     return this.createMaster(
       this.unitFormulaMappingRepo,
       dto as Partial<UnitFormulaMapping>,
-      { unitId: dto.unitId, formulaId: dto.formulaId } as FindOptionsWhere<UnitFormulaMapping>,
+      {
+        unitId: dto.unitId,
+        formulaId: dto.formulaId,
+      } as FindOptionsWhere<UnitFormulaMapping>,
       createdBy,
     );
   }
@@ -741,7 +783,15 @@ export class MasterService {
     dto: Record<string, unknown>,
     updatedBy: number,
   ): Promise<unknown> {
-    const { categoryIds, versionIds, versions, fuelIds, unitIds, formulaIds, ...fields } = dto as Record<string, unknown> & {
+    const {
+      categoryIds,
+      versionIds,
+      versions,
+      fuelIds,
+      unitIds,
+      formulaIds,
+      ...fields
+    } = dto as Record<string, unknown> & {
       categoryIds?: number[];
       versionIds?: number[];
       versions?: string[];
@@ -755,13 +805,24 @@ export class MasterService {
       fuel: this.masterFuelRepo as Repository<{ id: number }>,
       unit: this.masterUnitRepo as Repository<{ id: number }>,
       datasource: this.masterDatasourceRepo as Repository<{ id: number }>,
-      'factor-version': this.masterFactorVersionRepo as Repository<{ id: number }>,
+      'factor-version': this.masterFactorVersionRepo as Repository<{
+        id: number;
+      }>,
       formula: this.masterFormulaRepo as Repository<{ id: number }>,
-      'scope-category-mapping': this.scopeCategoryMappingRepo as Repository<{ id: number }>,
-      'category-datasource-mapping': this.categoryDatasourceMappingRepo as Repository<{ id: number }>,
-      'version-fuel-mapping': this.versionFuelMappingRepo as Repository<{ id: number }>,
-      'fuel-unit-mapping': this.fuelUnitMappingRepo as Repository<{ id: number }>,
-      'unit-formula-mapping': this.unitFormulaMappingRepo as Repository<{ id: number }>,
+      'scope-category-mapping': this.scopeCategoryMappingRepo as Repository<{
+        id: number;
+      }>,
+      'category-datasource-mapping': this
+        .categoryDatasourceMappingRepo as Repository<{ id: number }>,
+      'version-fuel-mapping': this.versionFuelMappingRepo as Repository<{
+        id: number;
+      }>,
+      'fuel-unit-mapping': this.fuelUnitMappingRepo as Repository<{
+        id: number;
+      }>,
+      'unit-formula-mapping': this.unitFormulaMappingRepo as Repository<{
+        id: number;
+      }>,
     };
 
     const repo = repoMap[entityType];
@@ -791,7 +852,12 @@ export class MasterService {
         await this.syncDatasourceVersions(id, versionIds, versions, updatedBy);
       }
     } else if (entityType === 'factor-version' && Array.isArray(fuelIds)) {
-      await this.syncVersionFuelMappings(id, fuelIds, updatedBy, fields.emissionFactor as number);
+      await this.syncVersionFuelMappings(
+        id,
+        fuelIds,
+        updatedBy,
+        fields.emissionFactor as number,
+      );
     } else if (entityType === 'fuel' && Array.isArray(unitIds)) {
       await this.syncFuelUnitMappings(id, unitIds, updatedBy);
     } else if (entityType === 'unit' && Array.isArray(formulaIds)) {
@@ -822,18 +888,60 @@ export class MasterService {
     }
 
     const createMap: Record<MasterEntityType, () => Promise<unknown>> = {
-      scope: () => this.createMasterScope(fields as unknown as CreateMasterScopeDto, userId),
-      category: () => this.createMasterCategory(fields as unknown as CreateMasterCategoryDto, userId),
-      fuel: () => this.createMasterFuel(fields as unknown as CreateMasterFuelDto, userId),
-      unit: () => this.createMasterUnit(fields as unknown as CreateMasterUnitDto, userId),
-      datasource: () => this.createMasterDatasource(fields as unknown as CreateMasterDatasourceDto, userId),
-      'factor-version': () => this.createMasterFactorVersion(fields as unknown as CreateMasterFactorVersionDto, userId),
-      formula: () => this.createMasterFormula(fields as unknown as CreateMasterFormulaDto, userId),
-      'scope-category-mapping': () => this.createScopeCategoryMapping(fields as unknown as CreateScopeCategoryMappingDto, userId),
-      'category-datasource-mapping': () => this.createCategoryDatasourceMapping(fields as unknown as CreateCategoryDatasourceMappingDto, userId),
-      'version-fuel-mapping': () => this.createVersionFuelMapping(fields as unknown as CreateVersionFuelMappingDto, userId),
-      'fuel-unit-mapping': () => this.createFuelUnitMapping(fields as unknown as CreateFuelUnitMappingDto, userId),
-      'unit-formula-mapping': () => this.createUnitFormulaMapping(fields as unknown as CreateUnitFormulaMappingDto, userId),
+      scope: () =>
+        this.createMasterScope(
+          fields as unknown as CreateMasterScopeDto,
+          userId,
+        ),
+      category: () =>
+        this.createMasterCategory(
+          fields as unknown as CreateMasterCategoryDto,
+          userId,
+        ),
+      fuel: () =>
+        this.createMasterFuel(fields as unknown as CreateMasterFuelDto, userId),
+      unit: () =>
+        this.createMasterUnit(fields as unknown as CreateMasterUnitDto, userId),
+      datasource: () =>
+        this.createMasterDatasource(
+          fields as unknown as CreateMasterDatasourceDto,
+          userId,
+        ),
+      'factor-version': () =>
+        this.createMasterFactorVersion(
+          fields as unknown as CreateMasterFactorVersionDto,
+          userId,
+        ),
+      formula: () =>
+        this.createMasterFormula(
+          fields as unknown as CreateMasterFormulaDto,
+          userId,
+        ),
+      'scope-category-mapping': () =>
+        this.createScopeCategoryMapping(
+          fields as unknown as CreateScopeCategoryMappingDto,
+          userId,
+        ),
+      'category-datasource-mapping': () =>
+        this.createCategoryDatasourceMapping(
+          fields as unknown as CreateCategoryDatasourceMappingDto,
+          userId,
+        ),
+      'version-fuel-mapping': () =>
+        this.createVersionFuelMapping(
+          fields as unknown as CreateVersionFuelMappingDto,
+          userId,
+        ),
+      'fuel-unit-mapping': () =>
+        this.createFuelUnitMapping(
+          fields as unknown as CreateFuelUnitMappingDto,
+          userId,
+        ),
+      'unit-formula-mapping': () =>
+        this.createUnitFormulaMapping(
+          fields as unknown as CreateUnitFormulaMappingDto,
+          userId,
+        ),
     };
 
     return createMap[entityType]();
@@ -855,18 +963,19 @@ export class MasterService {
     const sortOrder = query.sortOrder === -1 ? -1 : 1;
 
     // Fetch all master data in parallel from repositories
-    const [fuels, categories, datasources, factorVersions, scopes] = await Promise.all([
-      this.masterFuelRepo.find({
-        relations: {
-          unitMappings: { masterUnit: true },
-          versionMappings: { masterFactorVersion: true },
-        },
-      }),
-      this.masterCategoryRepo.find(),
-      this.masterDatasourceRepo.find(),
-      this.masterFactorVersionRepo.find({ relations: { datasource: true } }),
-      this.masterScopeRepo.find(),
-    ]);
+    const [fuels, categories, datasources, factorVersions, scopes] =
+      await Promise.all([
+        this.masterFuelRepo.find({
+          relations: {
+            unitMappings: { masterUnit: true },
+            versionMappings: { masterFactorVersion: true },
+          },
+        }),
+        this.masterCategoryRepo.find(),
+        this.masterDatasourceRepo.find(),
+        this.masterFactorVersionRepo.find({ relations: { datasource: true } }),
+        this.masterScopeRepo.find(),
+      ]);
 
     const datasourceMap = new Map<number, MasterDatasource>();
     datasources.forEach((d) => datasourceMap.set(d.id, d));
@@ -885,47 +994,134 @@ export class MasterService {
       const scopeId = fuel.scopeId;
 
       let scopeObj = scopeId ? scopeMap.get(scopeId) : undefined;
-      let matchedCat = categories.find((c) => c.id === (fuel as any).categoryId);
+      let matchedCat = categories.find(
+        (c) => c.id === (fuel as any).categoryId,
+      );
 
       if (!matchedCat && scopeId) {
         matchedCat = categories.find((c) => c.scopeId === scopeId);
       }
 
       if (fName.includes('electricity') || fName.includes('grid')) {
-        matchedCat = categories.find((c) => String(c.name).toLowerCase().includes('electricity')) || matchedCat;
-        if (!scopeObj) scopeObj = { name: 'Scope 2 - Indirect GHG Emissions', code: 'S2' } as any;
-      } else if (fName.includes('steam') || fName.includes('heat') || fName.includes('district') || fName.includes('cooling')) {
-        matchedCat = categories.find((c) => String(c.name).toLowerCase().includes('heat') || String(c.name).toLowerCase().includes('steam')) || matchedCat;
-        if (!scopeObj) scopeObj = { name: 'Scope 2 - Indirect GHG Emissions', code: 'S2' } as any;
-      } else if (fName.includes('travel') || fName.includes('flight') || fName.includes('commute')) {
-        matchedCat = categories.find((c) => String(c.name).toLowerCase().includes('travel')) || matchedCat;
-        if (!scopeObj) scopeObj = { name: 'Scope 3 - Value Chain Emissions', code: 'S3' } as any;
-      } else if (fName.includes('r-') || fName.includes('hfc') || fName.includes('pfc') || fName.includes('refrigerant')) {
-        matchedCat = categories.find((c) => String(c.name).toLowerCase().includes('fugitive')) || matchedCat;
-        if (!scopeObj) scopeObj = { name: 'Scope 1 - Direct GHG Emissions', code: 'S1' } as any;
-      } else if (fName.includes('diesel') || fName.includes('gasoline') || fName.includes('petrol') || fName.includes('natural gas') || fName.includes('coal') || fName.includes('fuel oil') || fName.includes('lpg')) {
-        matchedCat = categories.find((c) => String(c.name).toLowerCase().includes('stationary')) || matchedCat;
-        if (!scopeObj) scopeObj = { name: 'Scope 1 - Direct GHG Emissions', code: 'S1' } as any;
+        matchedCat =
+          categories.find((c) =>
+            String(c.name).toLowerCase().includes('electricity'),
+          ) || matchedCat;
+        if (!scopeObj)
+          scopeObj = {
+            name: 'Scope 2 - Indirect GHG Emissions',
+            code: 'S2',
+          } as any;
+      } else if (
+        fName.includes('steam') ||
+        fName.includes('heat') ||
+        fName.includes('district') ||
+        fName.includes('cooling')
+      ) {
+        matchedCat =
+          categories.find(
+            (c) =>
+              String(c.name).toLowerCase().includes('heat') ||
+              String(c.name).toLowerCase().includes('steam'),
+          ) || matchedCat;
+        if (!scopeObj)
+          scopeObj = {
+            name: 'Scope 2 - Indirect GHG Emissions',
+            code: 'S2',
+          } as any;
+      } else if (
+        fName.includes('travel') ||
+        fName.includes('flight') ||
+        fName.includes('commute')
+      ) {
+        matchedCat =
+          categories.find((c) =>
+            String(c.name).toLowerCase().includes('travel'),
+          ) || matchedCat;
+        if (!scopeObj)
+          scopeObj = {
+            name: 'Scope 3 - Value Chain Emissions',
+            code: 'S3',
+          } as any;
+      } else if (
+        fName.includes('r-') ||
+        fName.includes('hfc') ||
+        fName.includes('pfc') ||
+        fName.includes('refrigerant')
+      ) {
+        matchedCat =
+          categories.find((c) =>
+            String(c.name).toLowerCase().includes('fugitive'),
+          ) || matchedCat;
+        if (!scopeObj)
+          scopeObj = {
+            name: 'Scope 1 - Direct GHG Emissions',
+            code: 'S1',
+          } as any;
+      } else if (
+        fName.includes('diesel') ||
+        fName.includes('gasoline') ||
+        fName.includes('petrol') ||
+        fName.includes('natural gas') ||
+        fName.includes('coal') ||
+        fName.includes('fuel oil') ||
+        fName.includes('lpg')
+      ) {
+        matchedCat =
+          categories.find((c) =>
+            String(c.name).toLowerCase().includes('stationary'),
+          ) || matchedCat;
+        if (!scopeObj)
+          scopeObj = {
+            name: 'Scope 1 - Direct GHG Emissions',
+            code: 'S1',
+          } as any;
       }
 
-      const categoryName = matchedCat?.name || (fName.includes('electricity') ? 'Purchased Electricity' : fName.includes('steam') ? 'Purchased Heating & Steam' : 'Stationary Combustion');
-      const scopeName = scopeObj?.name || matchedCat?.scope || (categoryName.toLowerCase().includes('purchased') ? 'Scope 2 - Indirect GHG Emissions' : 'Scope 1 - Direct GHG Emissions');
+      const categoryName =
+        matchedCat?.name ||
+        (fName.includes('electricity')
+          ? 'Purchased Electricity'
+          : fName.includes('steam')
+            ? 'Purchased Heating & Steam'
+            : 'Stationary Combustion');
+      const scopeName =
+        scopeObj?.name ||
+        matchedCat?.scope ||
+        (categoryName.toLowerCase().includes('purchased')
+          ? 'Scope 2 - Indirect GHG Emissions'
+          : 'Scope 1 - Direct GHG Emissions');
 
       const unitMappings = fuel.unitMappings || [];
-      const unitSymbol = unitMappings.map((u) => u.masterUnit?.symbol || u.masterUnit?.name).filter(Boolean).join(', ') || 'kg / sm³ / kWh';
+      const unitSymbol =
+        unitMappings
+          .map((u) => u.masterUnit?.symbol || u.masterUnit?.name)
+          .filter(Boolean)
+          .join(', ') || 'kg / sm³ / kWh';
 
       const versionMappings = fuel.versionMappings || [];
 
       if (versionMappings.length > 0) {
         versionMappings.forEach((vm, idx) => {
-          const versionObj = factorVersions.find((fv) => fv.id === vm.factorVersionId) || vm.masterFactorVersion;
+          const versionObj =
+            factorVersions.find((fv) => fv.id === vm.factorVersionId) ||
+            vm.masterFactorVersion;
           const versionName = versionObj?.version || '2023 / AR6';
-          const dsId = versionObj?.datasourceId || (versionObj as any)?.datasource?.id;
-          const dsObj = dsId ? datasourceMap.get(dsId) : (versionObj as any)?.datasource;
-          const dsName = dsObj?.name || 'Intergovernmental Panel on Climate Change';
+          const dsId =
+            versionObj?.datasourceId || (versionObj as any)?.datasource?.id;
+          const dsObj = dsId
+            ? datasourceMap.get(dsId)
+            : (versionObj as any)?.datasource;
+          const dsName =
+            dsObj?.name || 'Intergovernmental Panel on Climate Change';
 
-          const rawFactor = (vm as any)?.emissionFactor || fuel.emissionFactor || (unitMappings[0] as any)?.emissionFactor;
-          const efRefText = rawFactor ? `${rawFactor} kg CO₂e / unit` : 'Reference DB Factor';
+          const rawFactor =
+            (vm as any)?.emissionFactor ||
+            fuel.emissionFactor ||
+            (unitMappings[0] as any)?.emissionFactor;
+          const efRefText = rawFactor
+            ? `${rawFactor} kg CO₂e / unit`
+            : 'Reference DB Factor';
 
           const dedupeKey = `${scopeName}::${categoryName}::${dsName}::${versionName}::${fuel.name}`;
           if (!seenKeys.has(dedupeKey)) {
@@ -949,8 +1145,11 @@ export class MasterService {
           }
         });
       } else {
-        const rawFactor = fuel.emissionFactor || (unitMappings[0] as any)?.emissionFactor;
-        const efRefText = rawFactor ? `${rawFactor} kg CO₂e / unit` : 'Dynamic Matching Factor';
+        const rawFactor =
+          fuel.emissionFactor || (unitMappings[0] as any)?.emissionFactor;
+        const efRefText = rawFactor
+          ? `${rawFactor} kg CO₂e / unit`
+          : 'Dynamic Matching Factor';
 
         const dedupeKey = `${scopeName}::${categoryName}::Global Baseline::Global Baseline::${fuel.name}`;
         if (!seenKeys.has(dedupeKey)) {
@@ -978,8 +1177,10 @@ export class MasterService {
     // Filtering logic
     const filtered = allRows.filter((r) => {
       if (scopeFilter !== 'ALL' && r.scopeName !== scopeFilter) return false;
-      if (categoryFilter !== 'ALL' && r.categoryName !== categoryFilter) return false;
-      if (datasourceFilter !== 'ALL' && r.datasourceName !== datasourceFilter) return false;
+      if (categoryFilter !== 'ALL' && r.categoryName !== categoryFilter)
+        return false;
+      if (datasourceFilter !== 'ALL' && r.datasourceName !== datasourceFilter)
+        return false;
 
       if (searchInput) {
         const query = searchInput;
@@ -1006,9 +1207,12 @@ export class MasterService {
 
     // Server stats
     const totalCount = filtered.length;
-    const scope1Count = filtered.filter((r) => r.scopeName.toLowerCase().includes('scope 1')).length;
+    const scope1Count = filtered.filter((r) =>
+      r.scopeName.toLowerCase().includes('scope 1'),
+    ).length;
     const fuelsCount = new Set(filtered.map((r) => r.fuelName)).size;
-    const datasourcesCount = new Set(filtered.map((r) => r.datasourceName)).size;
+    const datasourcesCount = new Set(filtered.map((r) => r.datasourceName))
+      .size;
 
     // Pagination
     const paginated = filtered.slice(offSet, offSet + limit);

@@ -456,7 +456,8 @@ export class ServicesController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Real-time calculation preview endpoint (Authoritative Backend Engine, does NOT persist to DB)',
+    summary:
+      'Real-time calculation preview endpoint (Authoritative Backend Engine, does NOT persist to DB)',
   })
   @ApiResponse({
     status: 200,
@@ -491,7 +492,10 @@ export class ServicesController {
   @Get('services/reporting-periods')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get organization reporting periods with lock statuses (OPEN, CLOSED, LOCKED)' })
+  @ApiOperation({
+    summary:
+      'Get organization reporting periods with lock statuses (OPEN, CLOSED, LOCKED)',
+  })
   async getReportingPeriods(
     @Req() req: Request,
     @Res() res: Response,
@@ -500,9 +504,16 @@ export class ServicesController {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     try {
       const result = await this.servicesService.getReportingPeriods(user);
-      return this.utilService.sendSuccessResponse(res, 'Fetched reporting periods successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Fetched reporting periods successfully',
+        result,
+      );
     } catch (error) {
-      return this.utilService.sendErrorResponse(res, 'Failed to fetch reporting periods');
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to fetch reporting periods',
+      );
     }
   }
 
@@ -519,17 +530,31 @@ export class ServicesController {
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     try {
-      const result = await this.servicesService.closeReportingPeriod(user, id, reason);
-      return this.utilService.sendSuccessResponse(res, 'Reporting period closed successfully', result);
+      const result = await this.servicesService.closeReportingPeriod(
+        user,
+        id,
+        reason,
+      );
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Reporting period closed successfully',
+        result,
+      );
     } catch (error: any) {
-      return this.utilService.sendErrorResponse(res, error.message || 'Failed to close reporting period');
+      return this.utilService.sendErrorResponse(
+        res,
+        error.message || 'Failed to close reporting period',
+      );
     }
   }
 
   @Post('services/reporting-periods/:id/lock')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Lock reporting period for audit compliance (prevents further data mutations)' })
+  @ApiOperation({
+    summary:
+      'Lock reporting period for audit compliance (prevents further data mutations)',
+  })
   async lockReportingPeriod(
     @Req() req: Request,
     @Res() res: Response,
@@ -539,17 +564,30 @@ export class ServicesController {
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     try {
-      const result = await this.servicesService.lockReportingPeriod(user, id, lockReason);
-      return this.utilService.sendSuccessResponse(res, 'Reporting period locked successfully', result);
+      const result = await this.servicesService.lockReportingPeriod(
+        user,
+        id,
+        lockReason,
+      );
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Reporting period locked successfully',
+        result,
+      );
     } catch (error: any) {
-      return this.utilService.sendErrorResponse(res, error.message || 'Failed to lock reporting period');
+      return this.utilService.sendErrorResponse(
+        res,
+        error.message || 'Failed to lock reporting period',
+      );
     }
   }
 
   @Post('services/reporting-periods/:id/reopen')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Reopen a closed reporting period (Requires Super Admin)' })
+  @ApiOperation({
+    summary: 'Reopen a closed reporting period (Requires Super Admin)',
+  })
   async reopenReportingPeriod(
     @Req() req: Request,
     @Res() res: Response,
@@ -559,17 +597,30 @@ export class ServicesController {
   ) {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     try {
-      const result = await this.servicesService.reopenReportingPeriod(user, id, reason);
-      return this.utilService.sendSuccessResponse(res, 'Reporting period reopened successfully', result);
+      const result = await this.servicesService.reopenReportingPeriod(
+        user,
+        id,
+        reason,
+      );
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Reporting period reopened successfully',
+        result,
+      );
     } catch (error: any) {
-      return this.utilService.sendErrorResponse(res, error.message || 'Failed to reopen reporting period');
+      return this.utilService.sendErrorResponse(
+        res,
+        error.message || 'Failed to reopen reporting period',
+      );
     }
   }
 
   @Get('inventory-entries/:id/audit-logs')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get immutable audit change log timeline for an inventory entry' })
+  @ApiOperation({
+    summary: 'Get immutable audit change log timeline for an inventory entry',
+  })
   async getInventoryAuditLogs(
     @Req() req: Request,
     @Res() res: Response,
@@ -579,17 +630,31 @@ export class ServicesController {
     const logger = this.utilService.createLogger(ServicesController.name, req);
     try {
       const result = await this.servicesService.getInventoryAuditLogs(user, id);
-      return this.utilService.sendSuccessResponse(res, 'Fetched audit logs successfully', result);
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Fetched audit logs successfully',
+        result,
+      );
     } catch (error: any) {
-      return this.utilService.sendErrorResponse(res, error.message || 'Failed to fetch audit logs');
+      return this.utilService.sendErrorResponse(
+        res,
+        error.message || 'Failed to fetch audit logs',
+      );
     }
   }
 
   @Get('services/reports/inventory/export')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Export audit report (CSV / XLSX binary / PDF binary / JSON). All values are authoritative DB snapshots — never re-computed.' })
-  @ApiQuery({ name: 'format', enum: ['csv', 'xlsx', 'pdf', 'json'], required: false })
+  @ApiOperation({
+    summary:
+      'Export audit report (CSV / XLSX binary / PDF binary / JSON). All values are authoritative DB snapshots — never re-computed.',
+  })
+  @ApiQuery({
+    name: 'format',
+    enum: ['csv', 'xlsx', 'pdf', 'json'],
+    required: false,
+  })
   @ApiQuery({ name: 'year', required: false })
   async exportInventoryReport(
     @Req() req: Request,
@@ -603,34 +668,60 @@ export class ServicesController {
       const periodYear = year ? parseInt(year, 10) : undefined;
       const fmt = (format ?? 'csv').toLowerCase();
 
-      const { entries, metadata } = await this.servicesService.getEntriesForExport(user, periodYear);
+      const { entries, metadata } =
+        await this.servicesService.getEntriesForExport(user, periodYear);
 
       if (fmt === 'json') {
-        return this.utilService.sendSuccessResponse(res, 'Exported audit report data successfully', { metadata, entries });
+        return this.utilService.sendSuccessResponse(
+          res,
+          'Exported audit report data successfully',
+          { metadata, entries },
+        );
       }
 
       if (fmt === 'xlsx') {
-        const buffer = await this.exportService.generateXlsxReport(entries, metadata);
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="GHG_Report_${year || 'ALL'}_${Date.now()}.xlsx"`);
+        const buffer = await this.exportService.generateXlsxReport(
+          entries,
+          metadata,
+        );
+        res.setHeader(
+          'Content-Type',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="GHG_Report_${year || 'ALL'}_${Date.now()}.xlsx"`,
+        );
         return res.status(200).send(buffer);
       }
 
       if (fmt === 'pdf') {
-        const buffer = await this.exportService.generatePdfReport(entries, metadata);
+        const buffer = await this.exportService.generatePdfReport(
+          entries,
+          metadata,
+        );
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="GHG_Audit_Certificate_${year || 'ALL'}_${Date.now()}.pdf"`);
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="GHG_Audit_Certificate_${year || 'ALL'}_${Date.now()}.pdf"`,
+        );
         return res.status(200).send(buffer);
       }
 
       // Default: CSV
       const csv = this.exportService.generateCsvReport(entries, metadata);
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="GHG_Audit_Report_${year || 'ALL'}_${Date.now()}.csv"`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="GHG_Audit_Report_${year || 'ALL'}_${Date.now()}.csv"`,
+      );
       return res.status(200).send(csv);
     } catch (error: any) {
       logger.error('Export failed', error);
-      return this.utilService.sendErrorResponse(res, error.message || 'Failed to export inventory report');
+      return this.utilService.sendErrorResponse(
+        res,
+        error.message || 'Failed to export inventory report',
+      );
     }
   }
 

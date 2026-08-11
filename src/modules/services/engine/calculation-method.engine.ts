@@ -70,7 +70,8 @@ export interface CalculationInput {
   // Scope 1 Fugitive & Biogenic & Ownership extensions
   emissionMode?: FugitiveEmissionModeKey;
   isBiogenic?: boolean;
-  ownershipControl?: 'COMPANY_OWNED' | 'COMPANY_LEASED' | 'EMPLOYEE_OWNED' | 'THIRD_PARTY';
+  ownershipControl?:
+    'COMPANY_OWNED' | 'COMPANY_LEASED' | 'EMPLOYEE_OWNED' | 'THIRD_PARTY';
   rechargedAmount?: number;
   equipmentCapacity?: number;
   leakageRatePercent?: number;
@@ -196,28 +197,86 @@ export class CalculationMethodEngine {
     let methodKey: CalculationMethodKey = 'FUEL_BASED';
 
     if (rawMethod.includes('HOTEL')) methodKey = 'HOTEL_STAY';
-    else if (rawMethod.includes('WASTEWATER')) methodKey = 'WASTEWATER_TREATMENT';
-    else if (rawMethod.includes('REFRIGERANT') || rawMethod.includes('FUGITIVE')) methodKey = 'REFRIGERANT_BASED';
-    else if (rawMethod.includes('WASTE_DISPOSAL') || rawMethod.includes('LANDFILL') || rawMethod.includes('RECYCLING')) methodKey = 'WASTE_DISPOSAL';
-    else if (rawMethod.includes('END_OF_LIFE') || rawMethod.includes('END OF LIFE') || rawMethod === 'EOL') methodKey = 'END_OF_LIFE';
+    else if (rawMethod.includes('WASTEWATER'))
+      methodKey = 'WASTEWATER_TREATMENT';
+    else if (
+      rawMethod.includes('REFRIGERANT') ||
+      rawMethod.includes('FUGITIVE')
+    )
+      methodKey = 'REFRIGERANT_BASED';
+    else if (
+      rawMethod.includes('WASTE_DISPOSAL') ||
+      rawMethod.includes('LANDFILL') ||
+      rawMethod.includes('RECYCLING')
+    )
+      methodKey = 'WASTE_DISPOSAL';
+    else if (
+      rawMethod.includes('END_OF_LIFE') ||
+      rawMethod.includes('END OF LIFE') ||
+      rawMethod === 'EOL'
+    )
+      methodKey = 'END_OF_LIFE';
     else if (rawMethod.includes('FREIGHT')) methodKey = 'FREIGHT_BASED';
     // IMPORTANT: BUSINESS_TRAVEL_AIR must be evaluated BEFORE generic transport-mode keywords
     // because 'BUSINESS_TRAVEL_AIR' contains 'BUS' which would otherwise match LAND_SEA.
-    else if (rawMethod === 'BUSINESS_TRAVEL_AIR' || rawMethod.includes('FLIGHT') || rawMethod.includes('AVIATION')) methodKey = 'BUSINESS_TRAVEL_AIR';
-    else if (rawMethod === 'BUSINESS_TRAVEL_LAND_SEA' || rawMethod.includes('LAND_SEA') || rawMethod.includes('RAIL') || rawMethod.includes('FERRY') || rawMethod === 'BUS' || rawMethod === 'CAR') methodKey = 'BUSINESS_TRAVEL_LAND_SEA';
-    else if (rawMethod.includes('HOMEWORKING') || rawMethod.includes('REMOTE_WORK')) methodKey = 'HOMEWORKING';
+    else if (
+      rawMethod === 'BUSINESS_TRAVEL_AIR' ||
+      rawMethod.includes('FLIGHT') ||
+      rawMethod.includes('AVIATION')
+    )
+      methodKey = 'BUSINESS_TRAVEL_AIR';
+    else if (
+      rawMethod === 'BUSINESS_TRAVEL_LAND_SEA' ||
+      rawMethod.includes('LAND_SEA') ||
+      rawMethod.includes('RAIL') ||
+      rawMethod.includes('FERRY') ||
+      rawMethod === 'BUS' ||
+      rawMethod === 'CAR'
+    )
+      methodKey = 'BUSINESS_TRAVEL_LAND_SEA';
+    else if (
+      rawMethod.includes('HOMEWORKING') ||
+      rawMethod.includes('REMOTE_WORK')
+    )
+      methodKey = 'HOMEWORKING';
     else if (rawMethod.includes('LEASED')) methodKey = 'LEASED_ASSET';
     else if (rawMethod.includes('FRANCHISE')) methodKey = 'FRANCHISE';
     else if (rawMethod.includes('INVESTMENT')) methodKey = 'INVESTMENT_BASED';
-    else if (rawMethod.includes('SOLD_PRODUCT_PROCESSING') || rawMethod.includes('PROCESSING_SOLD')) methodKey = 'SOLD_PRODUCT_PROCESSING';
-    else if (rawMethod.includes('SOLD_PRODUCT_USE') || rawMethod.includes('USE_SOLD')) methodKey = 'SOLD_PRODUCT_USE';
-    else if (rawMethod.includes('PROCESS_EMISSION') || rawMethod.includes('PROCESS EMISSION')) methodKey = 'PROCESS_EMISSION_BASED';
-    else if (rawMethod.includes('PURCHASED_STEAM') || rawMethod === 'STEAM') methodKey = 'PURCHASED_STEAM';
-    else if (rawMethod.includes('PURCHASED_HEATING') || rawMethod === 'HEATING') methodKey = 'PURCHASED_HEATING';
-    else if (rawMethod.includes('PURCHASED_COOLING') || rawMethod === 'COOLING') methodKey = 'PURCHASED_COOLING';
-    else if (rawMethod.includes('WTT') || rawMethod.includes('WELL_TO_TANK') || rawMethod.includes('WELL-TO-TANK')) methodKey = 'WTT_BASED';
-    else if (rawMethod.includes('TRANSMISSION') || rawMethod.includes('T&D') || rawMethod.includes('TD_LOSS')) methodKey = 'TRANSMISSION_DISTRIBUTION';
-    else if (rawMethod.includes('COMMUTING') || rawMethod.includes('EMPLOYEE')) methodKey = 'EMPLOYEE_COMMUTING_BASED';
+    else if (
+      rawMethod.includes('SOLD_PRODUCT_PROCESSING') ||
+      rawMethod.includes('PROCESSING_SOLD')
+    )
+      methodKey = 'SOLD_PRODUCT_PROCESSING';
+    else if (
+      rawMethod.includes('SOLD_PRODUCT_USE') ||
+      rawMethod.includes('USE_SOLD')
+    )
+      methodKey = 'SOLD_PRODUCT_USE';
+    else if (
+      rawMethod.includes('PROCESS_EMISSION') ||
+      rawMethod.includes('PROCESS EMISSION')
+    )
+      methodKey = 'PROCESS_EMISSION_BASED';
+    else if (rawMethod.includes('PURCHASED_STEAM') || rawMethod === 'STEAM')
+      methodKey = 'PURCHASED_STEAM';
+    else if (rawMethod.includes('PURCHASED_HEATING') || rawMethod === 'HEATING')
+      methodKey = 'PURCHASED_HEATING';
+    else if (rawMethod.includes('PURCHASED_COOLING') || rawMethod === 'COOLING')
+      methodKey = 'PURCHASED_COOLING';
+    else if (
+      rawMethod.includes('WTT') ||
+      rawMethod.includes('WELL_TO_TANK') ||
+      rawMethod.includes('WELL-TO-TANK')
+    )
+      methodKey = 'WTT_BASED';
+    else if (
+      rawMethod.includes('TRANSMISSION') ||
+      rawMethod.includes('T&D') ||
+      rawMethod.includes('TD_LOSS')
+    )
+      methodKey = 'TRANSMISSION_DISTRIBUTION';
+    else if (rawMethod.includes('COMMUTING') || rawMethod.includes('EMPLOYEE'))
+      methodKey = 'EMPLOYEE_COMMUTING_BASED';
     else if (rawMethod.includes('DISTANCE')) methodKey = 'DISTANCE_BASED';
     else if (rawMethod.includes('SPEND')) methodKey = 'SPEND_BASED';
     else if (rawMethod.includes('LOCATION')) methodKey = 'LOCATION_BASED';
@@ -228,12 +287,18 @@ export class CalculationMethodEngine {
     let totalEmission = 0;
     let derivedAmount = amountVal;
     let formulaApplied = '';
-    const snapshot: Record<string, any> = input.methodologyInputsSnapshot ? { ...input.methodologyInputsSnapshot } : {};
+    const snapshot: Record<string, any> = input.methodologyInputsSnapshot
+      ? { ...input.methodologyInputsSnapshot }
+      : {};
 
     switch (methodKey) {
       case 'HOTEL_STAY': {
-        const rooms = Number(input.numberOfRooms || snapshot.numberOfRooms || 1);
-        const nights = Number(input.numberOfNights || snapshot.numberOfNights || amountVal);
+        const rooms = Number(
+          input.numberOfRooms || snapshot.numberOfRooms || 1,
+        );
+        const nights = Number(
+          input.numberOfNights || snapshot.numberOfNights || amountVal,
+        );
         derivedAmount = Number((rooms * nights).toFixed(4));
         totalEmission = Number(((derivedAmount * factorVal) / 1000).toFixed(6));
         formulaApplied = `(Rooms [${rooms}] × Nights [${nights}] = ${derivedAmount} room-nights) × Hotel_EF [${factorVal}] / 1000 = ${totalEmission} tCO2e`;
@@ -245,30 +310,44 @@ export class CalculationMethodEngine {
       }
 
       case 'WASTEWATER_TREATMENT': {
-        const vol = Number(input.wastewaterVolume || snapshot.wastewaterVolume || amountVal);
+        const vol = Number(
+          input.wastewaterVolume || snapshot.wastewaterVolume || amountVal,
+        );
         derivedAmount = vol;
         totalEmission = Number(((vol * factorVal) / 1000).toFixed(6));
         formulaApplied = `(Wastewater Volume [${vol} m³] × Wastewater_EF [${factorVal}]) / 1000 = ${totalEmission} tCO2e`;
 
         snapshot.wastewaterVolume = vol;
-        if (input.treatmentMethod || snapshot.treatmentMethod) snapshot.treatmentMethod = input.treatmentMethod || snapshot.treatmentMethod;
+        if (input.treatmentMethod || snapshot.treatmentMethod)
+          snapshot.treatmentMethod =
+            input.treatmentMethod || snapshot.treatmentMethod;
         break;
       }
 
       case 'EMPLOYEE_COMMUTING_BASED': {
-        const distType: DistanceTypeKey = input.distanceType || snapshot.distanceType;
+        const distType: DistanceTypeKey =
+          input.distanceType || snapshot.distanceType;
         if (!distType) {
-          throw new BadRequestException('distanceType (ONE_WAY, ROUND_TRIP, or DAILY_TOTAL) is required for employee commuting calculation');
+          throw new BadRequestException(
+            'distanceType (ONE_WAY, ROUND_TRIP, or DAILY_TOTAL) is required for employee commuting calculation',
+          );
         }
 
-        const employees = Number(input.employeeCount || snapshot.employeeCount || 1);
+        const employees = Number(
+          input.employeeCount || snapshot.employeeCount || 1,
+        );
         const days = Number(input.travelDays || snapshot.travelDays || 1);
-        const rawDistance = Number(input.dailyDistance || snapshot.dailyDistance || amountVal);
+        const rawDistance = Number(
+          input.dailyDistance || snapshot.dailyDistance || amountVal,
+        );
 
         // GHG Protocol Category 7: ONE_WAY distance requires x2 multiplier for round trip
-        const effectiveDailyDistance = distType === 'ONE_WAY' ? rawDistance * 2 : rawDistance;
+        const effectiveDailyDistance =
+          distType === 'ONE_WAY' ? rawDistance * 2 : rawDistance;
 
-        derivedAmount = Number((employees * days * effectiveDailyDistance).toFixed(4));
+        derivedAmount = Number(
+          (employees * days * effectiveDailyDistance).toFixed(4),
+        );
         totalEmission = Number(((derivedAmount * factorVal) / 1000).toFixed(6));
         formulaApplied = `(Employees [${employees}] × Days [${days}] × DailyDist [${rawDistance} km ${distType} → ${effectiveDailyDistance} km round-trip] = ${derivedAmount} p-km) × EF [${factorVal}] / 1000 = ${totalEmission} tCO2e`;
 
@@ -289,8 +368,12 @@ export class CalculationMethodEngine {
 
         snapshot.distance = dist;
         snapshot.weight = weight;
-        if (input.transportMode || snapshot.transportMode) snapshot.transportMode = input.transportMode || snapshot.transportMode;
-        if (input.radiativeForcingType || snapshot.radiativeForcingType) snapshot.radiativeForcingType = input.radiativeForcingType || snapshot.radiativeForcingType;
+        if (input.transportMode || snapshot.transportMode)
+          snapshot.transportMode =
+            input.transportMode || snapshot.transportMode;
+        if (input.radiativeForcingType || snapshot.radiativeForcingType)
+          snapshot.radiativeForcingType =
+            input.radiativeForcingType || snapshot.radiativeForcingType;
         break;
       }
 
@@ -321,7 +404,9 @@ export class CalculationMethodEngine {
         derivedAmount = amountVal;
         totalEmission = Number(((amountVal * factorVal) / 1000).toFixed(6));
         formulaApplied = `(Mass [${amountVal} kg] × EF [${factorVal}]) / 1000 = ${totalEmission} tCO2e`;
-        if (input.treatmentMethod || snapshot.treatmentMethod) snapshot.treatmentMethod = input.treatmentMethod || snapshot.treatmentMethod;
+        if (input.treatmentMethod || snapshot.treatmentMethod)
+          snapshot.treatmentMethod =
+            input.treatmentMethod || snapshot.treatmentMethod;
         break;
       }
 
@@ -329,23 +414,37 @@ export class CalculationMethodEngine {
         const mode: FugitiveEmissionModeKey =
           input.emissionMode ||
           snapshot.emissionMode ||
-          (input.equipmentCapacity != null || snapshot.equipmentCapacity != null || input.leakageRatePercent != null
+          (input.equipmentCapacity != null ||
+          snapshot.equipmentCapacity != null ||
+          input.leakageRatePercent != null
             ? 'ESTIMATED_LEAKAGE'
             : 'DIRECT_RELEASE');
 
         if (mode === 'RECHARGE_TOPUP') {
-          const rechargeVal = Number(input.rechargedAmount ?? snapshot.rechargedAmount ?? amountVal);
+          const rechargeVal = Number(
+            input.rechargedAmount ?? snapshot.rechargedAmount ?? amountVal,
+          );
           derivedAmount = rechargeVal;
           totalEmission = Number(((rechargeVal * factorVal) / 1000).toFixed(6));
           formulaApplied = `(Refrigerant Top-up / Recharge [${rechargeVal} kg] × GWP [${factorVal}]) / 1000 = ${totalEmission} tCO2e`;
           snapshot.rechargedAmount = rechargeVal;
           snapshot.emissionMode = 'RECHARGE_TOPUP';
         } else if (mode === 'INVENTORY_DIFFERENCE') {
-          const startVal = Number(input.inventoryStart ?? snapshot.inventoryStart ?? 0);
-          const purchasedVal = Number(input.purchasedRefrigerant ?? snapshot.purchasedRefrigerant ?? 0);
-          const recoveredVal = Number(input.recoveredRefrigerant ?? snapshot.recoveredRefrigerant ?? 0);
-          const endVal = Number(input.inventoryEnd ?? snapshot.inventoryEnd ?? 0);
-          derivedAmount = Number((startVal + purchasedVal - recoveredVal - endVal).toFixed(4));
+          const startVal = Number(
+            input.inventoryStart ?? snapshot.inventoryStart ?? 0,
+          );
+          const purchasedVal = Number(
+            input.purchasedRefrigerant ?? snapshot.purchasedRefrigerant ?? 0,
+          );
+          const recoveredVal = Number(
+            input.recoveredRefrigerant ?? snapshot.recoveredRefrigerant ?? 0,
+          );
+          const endVal = Number(
+            input.inventoryEnd ?? snapshot.inventoryEnd ?? 0,
+          );
+          derivedAmount = Number(
+            (startVal + purchasedVal - recoveredVal - endVal).toFixed(4),
+          );
 
           if (derivedAmount < 0) {
             throw new BadRequestException(
@@ -353,7 +452,9 @@ export class CalculationMethodEngine {
             );
           }
 
-          totalEmission = Number(((derivedAmount * factorVal) / 1000).toFixed(6));
+          totalEmission = Number(
+            ((derivedAmount * factorVal) / 1000).toFixed(6),
+          );
           formulaApplied = `(Start [${startVal} kg] + Purchased [${purchasedVal} kg] - Recovered [${recoveredVal} kg] - End [${endVal} kg] = ${derivedAmount} kg) × GWP [${factorVal}] / 1000 = ${totalEmission} tCO2e`;
           snapshot.inventoryStart = startVal;
           snapshot.purchasedRefrigerant = purchasedVal;
@@ -361,18 +462,29 @@ export class CalculationMethodEngine {
           snapshot.inventoryEnd = endVal;
           snapshot.emissionMode = 'INVENTORY_DIFFERENCE';
         } else if (mode === 'ESTIMATED_LEAKAGE') {
-          const capVal = Number(input.equipmentCapacity ?? snapshot.equipmentCapacity ?? amountVal);
-          let rawRate = Number(input.leakageRatePercent ?? snapshot.leakageRatePercent ?? snapshot.leakageRate ?? 0.05);
+          const capVal = Number(
+            input.equipmentCapacity ?? snapshot.equipmentCapacity ?? amountVal,
+          );
+          let rawRate = Number(
+            input.leakageRatePercent ??
+              snapshot.leakageRatePercent ??
+              snapshot.leakageRate ??
+              0.05,
+          );
 
           // Auto-normalize percentage vs fraction representation: 5 -> 0.05
           if (rawRate > 1 && rawRate <= 100) {
             rawRate = rawRate / 100;
           } else if (rawRate <= 0 || rawRate > 100) {
-            throw new BadRequestException(`Leakage rate must be between 0% and 100% (got ${rawRate}).`);
+            throw new BadRequestException(
+              `Leakage rate must be between 0% and 100% (got ${rawRate}).`,
+            );
           }
 
           derivedAmount = Number((capVal * rawRate).toFixed(4));
-          totalEmission = Number(((derivedAmount * factorVal) / 1000).toFixed(6));
+          totalEmission = Number(
+            ((derivedAmount * factorVal) / 1000).toFixed(6),
+          );
           formulaApplied = `(Equipment Capacity [${capVal} kg] × Leakage Rate [${(rawRate * 100).toFixed(2)}%] = ${derivedAmount} kg) × GWP [${factorVal}] / 1000 = ${totalEmission} tCO2e`;
           snapshot.equipmentCapacity = capVal;
           snapshot.leakageRatePercent = rawRate;
@@ -392,7 +504,9 @@ export class CalculationMethodEngine {
         derivedAmount = amountVal;
         totalEmission = Number(((amountVal * factorVal) / 1000).toFixed(6));
         formulaApplied = `(Waste Amount [${amountVal}] × Waste_Disposal_EF [${factorVal}]) / 1000 = ${totalEmission} tCO2e`;
-        if (input.treatmentMethod || snapshot.treatmentMethod) snapshot.treatmentMethod = input.treatmentMethod || snapshot.treatmentMethod;
+        if (input.treatmentMethod || snapshot.treatmentMethod)
+          snapshot.treatmentMethod =
+            input.treatmentMethod || snapshot.treatmentMethod;
         break;
       }
 
@@ -433,7 +547,9 @@ export class CalculationMethodEngine {
         derivedAmount = amountVal;
         totalEmission = Number(((amountVal * factorVal) / 1000).toFixed(6));
         formulaApplied = `(Passenger-km [${amountVal}] × Land_Sea_Travel_EF [${factorVal}]) / 1000 = ${totalEmission} tCO2e`;
-        if (input.transportMode || snapshot.transportMode) snapshot.transportMode = input.transportMode || snapshot.transportMode;
+        if (input.transportMode || snapshot.transportMode)
+          snapshot.transportMode =
+            input.transportMode || snapshot.transportMode;
         break;
       }
 
@@ -442,7 +558,9 @@ export class CalculationMethodEngine {
         derivedAmount = amountVal;
         totalEmission = Number(((amountVal * factorVal) / 1000).toFixed(6));
         formulaApplied = `(Process Quantity [${amountVal} kg] × Process_EF [${factorVal}]) / 1000 = ${totalEmission} tCO2e`;
-        if (input.transportMode || snapshot.transportMode) snapshot.transportMode = input.transportMode || snapshot.transportMode; // reused for emissionSource
+        if (input.transportMode || snapshot.transportMode)
+          snapshot.transportMode =
+            input.transportMode || snapshot.transportMode; // reused for emissionSource
         break;
       }
 
@@ -497,8 +615,12 @@ export class CalculationMethodEngine {
       case 'SOLD_PRODUCT_USE': {
         // Cat 11: Number sold × lifetime uses × consumption per use × EF
         const numSold = Number(input.numberSold || snapshot.numberSold || 1);
-        const lifetimeUses = Number(input.lifetimeUses || snapshot.lifetimeUses || 1);
-        const perUse = Number(input.consumptionPerUse || snapshot.consumptionPerUse || amountVal);
+        const lifetimeUses = Number(
+          input.lifetimeUses || snapshot.lifetimeUses || 1,
+        );
+        const perUse = Number(
+          input.consumptionPerUse || snapshot.consumptionPerUse || amountVal,
+        );
         derivedAmount = Number((numSold * lifetimeUses * perUse).toFixed(4));
         totalEmission = Number(((derivedAmount * factorVal) / 1000).toFixed(6));
         formulaApplied = `(Sold [${numSold}] × Lifetime Uses [${lifetimeUses}] × Per-Use Consumption [${perUse}] = ${derivedAmount}) × Use_EF [${factorVal}] / 1000 = ${totalEmission} tCO2e`;
@@ -513,7 +635,9 @@ export class CalculationMethodEngine {
         derivedAmount = amountVal;
         totalEmission = Number(((amountVal * factorVal) / 1000).toFixed(6));
         formulaApplied = `(Product Mass [${amountVal} kg] × End-of-Life_EF [${factorVal}]) / 1000 = ${totalEmission} tCO2e (Cat 12 — downstream end-of-life, not Cat 5 operational waste)`;
-        if (input.treatmentMethod || snapshot.treatmentMethod) snapshot.treatmentMethod = input.treatmentMethod || snapshot.treatmentMethod;
+        if (input.treatmentMethod || snapshot.treatmentMethod)
+          snapshot.treatmentMethod =
+            input.treatmentMethod || snapshot.treatmentMethod;
         break;
       }
 
@@ -527,7 +651,9 @@ export class CalculationMethodEngine {
 
       case 'INVESTMENT_BASED': {
         // Cat 15: Equity or project-finance. amount = attributed revenue/cost
-        const equityPct = Number(input.equityShare || snapshot.equityShare || 1.0);
+        const equityPct = Number(
+          input.equityShare || snapshot.equityShare || 1.0,
+        );
         derivedAmount = Number((amountVal * equityPct).toFixed(4));
         totalEmission = Number(((derivedAmount * factorVal) / 1000).toFixed(6));
         formulaApplied = `(Investee Attribution [${amountVal} × Equity ${equityPct}] = ${derivedAmount}) × Investment_EF [${factorVal}] / 1000 = ${totalEmission} tCO2e`;
@@ -545,7 +671,9 @@ export class CalculationMethodEngine {
     }
 
     // Determine Factor Basis & Gas Species Resolution
-    const basis: FactorBasisKey = input.factorBasis || (input.efCO2 != null || input.efCH4 != null ? 'GAS_MASS' : 'CO2E_TOTAL');
+    const basis: FactorBasisKey =
+      input.factorBasis ||
+      (input.efCO2 != null || input.efCH4 != null ? 'GAS_MASS' : 'CO2E_TOTAL');
     let exactEF = factorVal;
     let gasBreakdown: GasBreakdownResult;
 
@@ -566,7 +694,9 @@ export class CalculationMethodEngine {
       }
 
       // Component sum calculation matches exact gas species breakdown
-      const componentSumEmission = Number((co2Tonnes + ch4Tonnes + n2oTonnes).toFixed(6));
+      const componentSumEmission = Number(
+        (co2Tonnes + ch4Tonnes + n2oTonnes).toFixed(6),
+      );
       if (componentSumEmission > 0) {
         totalEmission = componentSumEmission;
       }
@@ -588,7 +718,9 @@ export class CalculationMethodEngine {
     } else if (basis === 'GAS_MASS') {
       // Raw Gas Masses (kg CH4 / L, kg N2O / L): GWP conversion REQUIRED
       if (input.efCH4 != null && input.efCH4 > 0 && !input.ch4Origin) {
-        throw new BadRequestException('ch4Origin (FOSSIL or NON_FOSSIL) is required when CH4 emission factor is specified under GAS_MASS factor basis');
+        throw new BadRequestException(
+          'ch4Origin (FOSSIL or NON_FOSSIL) is required when CH4 emission factor is specified under GAS_MASS factor basis',
+        );
       }
 
       const version = input.gwpVersion || 'AR6';
@@ -596,20 +728,29 @@ export class CalculationMethodEngine {
       const ch4Origin = input.ch4Origin || 'FOSSIL';
 
       const co2Multiplier = 1.0;
-      const ch4Multiplier = ch4Origin === 'NON_FOSSIL'
-        ? (this.GWP_DATABASE[version]?.[horizon]?.CH4_NON_FOSSIL || 27.0)
-        : (this.GWP_DATABASE[version]?.[horizon]?.CH4_FOSSIL || 29.8);
+      const ch4Multiplier =
+        ch4Origin === 'NON_FOSSIL'
+          ? this.GWP_DATABASE[version]?.[horizon]?.CH4_NON_FOSSIL || 27.0
+          : this.GWP_DATABASE[version]?.[horizon]?.CH4_FOSSIL || 29.8;
       const n2oMultiplier = this.GWP_DATABASE[version]?.[horizon]?.N2O || 273;
 
       const co2Ef = Number(input.efCO2 || 0);
       const ch4Ef = Number(input.efCH4 || 0);
       const n2oEf = Number(input.efN2O || 0);
 
-      const co2Tonnes = Number(((derivedAmount * co2Ef * co2Multiplier) / 1000).toFixed(6));
-      const ch4Tonnes = Number(((derivedAmount * ch4Ef * ch4Multiplier) / 1000).toFixed(6));
-      const n2oTonnes = Number(((derivedAmount * n2oEf * n2oMultiplier) / 1000).toFixed(6));
+      const co2Tonnes = Number(
+        ((derivedAmount * co2Ef * co2Multiplier) / 1000).toFixed(6),
+      );
+      const ch4Tonnes = Number(
+        ((derivedAmount * ch4Ef * ch4Multiplier) / 1000).toFixed(6),
+      );
+      const n2oTonnes = Number(
+        ((derivedAmount * n2oEf * n2oMultiplier) / 1000).toFixed(6),
+      );
 
-      const rawGasSumEmission = Number((co2Tonnes + ch4Tonnes + n2oTonnes).toFixed(6));
+      const rawGasSumEmission = Number(
+        (co2Tonnes + ch4Tonnes + n2oTonnes).toFixed(6),
+      );
       if (rawGasSumEmission > 0) {
         totalEmission = rawGasSumEmission;
       }

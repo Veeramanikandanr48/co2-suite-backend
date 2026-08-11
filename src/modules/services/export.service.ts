@@ -73,7 +73,6 @@ const SCOPE3_CATEGORY_LABELS: Record<number, string> = {
 
 @Injectable()
 export class ExportService {
-
   // ─── Public API ─────────────────────────────────────────────────────────────
 
   buildScopeSummary(entries: InventoryEntry[]): ScopeSummary {
@@ -102,7 +101,8 @@ export class ExportService {
         summary.scope3 += em;
         const cat = e.scope3CategoryNumber;
         if (cat && cat >= 1 && cat <= 15) {
-          summary.scope3Categories[cat] = (summary.scope3Categories[cat] ?? 0) + em;
+          summary.scope3Categories[cat] =
+            (summary.scope3Categories[cat] ?? 0) + em;
         }
       }
 
@@ -112,7 +112,10 @@ export class ExportService {
     return summary;
   }
 
-  generateCsvReport(entries: InventoryEntry[], metadata: ExportMetadata): string {
+  generateCsvReport(
+    entries: InventoryEntry[],
+    metadata: ExportMetadata,
+  ): string {
     const metaHeader = [
       '# GHG PROTOCOL AUDIT REPORT',
       `# Organization,${this.escapeCsv(metadata.organization)}`,
@@ -127,72 +130,108 @@ export class ExportService {
     ].join('\n');
 
     const header = [
-      'ID', 'Scope', 'Scope3 Category No.', 'Category', 'Activity Name',
-      'Facility', 'Date From', 'Date To',
-      'Original Amount', 'Original Unit',
-      'Normalized Amount', 'Normalized Unit',
-      'EF (kgCO2e/unit)', 'EF Source', 'Factor Dataset', 'Factor Version', 'Factor Year',
-      'Factor Basis', 'CH4 Origin',
-      'GWP Source', 'GWP Version', 'GWP Horizon', 'GWP Values Snapshot',
-      'Gas Breakdown Available', 'CO2 (tCO2e)', 'CH4 (tCO2e)', 'N2O (tCO2e)',
-      'HFC (tCO2e)', 'PFC (tCO2e)', 'SF6 (tCO2e)', 'NF3 (tCO2e)',
-      'Calculation Strategy', 'Activity Type Code', 'Radiative Forcing Type',
-      'Engine Version', 'Emission (tCO2e)',
-      'Status', 'Reporting Period', 'Reporting Period Year',
-      'Comment', 'Methodology Inputs Snapshot',
-      'Created At', 'Updated At',
-    ].map(this.escapeCsv).join(',');
+      'ID',
+      'Scope',
+      'Scope3 Category No.',
+      'Category',
+      'Activity Name',
+      'Facility',
+      'Date From',
+      'Date To',
+      'Original Amount',
+      'Original Unit',
+      'Normalized Amount',
+      'Normalized Unit',
+      'EF (kgCO2e/unit)',
+      'EF Source',
+      'Factor Dataset',
+      'Factor Version',
+      'Factor Year',
+      'Factor Basis',
+      'CH4 Origin',
+      'GWP Source',
+      'GWP Version',
+      'GWP Horizon',
+      'GWP Values Snapshot',
+      'Gas Breakdown Available',
+      'CO2 (tCO2e)',
+      'CH4 (tCO2e)',
+      'N2O (tCO2e)',
+      'HFC (tCO2e)',
+      'PFC (tCO2e)',
+      'SF6 (tCO2e)',
+      'NF3 (tCO2e)',
+      'Calculation Strategy',
+      'Activity Type Code',
+      'Radiative Forcing Type',
+      'Engine Version',
+      'Emission (tCO2e)',
+      'Status',
+      'Reporting Period',
+      'Reporting Period Year',
+      'Comment',
+      'Methodology Inputs Snapshot',
+      'Created At',
+      'Updated At',
+    ]
+      .map(this.escapeCsv)
+      .join(',');
 
-    const rows = entries.map((e) => [
-      e.id,
-      this.escapeCsv(e.scopeType ?? ''),
-      e.scope3CategoryNumber ?? '',
-      this.escapeCsv(e.category ?? ''),
-      this.escapeCsv(e.name ?? ''),
-      this.escapeCsv(e.facility ?? ''),
-      this.escapeCsv(e.dateFrom ?? ''),
-      this.escapeCsv(e.dateTo ?? ''),
-      this.numericCell(e.originalAmount ?? e.amount),
-      this.escapeCsv(e.originalUnit ?? e.unit ?? ''),
-      this.numericCell(e.normalizedAmount ?? e.amount),
-      this.escapeCsv(e.normalizedUnit ?? e.unit ?? ''),
-      this.numericCell(e.ef),
-      this.escapeCsv(e.efSource ?? ''),
-      this.escapeCsv(e.factorDataset ?? ''),
-      this.escapeCsv(e.factorVersion ?? ''),
-      this.escapeCsv(e.factorYear ?? ''),
-      this.escapeCsv(e.factorBasis ?? 'CO2E_TOTAL'),
-      this.escapeCsv(e.ch4Origin ?? ''),
-      this.escapeCsv(e.gwpSource ?? ''),
-      this.escapeCsv(e.gwpVersion ?? ''),
-      this.escapeCsv(e.gwpHorizon ?? '100Y'),
-      this.escapeCsv(JSON.stringify(e.gwpValuesSnapshot ?? {})),
-      e.gasBreakdownAvailable ? 'TRUE' : 'FALSE',
-      this.numericCell(e.gasCO2),
-      this.numericCell(e.gasCH4),
-      this.numericCell(e.gasN2O),
-      this.numericCell(e.gasHFC),
-      this.numericCell(e.gasPFC),
-      this.numericCell(e.gasSF6),
-      this.numericCell(e.gasNF3),
-      this.escapeCsv(e.calculationMethod ?? ''),
-      this.escapeCsv(e.activityTypeCode ?? ''),
-      this.escapeCsv(e.radiativeForcingType ?? ''),
-      this.escapeCsv(e.calculationEngineVersion ?? '1.0.0'),
-      this.numericCell(e.emission),
-      this.escapeCsv(e.status ?? ''),
-      this.escapeCsv(e.reportingPeriodName ?? ''),
-      e.reportingPeriodYear ?? '',
-      this.escapeCsv(e.comment ?? ''),
-      this.escapeCsv(JSON.stringify(e.methodologyInputsSnapshot ?? {})),
-      this.escapeCsv(e.createdAt ? new Date(e.createdAt).toISOString() : ''),
-      this.escapeCsv(e.updatedAt ? new Date(e.updatedAt).toISOString() : ''),
-    ].join(','));
+    const rows = entries.map((e) =>
+      [
+        e.id,
+        this.escapeCsv(e.scopeType ?? ''),
+        e.scope3CategoryNumber ?? '',
+        this.escapeCsv(e.category ?? ''),
+        this.escapeCsv(e.name ?? ''),
+        this.escapeCsv(e.facility ?? ''),
+        this.escapeCsv(e.dateFrom ?? ''),
+        this.escapeCsv(e.dateTo ?? ''),
+        this.numericCell(e.originalAmount ?? e.amount),
+        this.escapeCsv(e.originalUnit ?? e.unit ?? ''),
+        this.numericCell(e.normalizedAmount ?? e.amount),
+        this.escapeCsv(e.normalizedUnit ?? e.unit ?? ''),
+        this.numericCell(e.ef),
+        this.escapeCsv(e.efSource ?? ''),
+        this.escapeCsv(e.factorDataset ?? ''),
+        this.escapeCsv(e.factorVersion ?? ''),
+        this.escapeCsv(e.factorYear ?? ''),
+        this.escapeCsv(e.factorBasis ?? 'CO2E_TOTAL'),
+        this.escapeCsv(e.ch4Origin ?? ''),
+        this.escapeCsv(e.gwpSource ?? ''),
+        this.escapeCsv(e.gwpVersion ?? ''),
+        this.escapeCsv(e.gwpHorizon ?? '100Y'),
+        this.escapeCsv(JSON.stringify(e.gwpValuesSnapshot ?? {})),
+        e.gasBreakdownAvailable ? 'TRUE' : 'FALSE',
+        this.numericCell(e.gasCO2),
+        this.numericCell(e.gasCH4),
+        this.numericCell(e.gasN2O),
+        this.numericCell(e.gasHFC),
+        this.numericCell(e.gasPFC),
+        this.numericCell(e.gasSF6),
+        this.numericCell(e.gasNF3),
+        this.escapeCsv(e.calculationMethod ?? ''),
+        this.escapeCsv(e.activityTypeCode ?? ''),
+        this.escapeCsv(e.radiativeForcingType ?? ''),
+        this.escapeCsv(e.calculationEngineVersion ?? '1.0.0'),
+        this.numericCell(e.emission),
+        this.escapeCsv(e.status ?? ''),
+        this.escapeCsv(e.reportingPeriodName ?? ''),
+        e.reportingPeriodYear ?? '',
+        this.escapeCsv(e.comment ?? ''),
+        this.escapeCsv(JSON.stringify(e.methodologyInputsSnapshot ?? {})),
+        this.escapeCsv(e.createdAt ? new Date(e.createdAt).toISOString() : ''),
+        this.escapeCsv(e.updatedAt ? new Date(e.updatedAt).toISOString() : ''),
+      ].join(','),
+    );
 
     return metaHeader + header + '\n' + rows.join('\n');
   }
 
-  async generateXlsxReport(entries: InventoryEntry[], metadata: ExportMetadata): Promise<Buffer> {
+  async generateXlsxReport(
+    entries: InventoryEntry[],
+    metadata: ExportMetadata,
+  ): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = metadata.generatedBy;
     workbook.created = new Date(metadata.generatedAt);
@@ -206,7 +245,10 @@ export class ExportService {
     return Buffer.from(arrayBuffer);
   }
 
-  async generatePdfReport(entries: InventoryEntry[], metadata: ExportMetadata): Promise<Buffer> {
+  async generatePdfReport(
+    entries: InventoryEntry[],
+    metadata: ExportMetadata,
+  ): Promise<Buffer> {
     // Dynamic require to avoid jest module resolution issues with pdfkit
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const PDFDocument = require('pdfkit');
@@ -250,13 +292,23 @@ export class ExportService {
 
     // Header styling
     const HEADER_FILL: ExcelJS.Fill = {
-      type: 'pattern', pattern: 'solid',
+      type: 'pattern',
+      pattern: 'solid',
       fgColor: { argb: 'FF1E3A5F' },
     };
-    const HEADER_FONT: Partial<ExcelJS.Font> = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
+    const HEADER_FONT: Partial<ExcelJS.Font> = {
+      bold: true,
+      color: { argb: 'FFFFFFFF' },
+      size: 9,
+    };
     const NUMERIC_FORMAT = '0.000000'; // 6 decimal places
 
-    const COLUMNS: Array<{ header: string; key: string; width: number; numericFormat?: string }> = [
+    const COLUMNS: Array<{
+      header: string;
+      key: string;
+      width: number;
+      numericFormat?: string;
+    }> = [
       { header: 'ID', key: 'id', width: 8 },
       { header: 'Scope', key: 'scopeType', width: 12 },
       { header: 'Cat No.', key: 'scope3CategoryNumber', width: 8 },
@@ -265,11 +317,26 @@ export class ExportService {
       { header: 'Facility', key: 'facility', width: 20 },
       { header: 'Date From', key: 'dateFrom', width: 12 },
       { header: 'Date To', key: 'dateTo', width: 12 },
-      { header: 'Orig. Amount', key: 'originalAmount', width: 14, numericFormat: NUMERIC_FORMAT },
+      {
+        header: 'Orig. Amount',
+        key: 'originalAmount',
+        width: 14,
+        numericFormat: NUMERIC_FORMAT,
+      },
       { header: 'Orig. Unit', key: 'originalUnit', width: 12 },
-      { header: 'Norm. Amount', key: 'normalizedAmount', width: 14, numericFormat: NUMERIC_FORMAT },
+      {
+        header: 'Norm. Amount',
+        key: 'normalizedAmount',
+        width: 14,
+        numericFormat: NUMERIC_FORMAT,
+      },
       { header: 'Norm. Unit', key: 'normalizedUnit', width: 12 },
-      { header: 'EF (kgCO2e/unit)', key: 'ef', width: 16, numericFormat: NUMERIC_FORMAT },
+      {
+        header: 'EF (kgCO2e/unit)',
+        key: 'ef',
+        width: 16,
+        numericFormat: NUMERIC_FORMAT,
+      },
       { header: 'EF Source', key: 'efSource', width: 16 },
       { header: 'Factor Dataset', key: 'factorDataset', width: 16 },
       { header: 'Factor Version', key: 'factorVersion', width: 14 },
@@ -279,19 +346,32 @@ export class ExportService {
       { header: 'GWP Source', key: 'gwpSource', width: 14 },
       { header: 'Strategy', key: 'calculationMethod', width: 28 },
       { header: 'Engine Version', key: 'calculationEngineVersion', width: 14 },
-      { header: 'Emission (tCO2e)', key: 'emission', width: 16, numericFormat: NUMERIC_FORMAT },
+      {
+        header: 'Emission (tCO2e)',
+        key: 'emission',
+        width: 16,
+        numericFormat: NUMERIC_FORMAT,
+      },
       { header: 'Status', key: 'status', width: 12 },
       { header: 'Reporting Period', key: 'reportingPeriodName', width: 18 },
     ];
 
-    sheet.columns = COLUMNS.map(c => ({ header: c.header, key: c.key, width: c.width }));
+    sheet.columns = COLUMNS.map((c) => ({
+      header: c.header,
+      key: c.key,
+      width: c.width,
+    }));
 
     // Style header row
     const headerRow = sheet.getRow(1);
     headerRow.eachCell((cell) => {
       cell.fill = HEADER_FILL;
       cell.font = HEADER_FONT;
-      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+        wrapText: true,
+      };
     });
     headerRow.height = 28;
     sheet.views = [{ state: 'frozen', ySplit: 1 }];
@@ -339,7 +419,11 @@ export class ExportService {
       // Zebra stripe
       if (entries.indexOf(e) % 2 === 1) {
         row.eachCell((cell) => {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F7FA' } };
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF5F7FA' },
+          };
         });
       }
     });
@@ -360,8 +444,16 @@ export class ExportService {
     const scopeSummary = this.buildScopeSummary(entries);
 
     const TITLE_FONT: Partial<ExcelJS.Font> = { bold: true, size: 12 };
-    const SECTION_FILL: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
-    const SECTION_FONT: Partial<ExcelJS.Font> = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+    const SECTION_FILL: ExcelJS.Fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1E3A5F' },
+    };
+    const SECTION_FONT: Partial<ExcelJS.Font> = {
+      bold: true,
+      color: { argb: 'FFFFFFFF' },
+      size: 10,
+    };
     const NUMERIC_FORMAT = '0.000000';
 
     sheet.getColumn(1).width = 42;
@@ -382,7 +474,12 @@ export class ExportService {
       cell.fill = SECTION_FILL;
     };
 
-    const addDataRow = (label: string, value: number, row: number, indent = false) => {
+    const addDataRow = (
+      label: string,
+      value: number,
+      row: number,
+      indent = false,
+    ) => {
       const labelCell = sheet.getCell(`A${row}`);
       const valueCell = sheet.getCell(`B${row}`);
       labelCell.value = indent ? `    ${label}` : label;
@@ -425,17 +522,36 @@ export class ExportService {
     grandTotalValueCell.numFmt = NUMERIC_FORMAT;
     grandTotalValueCell.font = { bold: true, size: 11 };
     grandTotalValueCell.alignment = { horizontal: 'right' };
-    grandTotalLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-    grandTotalValueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+    grandTotalLabelCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFEF3C7' },
+    };
+    grandTotalValueCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFEF3C7' },
+    };
   }
 
-  private buildMetadataSheet(workbook: ExcelJS.Workbook, metadata: ExportMetadata): void {
+  private buildMetadataSheet(
+    workbook: ExcelJS.Workbook,
+    metadata: ExportMetadata,
+  ): void {
     const sheet = workbook.addWorksheet('Metadata');
     sheet.getColumn(1).width = 32;
     sheet.getColumn(2).width = 48;
 
-    const HEADER_FILL: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
-    const HEADER_FONT: Partial<ExcelJS.Font> = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+    const HEADER_FILL: ExcelJS.Fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1E3A5F' },
+    };
+    const HEADER_FONT: Partial<ExcelJS.Font> = {
+      bold: true,
+      color: { argb: 'FFFFFFFF' },
+      size: 11,
+    };
 
     sheet.mergeCells('A1:B1');
     const titleCell = sheet.getCell('A1');
@@ -471,7 +587,11 @@ export class ExportService {
       labelCell.font = { bold: true };
       valueCell.value = value;
       if (i % 2 === 0) {
-        const fill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F7FA' } };
+        const fill: ExcelJS.Fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF5F7FA' },
+        };
         labelCell.fill = fill;
         valueCell.fill = fill;
       }
@@ -480,11 +600,19 @@ export class ExportService {
 
   // ─── PDF Page Builders ───────────────────────────────────────────────────
 
-  private pdfAuditCertificate(doc: any, metadata: ExportMetadata, scopeSummary: ScopeSummary): void {
-    doc.fontSize(18).font('Helvetica-Bold')
+  private pdfAuditCertificate(
+    doc: any,
+    metadata: ExportMetadata,
+    scopeSummary: ScopeSummary,
+  ): void {
+    doc
+      .fontSize(18)
+      .font('Helvetica-Bold')
       .text('GHG Protocol Audit Report Certificate', { align: 'center' });
     doc.moveDown(0.5);
-    doc.fontSize(11).font('Helvetica')
+    doc
+      .fontSize(11)
+      .font('Helvetica')
       .text('─'.repeat(80), { align: 'center' });
     doc.moveDown();
 
@@ -492,7 +620,10 @@ export class ExportService {
       ['Organization', metadata.organization],
       ['Reporting Period', metadata.reportingPeriod],
       ['Calculation Engine Version', metadata.calculationEngineVersion],
-      ['GWP Standard', 'IPCC AR6 (Aug 2024) — Fossil CH₄=29.8, Non-Fossil CH₄=27.0, N₂O=273'],
+      [
+        'GWP Standard',
+        'IPCC AR6 (Aug 2024) — Fossil CH₄=29.8, Non-Fossil CH₄=27.0, N₂O=273',
+      ],
       ['Generated At', metadata.generatedAt],
       ['Generated By', metadata.generatedBy],
       ['Export Version', metadata.exportVersion],
@@ -501,7 +632,10 @@ export class ExportService {
     ];
 
     fields.forEach(([label, value]) => {
-      doc.fontSize(10).font('Helvetica-Bold').text(`${label}: `, { continued: true });
+      doc
+        .fontSize(10)
+        .font('Helvetica-Bold')
+        .text(`${label}: `, { continued: true });
       doc.font('Helvetica').text(String(value));
     });
 
@@ -509,49 +643,79 @@ export class ExportService {
     doc.fontSize(10).text('─'.repeat(80));
     doc.moveDown(0.5);
     doc.fontSize(10).font('Helvetica-Bold').text('Scope Totals:');
-    doc.font('Helvetica')
+    doc
+      .font('Helvetica')
       .text(`  Scope 1: ${scopeSummary.scope1.toFixed(6)} tCO₂e`)
       .text(`  Scope 2: ${scopeSummary.scope2.toFixed(6)} tCO₂e`)
       .text(`  Scope 3: ${scopeSummary.scope3.toFixed(6)} tCO₂e`)
-      .text(`  Grand Total: ${scopeSummary.grandTotal.toFixed(6)} tCO₂e`, { underline: false });
+      .text(`  Grand Total: ${scopeSummary.grandTotal.toFixed(6)} tCO₂e`, {
+        underline: false,
+      });
     doc.moveDown();
-    doc.fontSize(8).fillColor('grey')
-      .text('This report was generated by the authoritative GHG calculation engine. All emission values are immutable snapshots from the calculation engine v1.0.0 and must not be recomputed downstream.', { align: 'justify' });
+    doc
+      .fontSize(8)
+      .fillColor('grey')
+      .text(
+        'This report was generated by the authoritative GHG calculation engine. All emission values are immutable snapshots from the calculation engine v1.0.0 and must not be recomputed downstream.',
+        { align: 'justify' },
+      );
     doc.fillColor('black');
   }
 
-  private pdfScopeSummary(doc: any, scopeSummary: ScopeSummary, metadata: ExportMetadata): void {
-    doc.fontSize(14).font('Helvetica-Bold')
+  private pdfScopeSummary(
+    doc: any,
+    scopeSummary: ScopeSummary,
+    metadata: ExportMetadata,
+  ): void {
+    doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
       .text(`Scope 1 / 2 / 3 Summary — ${metadata.reportingPeriod}`);
     doc.moveDown(0.5);
 
     doc.fontSize(11).font('Helvetica-Bold').text('Scope 1 — Direct Emissions');
-    doc.font('Helvetica').text(`Total: ${scopeSummary.scope1.toFixed(6)} tCO₂e`);
+    doc
+      .font('Helvetica')
+      .text(`Total: ${scopeSummary.scope1.toFixed(6)} tCO₂e`);
     doc.moveDown(0.5);
 
     doc.font('Helvetica-Bold').text('Scope 2 — Indirect (Energy)');
-    doc.font('Helvetica').text(`Total: ${scopeSummary.scope2.toFixed(6)} tCO₂e`);
+    doc
+      .font('Helvetica')
+      .text(`Total: ${scopeSummary.scope2.toFixed(6)} tCO₂e`);
     doc.moveDown(0.5);
 
     doc.font('Helvetica-Bold').text('Scope 3 — Other Indirect Emissions');
-    doc.font('Helvetica').text(`Total: ${scopeSummary.scope3.toFixed(6)} tCO₂e`);
+    doc
+      .font('Helvetica')
+      .text(`Total: ${scopeSummary.scope3.toFixed(6)} tCO₂e`);
     doc.moveDown(0.3);
 
     doc.font('Helvetica-Bold').fontSize(10).text('Category Breakdown:');
     for (let cat = 1; cat <= 15; cat++) {
       const label = SCOPE3_CATEGORY_LABELS[cat] ?? `Cat ${cat}`;
       const value = scopeSummary.scope3Categories[cat] ?? 0;
-      doc.font('Helvetica').fontSize(9)
+      doc
+        .font('Helvetica')
+        .fontSize(9)
         .text(`  ${label}: ${value.toFixed(6)} tCO₂e`);
     }
 
     doc.moveDown();
-    doc.font('Helvetica-Bold').fontSize(12)
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(12)
       .text(`Grand Total: ${scopeSummary.grandTotal.toFixed(6)} tCO₂e`);
   }
 
-  private pdfFacilityBreakdown(doc: any, entries: InventoryEntry[], metadata: ExportMetadata): void {
-    doc.fontSize(14).font('Helvetica-Bold')
+  private pdfFacilityBreakdown(
+    doc: any,
+    entries: InventoryEntry[],
+    metadata: ExportMetadata,
+  ): void {
+    doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
       .text(`Facility Breakdown — ${metadata.reportingPeriod}`);
     doc.moveDown(0.5);
 
@@ -569,7 +733,10 @@ export class ExportService {
     }
 
     sorted.forEach(([facility, emission]) => {
-      doc.font('Helvetica-Bold').fontSize(10).text(facility, { continued: true });
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(10)
+        .text(facility, { continued: true });
       doc.font('Helvetica').text(`: ${emission.toFixed(6)} tCO₂e`);
     });
 
@@ -578,27 +745,51 @@ export class ExportService {
     doc.font('Helvetica-Bold').text(`Total: ${total.toFixed(6)} tCO₂e`);
   }
 
-  private pdfInventoryDetail(doc: any, entries: InventoryEntry[], metadata: ExportMetadata): void {
-    doc.fontSize(14).font('Helvetica-Bold')
+  private pdfInventoryDetail(
+    doc: any,
+    entries: InventoryEntry[],
+    metadata: ExportMetadata,
+  ): void {
+    doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
       .text(`Detailed Inventory Audit Records — ${metadata.reportingPeriod}`);
     doc.moveDown(0.5);
-    doc.fontSize(8).font('Helvetica').fillColor('grey')
-      .text('All values are immutable snapshots from calculation engine v1.0.0. Do not recompute.');
+    doc
+      .fontSize(8)
+      .font('Helvetica')
+      .fillColor('grey')
+      .text(
+        'All values are immutable snapshots from calculation engine v1.0.0. Do not recompute.',
+      );
     doc.fillColor('black').moveDown(0.5);
 
     entries.forEach((e, idx) => {
       if (idx > 0 && idx % 20 === 0) {
         doc.addPage();
-        doc.fontSize(10).font('Helvetica-Bold').text(`Inventory (continued) — Page records ${idx + 1}–${Math.min(idx + 20, entries.length)}`);
+        doc
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .text(
+            `Inventory (continued) — Page records ${idx + 1}–${Math.min(idx + 20, entries.length)}`,
+          );
         doc.moveDown(0.3);
       }
 
-      doc.fontSize(9).font('Helvetica-Bold')
-        .text(`${idx + 1}. [${e.scopeType ?? 'N/A'}] ${e.category ?? ''} — ${e.name ?? ''}`, { continued: true });
-      doc.font('Helvetica')
-        .text(`: ${(e.emission ?? 0).toFixed(6)} tCO₂e`);
-      doc.fontSize(8).fillColor('grey')
-        .text(`   Strategy: ${e.calculationMethod ?? 'N/A'} | EF: ${e.ef} kgCO₂e/${e.unit ?? 'unit'} | Basis: ${e.factorBasis ?? 'CO2E_TOTAL'} | Engine: v${e.calculationEngineVersion ?? '1.0.0'}`);
+      doc
+        .fontSize(9)
+        .font('Helvetica-Bold')
+        .text(
+          `${idx + 1}. [${e.scopeType ?? 'N/A'}] ${e.category ?? ''} — ${e.name ?? ''}`,
+          { continued: true },
+        );
+      doc.font('Helvetica').text(`: ${(e.emission ?? 0).toFixed(6)} tCO₂e`);
+      doc
+        .fontSize(8)
+        .fillColor('grey')
+        .text(
+          `   Strategy: ${e.calculationMethod ?? 'N/A'} | EF: ${e.ef} kgCO₂e/${e.unit ?? 'unit'} | Basis: ${e.factorBasis ?? 'CO2E_TOTAL'} | Engine: v${e.calculationEngineVersion ?? '1.0.0'}`,
+        );
       doc.fillColor('black');
     });
   }
