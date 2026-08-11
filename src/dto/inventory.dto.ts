@@ -32,10 +32,49 @@ export class CreateInventoryEntryDto {
   @IsOptional()
   unit?: string;
 
+  @ApiProperty({ example: 1000, required: false, description: 'Raw activity input amount before normalization' })
+  @IsNumber()
+  @IsOptional()
+  originalAmount?: number;
+
+  @ApiProperty({ example: 'gallon', required: false, description: 'Raw activity input unit before normalization' })
+  @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  @IsOptional()
+  originalUnit?: string;
+
+  @ApiProperty({ example: 3785.41, required: false, description: 'Normalized activity amount matching EF unit' })
+  @IsNumber()
+  @IsOptional()
+  normalizedAmount?: number;
+
+  @ApiProperty({ example: 'litre', required: false, description: 'Normalized unit matching EF unit' })
+  @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  @IsOptional()
+  normalizedUnit?: string;
+
   @ApiProperty({ example: 1.942, required: false, description: 'Emission factor snapshot in kg CO2e / unit' })
   @IsNumber()
   @IsOptional()
   ef?: number;
+
+  @ApiProperty({ example: 'SCOPE_1', required: false, description: 'Scope classification (SCOPE_1, SCOPE_2, SCOPE_3)' })
+  @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  @IsOptional()
+  scopeType?: string;
+
+  @ApiProperty({ example: 6, required: false, description: 'Scope 3 Category Number (1-15)' })
+  @IsNumber()
+  @IsOptional()
+  scope3CategoryNumber?: number;
+
+  @ApiProperty({ example: 'FUEL_BASED', required: false, description: 'Calculation methodology (FUEL_BASED, DISTANCE_BASED, SPEND_BASED, etc.)' })
+  @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  @IsOptional()
+  calculationMethod?: string;
 
   @ApiProperty({
     example: 'IPCC (Commercial & Institutional Use)-AR6',

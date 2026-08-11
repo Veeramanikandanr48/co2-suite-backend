@@ -16,8 +16,9 @@ import { SummaryService } from './summary.service';
 import { ServicesController } from './services.controller';
 import { UtilService } from 'src/utility/util/util.service';
 import { CalculationEngine } from './engine/calculation-engine';
-
 import { MasterModule } from '../master/master.module';
+import { MasterCategory } from 'src/entities/master-category.entity';
+import { CalculationMethodEngine } from './engine/calculation-method.engine';
 
 @Module({
   imports: [
@@ -30,6 +31,8 @@ import { MasterModule } from '../master/master.module';
       Facility,
       Organization,
       UserDetails,
+      MasterUnit,
+      MasterCategory,
     ]),
     MulterModule.register({
       storage: diskStorage({
@@ -53,7 +56,18 @@ import { MasterModule } from '../master/master.module';
     }),
   ],
   controllers: [ServicesController],
-  providers: [ServicesService, SummaryService, UtilService, CalculationEngine],
-  exports: [ServicesService, SummaryService, CalculationEngine],
+  providers: [
+    ServicesService,
+    SummaryService,
+    UtilService,
+    CalculationEngine,
+    CalculationMethodEngine,
+  ],
+  exports: [
+    ServicesService,
+    SummaryService,
+    CalculationEngine,
+    CalculationMethodEngine,
+  ],
 })
-export class ServicesModule {}
+export class ServicesModule { }

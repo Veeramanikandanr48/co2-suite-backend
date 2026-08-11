@@ -9,7 +9,12 @@ import { InventoryEntry } from 'src/entities/inventory-entry.entity';
 import { UtilService } from 'src/utility/util/util.service';
 import { CalculationEngine } from './engine/calculation-engine';
 import { FactorResolutionService } from '../master/factor-resolution.service';
+import { UnitNormalizationService } from '../master/unit-normalization.service';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
+import { MasterUnit } from 'src/entities/master-unit.entity';
+
+import { MasterCategory } from 'src/entities/master-category.entity';
+import { CalculationMethodEngine } from './engine/calculation-method.engine';
 
 describe('ServicesService (Inventory Pipeline & Audit Snapshotting)', () => {
   let service: ServicesService;
@@ -41,6 +46,8 @@ describe('ServicesService (Inventory Pipeline & Audit Snapshotting)', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ServicesService,
+        UnitNormalizationService,
+        CalculationMethodEngine,
         {
           provide: DataSource,
           useValue: {},
@@ -60,6 +67,14 @@ describe('ServicesService (Inventory Pipeline & Audit Snapshotting)', () => {
         {
           provide: getRepositoryToken(InventoryEntry),
           useValue: inventoryRepoMock,
+        },
+        {
+          provide: getRepositoryToken(MasterUnit),
+          useValue: { findOne: jest.fn().mockResolvedValue({ id: 3, symbol: 'l' }) },
+        },
+        {
+          provide: getRepositoryToken(MasterCategory),
+          useValue: { findOne: jest.fn().mockResolvedValue({ id: 1, scopeType: 'SCOPE_1', calculationMethod: 'FUEL_BASED' }) },
         },
         {
           provide: UtilService,
@@ -89,8 +104,7 @@ describe('ServicesService (Inventory Pipeline & Audit Snapshotting)', () => {
     expect(service).toBeDefined();
   });
 
-  it('should resolve EF, compute emission in tonnes (0.268 tCO2e), and snapshot ef + efSource into InventoryEntry', async () => {
-    // Mock EF resolution: 2.68 kg CO2e / Litre
+  it('should normalize physical unit (1,000 US Gallons -> 3785.411784 Litres), resolve EF (2.68 kgCO2e/L), calculate 10.1449 tCO2e, and save full audit trail', async () => {
     factorResolutionServiceMock.resolveEmissionFactor.mockResolvedValue({
       emissionFactor: 2.68,
       efSource: 'DEFRA 2024 (Version-Fuel Mapping)',
@@ -100,30 +114,27 @@ describe('ServicesService (Inventory Pipeline & Audit Snapshotting)', () => {
     const result = await service.createInventoryEntry(mockUser, {
       category: 'Stationary Combustion',
       name: 'Diesel',
-      amount: 100,
-      unit: 'litre',
+      amount: 1000,
+      unit: 'us_gallon',
       fuelId: 2,
-      unitId: 3,
       factorVersionId: 1,
     });
 
-    // 1. Verify resolution call
-    expect(factorResolutionServiceMock.resolveEmissionFactor).toHaveBeenCalledWith({
-      fuelId: 2,
-      unitId: 3,
-      factorVersionId: 1,
-    });
+    // 1. Audit Snapshot checks
+    expect(result.originalAmount).toBe(1000);
+    expect(result.originalUnit).toBe('us_gallon');
+    expect(result.normalizedAmount).toBeCloseTo(3785.411784, 3);
+    expect(result.normalizedUnit).toBe('l');
 
-    // 2. Verify factor snapshot
+    // 2. EF snapshot
     expect(result.ef).toBe(2.68);
     expect(result.efSource).toBe('DEFRA 2024 (Version-Fuel Mapping)');
 
-    // 3. Verify emission calculation: 100 * 2.68 / 1000 = 0.268 tCO2e
-    expect(result.emission).toBe(0.268);
+    // 3. Calculation check: (3785.411784 * 2.68) / 1000 = 10.144904 tCO2e
+    expect(result.emission).toBeCloseTo(10.145, 2);
   });
 
   it('should preserve immutable calculation snapshot on saved InventoryEntry even if master EF changes', async () => {
-    // 1. Initial creation with EF = 2.68
     factorResolutionServiceMock.resolveEmissionFactor.mockResolvedValue({
       emissionFactor: 2.68,
       efSource: 'DEFRA 2024 (Version-Fuel Mapping)',
@@ -142,14 +153,14 @@ describe('ServicesService (Inventory Pipeline & Audit Snapshotting)', () => {
     expect(savedEntry.ef).toBe(2.68);
     expect(savedEntry.emission).toBe(2.68); // 1000 * 2.68 / 1000 = 2.68 tCO2e
 
-    // 2. Simulate master factor update on Day 2 to 2.75 kg CO2e/L
+    // Master factor update simulation
     factorResolutionServiceMock.resolveEmissionFactor.mockResolvedValue({
       emissionFactor: 2.75,
       efSource: 'DEFRA 2024 Updated',
       resolutionLevel: 'VERSION_FUEL',
     });
 
-    // 3. Assert saved entry snapshot remains unchanged (audit immutability)
+    // Assert historical saved entry remains unchanged
     expect(savedEntry.ef).toBe(2.68);
     expect(savedEntry.emission).toBe(2.68);
   });

@@ -18,6 +18,7 @@ import { UtilService } from 'src/utility/util/util.service';
 import { MasterService } from './master.service';
 
 import { FactorResolutionService } from './factor-resolution.service';
+import { UnitNormalizationService } from './unit-normalization.service';
 
 @Module({
   imports: [
@@ -39,7 +40,12 @@ import { FactorResolutionService } from './factor-resolution.service';
     ]),
   ],
   controllers: [MasterController],
-  providers: [MasterService, FactorResolutionService, UtilService],
-  exports: [MasterService, FactorResolutionService],
+  providers: [
+    MasterService,
+    FactorResolutionService,
+    UnitNormalizationService,
+    UtilService,
+  ],
+  exports: [MasterService, FactorResolutionService, UnitNormalizationService],
 })
 export class MasterModule {}

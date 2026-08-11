@@ -32,7 +32,12 @@ import {
   SEED_INVENTORY_ENTRIES,
 } from 'src/seeds/initial-data.seed';
 import { FactorResolutionService } from '../master/factor-resolution.service';
+import { UnitNormalizationService } from '../master/unit-normalization.service';
 import { CalculationEngine } from './engine/calculation-engine';
+import { MasterUnit } from 'src/entities/master-unit.entity';
+
+import { MasterCategory } from 'src/entities/master-category.entity';
+import { CalculationMethodEngine } from './engine/calculation-method.engine';
 
 @Injectable()
 export class ServicesService implements OnApplicationBootstrap {
@@ -46,9 +51,15 @@ export class ServicesService implements OnApplicationBootstrap {
     private readonly scopeCategoryMappingRepo: Repository<ScopeCategoryMapping>,
     @InjectRepository(InventoryEntry)
     private readonly inventoryRepo: Repository<InventoryEntry>,
+    @InjectRepository(MasterUnit)
+    private readonly masterUnitRepo: Repository<MasterUnit>,
+    @InjectRepository(MasterCategory)
+    private readonly masterCategoryRepo: Repository<MasterCategory>,
     private readonly utilService: UtilService,
     private readonly calculationEngine: CalculationEngine,
     private readonly factorResolutionService: FactorResolutionService,
+    private readonly unitNormalizationService: UnitNormalizationService,
+    private readonly calculationMethodEngine: CalculationMethodEngine,
   ) { }
 
   private assertSuperAdmin(user: IDecodeUserDetails): void {
@@ -705,14 +716,34 @@ export class ServicesService implements OnApplicationBootstrap {
     const orgId = this.resolveOrgId(user);
     const userId = user.id;
 
+    // 1. Physical Unit Normalization
+    const normResult = this.unitNormalizationService.normalizeUnit(
+      dto.amount,
+      dto.unit || 'l',
+    );
+
     let efVal = dto.ef ?? 0;
     let efSourceVal = dto.efSource;
 
-    if ((dto.fuelId || dto.unitId || dto.factorVersionId) && (dto.ef == null || dto.ef === 0)) {
+    // 2. Factor Resolution Engine (resolves EF for normalized unit)
+    let targetUnitId = dto.unitId;
+    if (normResult.normalizedUnit) {
+      const normUnitEntity = await this.masterUnitRepo.findOne({
+        where: [
+          { symbol: normResult.normalizedUnit },
+          { name: normResult.normalizedUnit },
+        ],
+      });
+      if (normUnitEntity) {
+        targetUnitId = normUnitEntity.id;
+      }
+    }
+
+    if ((dto.fuelId || targetUnitId || dto.factorVersionId) && (dto.ef == null || dto.ef === 0)) {
       try {
         const resolved = await this.factorResolutionService.resolveEmissionFactor({
           fuelId: dto.fuelId,
-          unitId: dto.unitId,
+          unitId: targetUnitId,
           factorVersionId: dto.factorVersionId,
         });
         efVal = resolved.emissionFactor;
@@ -722,20 +753,42 @@ export class ServicesService implements OnApplicationBootstrap {
       }
     }
 
-    const calculatedEmission = this.calculateEmissionValue(
-      dto.amount,
-      efVal,
-      dto.formula,
-      dto.unit,
-    );
+    // 3. Category & Scope Method Resolution
+    const categoryEntity = await this.masterCategoryRepo.findOne({
+      where: [
+        { name: dto.category },
+        { code: dto.category },
+      ],
+    });
 
+    const scopeTypeVal = dto.scopeType || categoryEntity?.scopeType || 'SCOPE_1';
+    const scope3CatNumVal = dto.scope3CategoryNumber ?? categoryEntity?.scope3CategoryNumber;
+    const calcMethodVal = dto.calculationMethod || categoryEntity?.calculationMethod || 'FUEL_BASED';
+
+    // 4. Calculation Strategy Engine Execution
+    const calcResult = this.calculationMethodEngine.calculateEmission({
+      amount: normResult.normalizedAmount,
+      ef: efVal,
+      unit: normResult.normalizedUnit,
+      formula: dto.formula,
+      method: calcMethodVal,
+    });
+
+    // 5. Complete Audit Snapshot Creation
     const entity = this.inventoryRepo.create({
       ...dto,
       organizationId: orgId,
       createdBy: userId,
+      originalAmount: dto.originalAmount ?? dto.amount,
+      originalUnit: dto.originalUnit ?? dto.unit,
+      normalizedAmount: normResult.normalizedAmount,
+      normalizedUnit: normResult.normalizedUnit,
       ef: efVal,
       efSource: efSourceVal,
-      emission: calculatedEmission,
+      emission: calcResult.emission,
+      scopeType: scopeTypeVal,
+      scope3CategoryNumber: scope3CatNumVal,
+      calculationMethod: calcResult.methodUsed,
       status: dto.status || 'completed',
     });
 
@@ -758,12 +811,19 @@ export class ServicesService implements OnApplicationBootstrap {
         'entry.name',
         'entry.amount',
         'entry.unit',
+        'entry.originalAmount',
+        'entry.originalUnit',
+        'entry.normalizedAmount',
+        'entry.normalizedUnit',
         'entry.ef',
         'entry.efSource',
         'entry.dateFrom',
         'entry.dateTo',
         'entry.facility',
         'entry.emission',
+        'entry.scopeType',
+        'entry.scope3CategoryNumber',
+        'entry.calculationMethod',
         'entry.status',
         'entry.comment',
         'entry.approvalStatus',
@@ -779,11 +839,35 @@ export class ServicesService implements OnApplicationBootstrap {
 
     Object.assign(existing, dto);
 
-    if (dto.fuelId || dto.unitId || dto.factorVersionId) {
+    // Physical Unit Normalization on update
+    const normResult = this.unitNormalizationService.normalizeUnit(
+      existing.amount,
+      existing.unit || 'l',
+    );
+
+    existing.originalAmount = dto.originalAmount ?? existing.amount;
+    existing.originalUnit = dto.originalUnit ?? existing.unit;
+    existing.normalizedAmount = normResult.normalizedAmount;
+    existing.normalizedUnit = normResult.normalizedUnit;
+
+    let targetUnitId = dto.unitId;
+    if (normResult.normalizedUnit) {
+      const normUnitEntity = await this.masterUnitRepo.findOne({
+        where: [
+          { symbol: normResult.normalizedUnit },
+          { name: normResult.normalizedUnit },
+        ],
+      });
+      if (normUnitEntity) {
+        targetUnitId = normUnitEntity.id;
+      }
+    }
+
+    if (dto.fuelId || targetUnitId || dto.factorVersionId) {
       try {
         const resolved = await this.factorResolutionService.resolveEmissionFactor({
           fuelId: dto.fuelId,
-          unitId: dto.unitId,
+          unitId: targetUnitId,
           factorVersionId: dto.factorVersionId,
         });
         existing.ef = resolved.emissionFactor;
@@ -793,13 +877,28 @@ export class ServicesService implements OnApplicationBootstrap {
       }
     }
 
+    const categoryEntity = await this.masterCategoryRepo.findOne({
+      where: [
+        { name: existing.category },
+        { code: existing.category },
+      ],
+    });
+
+    existing.scopeType = dto.scopeType || existing.scopeType || categoryEntity?.scopeType || 'SCOPE_1';
+    existing.scope3CategoryNumber = dto.scope3CategoryNumber ?? existing.scope3CategoryNumber ?? categoryEntity?.scope3CategoryNumber;
+    existing.calculationMethod = dto.calculationMethod || existing.calculationMethod || categoryEntity?.calculationMethod || 'FUEL_BASED';
+
     const efVal = existing.ef ?? 0;
-    existing.emission = this.calculateEmissionValue(
-      existing.amount,
-      efVal,
-      dto.formula,
-      existing.unit,
-    );
+    const calcResult = this.calculationMethodEngine.calculateEmission({
+      amount: normResult.normalizedAmount,
+      ef: efVal,
+      unit: normResult.normalizedUnit,
+      formula: dto.formula,
+      method: existing.calculationMethod,
+    });
+
+    existing.emission = calcResult.emission;
+    existing.calculationMethod = calcResult.methodUsed;
 
     return this.inventoryRepo.save(existing);
   }

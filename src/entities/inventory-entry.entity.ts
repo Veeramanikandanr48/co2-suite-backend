@@ -24,6 +24,22 @@ export class InventoryEntry extends BaseColumns {
   @Column({ type: 'varchar', nullable: true })
   unit: string;
 
+  /** Raw user entered activity amount before physical unit normalization */
+  @Column({ type: 'float', nullable: true })
+  originalAmount: number;
+
+  /** Raw user entered activity unit before physical unit normalization */
+  @Column({ type: 'varchar', nullable: true })
+  originalUnit: string;
+
+  /** Converted activity amount matching EF denominator unit */
+  @Column({ type: 'float', nullable: true })
+  normalizedAmount: number;
+
+  /** Converted activity unit matching EF denominator unit */
+  @Column({ type: 'varchar', nullable: true })
+  normalizedUnit: string;
+
   /** Emission factor snapshot in kg CO₂e / unit */
   @Column({ type: 'float', default: 0 })
   ef: number;
@@ -43,6 +59,18 @@ export class InventoryEntry extends BaseColumns {
   /** Total calculated greenhouse gas emission snapshot in metric tonnes CO₂e (tCO₂e) */
   @Column({ type: 'float', default: 0 })
   emission: number;
+
+  /** Scope Classification snapshot (SCOPE_1, SCOPE_2, SCOPE_3) */
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  scopeType: string;
+
+  /** Scope 3 Category Number snapshot (1-15) */
+  @Column({ type: 'int', nullable: true })
+  scope3CategoryNumber: number;
+
+  /** Calculation methodology snapshot (FUEL_BASED, DISTANCE_BASED, SPEND_BASED, etc.) */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  calculationMethod: string;
 
   @Column({ default: 'completed' })
   status: string; // 'completed', 'pending', 'draft'
