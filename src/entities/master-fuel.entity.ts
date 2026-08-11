@@ -29,6 +29,9 @@ export class MasterFuel extends BaseColumns {
   @JoinColumn({ name: 'scopeId' })
   scope: MasterScope;
 
+  @Column({ type: 'float', nullable: true })
+  emissionFactor: number;
+
   @Column({ type: 'text', nullable: true })
   description: string;
 

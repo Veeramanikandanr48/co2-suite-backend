@@ -17,6 +17,8 @@ import { MasterController } from './master.controller';
 import { UtilService } from 'src/utility/util/util.service';
 import { MasterService } from './master.service';
 
+import { FactorResolutionService } from './factor-resolution.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -37,7 +39,7 @@ import { MasterService } from './master.service';
     ]),
   ],
   controllers: [MasterController],
-  providers: [MasterService, UtilService],
-  exports: [MasterService],
+  providers: [MasterService, FactorResolutionService, UtilService],
+  exports: [MasterService, FactorResolutionService],
 })
 export class MasterModule {}

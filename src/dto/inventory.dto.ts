@@ -32,7 +32,7 @@ export class CreateInventoryEntryDto {
   @IsOptional()
   unit?: string;
 
-  @ApiProperty({ example: 1.942, required: false })
+  @ApiProperty({ example: 1.942, required: false, description: 'Emission factor snapshot in kg CO2e / unit' })
   @IsNumber()
   @IsOptional()
   ef?: number;
@@ -93,6 +93,21 @@ export class CreateInventoryEntryDto {
   @Transform(({ value }) => (value ? value.trim() : value))
   @IsOptional()
   formula?: string;
+
+  @ApiProperty({ example: 1, required: false, description: 'Optional FK to master_fuel for factor resolution' })
+  @IsNumber()
+  @IsOptional()
+  fuelId?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'Optional FK to master_unit for factor resolution' })
+  @IsNumber()
+  @IsOptional()
+  unitId?: number;
+
+  @ApiProperty({ example: 1, required: false, description: 'Optional FK to master_factor_version for factor resolution' })
+  @IsNumber()
+  @IsOptional()
+  factorVersionId?: number;
 }
 
 export class UpdateInventoryEntryDto extends PartialType(

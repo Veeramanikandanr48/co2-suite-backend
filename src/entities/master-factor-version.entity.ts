@@ -28,6 +28,9 @@ export class MasterFactorVersion extends BaseColumns {
   @JoinColumn({ name: 'datasourceId' })
   datasource: MasterDatasource;
 
+  @Column({ type: 'float', nullable: true })
+  emissionFactor: number;
+
   @Column({ type: 'text', nullable: true })
   description: string;
 

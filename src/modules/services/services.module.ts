@@ -17,8 +17,11 @@ import { ServicesController } from './services.controller';
 import { UtilService } from 'src/utility/util/util.service';
 import { CalculationEngine } from './engine/calculation-engine';
 
+import { MasterModule } from '../master/master.module';
+
 @Module({
   imports: [
+    MasterModule,
     TypeOrmModule.forFeature([
       Service,
       OrganizationService,

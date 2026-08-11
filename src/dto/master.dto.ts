@@ -116,6 +116,11 @@ export class CreateMasterFuelDto {
   @IsOptional()
   description?: string;
 
+  @ApiProperty({ example: 1.938, required: false })
+  @IsNumber()
+  @IsOptional()
+  emissionFactor?: number;
+
   @ApiProperty({ example: [1, 2, 3], required: false, type: [Number] })
   @IsArray()
   @IsNumber({}, { each: true })
@@ -255,11 +260,22 @@ export class CreateMasterFactorVersionDto {
   @IsOptional()
   description?: string;
 
+  @ApiProperty({ example: 1.938, required: false })
+  @IsNumber()
+  @IsOptional()
+  emissionFactor?: number;
+
   @ApiProperty({ example: [1, 2, 3], required: false, type: [Number] })
   @IsArray()
   @IsNumber({}, { each: true })
   @IsOptional()
   fuelIds?: number[];
+
+  @ApiProperty({ example: [1, 2, 3], required: false, type: [Number] })
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @IsOptional()
+  unitIds?: number[];
 
   @ApiProperty({ example: true, required: false })
   @IsBoolean()
@@ -394,6 +410,11 @@ export class CreateVersionFuelMappingDto {
   @IsOptional()
   fuelId?: number;
 
+  @ApiProperty({ example: 1.938, required: false })
+  @IsNumber()
+  @IsOptional()
+  emissionFactor?: number;
+
   @ApiProperty({ example: 'Natural Gas factors for 2024 version', required: false })
   @IsString()
   @IsOptional()
@@ -422,6 +443,11 @@ export class CreateFuelUnitMappingDto {
   @IsNumber()
   @IsOptional()
   unitId?: number;
+
+  @ApiProperty({ example: 1.938, required: false })
+  @IsNumber()
+  @IsOptional()
+  emissionFactor?: number;
 
   @ApiProperty({ example: 'Standard cubic metres for Natural Gas', required: false })
   @IsString()
@@ -474,3 +500,55 @@ export class UpdateCategoryDatasourceMappingDto extends PartialType(CreateCatego
 export class UpdateVersionFuelMappingDto extends PartialType(CreateVersionFuelMappingDto) { }
 export class UpdateFuelUnitMappingDto extends PartialType(CreateFuelUnitMappingDto) { }
 export class UpdateUnitFormulaMappingDto extends PartialType(CreateUnitFormulaMappingDto) { }
+
+// ─── Master Matrix Filter DTO ──────────────────────────────────────────────────
+
+export class MasterMatrixFilterDto {
+  @ApiProperty({ required: false, example: 0, description: 'Offset pagination' })
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  offSet?: number;
+
+  @ApiProperty({ required: false, example: 50, description: 'Limit items per page' })
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  limit?: number;
+
+  @ApiProperty({ required: false, example: 'Diesel', description: 'Search term for fuel, category, source' })
+  @IsOptional()
+  @IsString()
+  searchInput?: string;
+
+  @ApiProperty({ required: false, example: 'Scope 1', description: 'Filter by scope' })
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @ApiProperty({ required: false, example: 'Stationary Combustion', description: 'Filter by category' })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiProperty({ required: false, example: 'IPCC', description: 'Filter by datasource' })
+  @IsOptional()
+  @IsString()
+  datasource?: string;
+
+  @ApiProperty({ required: false, example: 'all', description: 'Filter by status: active, inactive, all' })
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @ApiProperty({ required: false, example: 'scopeName', description: 'Field to sort by' })
+  @IsOptional()
+  @IsString()
+  sortField?: string;
+
+  @ApiProperty({ required: false, example: 1, description: 'Sort direction: 1 (ASC), -1 (DESC)' })
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsNumber()
+  sortOrder?: number;
+}

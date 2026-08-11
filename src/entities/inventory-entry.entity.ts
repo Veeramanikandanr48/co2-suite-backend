@@ -24,6 +24,7 @@ export class InventoryEntry extends BaseColumns {
   @Column({ type: 'varchar', nullable: true })
   unit: string;
 
+  /** Emission factor snapshot in kg CO₂e / unit */
   @Column({ type: 'float', default: 0 })
   ef: number;
 
@@ -39,6 +40,7 @@ export class InventoryEntry extends BaseColumns {
   @Column({ type: 'varchar', nullable: true })
   facility: string;
 
+  /** Total calculated greenhouse gas emission snapshot in metric tonnes CO₂e (tCO₂e) */
   @Column({ type: 'float', default: 0 })
   emission: number;
 

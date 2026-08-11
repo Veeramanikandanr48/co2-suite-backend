@@ -29,6 +29,7 @@ import {
   CreateVersionFuelMappingDto,
   CreateFuelUnitMappingDto,
   CreateUnitFormulaMappingDto,
+  MasterMatrixFilterDto,
 } from 'src/dto/master.dto';
 
 export type MasterEntityType =
@@ -602,6 +603,7 @@ export class MasterService {
     factorVersionId: number,
     fuelIds: number[],
     userId: number,
+    emissionFactor?: number,
   ): Promise<void> {
     await this.versionFuelMappingRepo.delete({ factorVersionId });
     if (fuelIds.length > 0) {
@@ -609,6 +611,7 @@ export class MasterService {
         this.versionFuelMappingRepo.create({
           factorVersionId,
           fuelId,
+          emissionFactor,
           createdBy: userId,
           isActive: true,
         }),
@@ -621,7 +624,7 @@ export class MasterService {
     dto: CreateMasterFactorVersionDto,
     createdBy: number,
   ): Promise<MasterFactorVersion> {
-    const { fuelIds, ...rest } = dto;
+    const { fuelIds, unitIds, ...rest } = dto;
     const fv = await this.createMaster(
       this.masterFactorVersionRepo,
       rest as Partial<MasterFactorVersion>,
@@ -630,7 +633,7 @@ export class MasterService {
     );
 
     if (Array.isArray(fuelIds)) {
-      await this.syncVersionFuelMappings(fv.id, fuelIds, createdBy);
+      await this.syncVersionFuelMappings(fv.id, fuelIds, createdBy, dto.emissionFactor);
     }
 
     return fv;
@@ -788,7 +791,7 @@ export class MasterService {
         await this.syncDatasourceVersions(id, versionIds, versions, updatedBy);
       }
     } else if (entityType === 'factor-version' && Array.isArray(fuelIds)) {
-      await this.syncVersionFuelMappings(id, fuelIds, updatedBy);
+      await this.syncVersionFuelMappings(id, fuelIds, updatedBy, fields.emissionFactor as number);
     } else if (entityType === 'fuel' && Array.isArray(unitIds)) {
       await this.syncFuelUnitMappings(id, unitIds, updatedBy);
     } else if (entityType === 'unit' && Array.isArray(formulaIds)) {
@@ -834,5 +837,193 @@ export class MasterService {
     };
 
     return createMap[entityType]();
+  }
+
+  /**
+   * Server-side matrix builder for Master Overview Matrix Table
+   * Handles relational joining, deduplication, searchInput, filters (scope, category, datasource, status), sorting, and offset/limit pagination.
+   */
+  async getOverviewMatrix(query: MasterMatrixFilterDto) {
+    const offSet = query.offSet ?? 0;
+    const limit = query.limit ?? 50;
+    const searchInput = (query.searchInput || '').toLowerCase().trim();
+    const scopeFilter = (query.scope || 'ALL').trim();
+    const categoryFilter = (query.category || 'ALL').trim();
+    const datasourceFilter = (query.datasource || 'ALL').trim();
+    const statusFilter = (query.status || 'all').toLowerCase().trim();
+    const sortField = query.sortField || 'scopeName';
+    const sortOrder = query.sortOrder === -1 ? -1 : 1;
+
+    // Fetch all master data in parallel from repositories
+    const [fuels, categories, datasources, factorVersions, scopes] = await Promise.all([
+      this.masterFuelRepo.find({
+        relations: {
+          unitMappings: { masterUnit: true },
+          versionMappings: { masterFactorVersion: true },
+        },
+      }),
+      this.masterCategoryRepo.find(),
+      this.masterDatasourceRepo.find(),
+      this.masterFactorVersionRepo.find({ relations: { datasource: true } }),
+      this.masterScopeRepo.find(),
+    ]);
+
+    const datasourceMap = new Map<number, MasterDatasource>();
+    datasources.forEach((d) => datasourceMap.set(d.id, d));
+
+    const scopeMap = new Map<number, MasterScope>();
+    scopes.forEach((s) => scopeMap.set(s.id, s));
+
+    const allRows: any[] = [];
+    const seenKeys = new Set<string>();
+
+    fuels.forEach((fuel) => {
+      if (statusFilter === 'active' && !fuel.isActive) return;
+      if (statusFilter === 'inactive' && fuel.isActive) return;
+
+      const fName = String(fuel.name || fuel.code || '').toLowerCase();
+      const scopeId = fuel.scopeId;
+
+      let scopeObj = scopeId ? scopeMap.get(scopeId) : undefined;
+      let matchedCat = categories.find((c) => c.id === (fuel as any).categoryId);
+
+      if (!matchedCat && scopeId) {
+        matchedCat = categories.find((c) => c.scopeId === scopeId);
+      }
+
+      if (fName.includes('electricity') || fName.includes('grid')) {
+        matchedCat = categories.find((c) => String(c.name).toLowerCase().includes('electricity')) || matchedCat;
+        if (!scopeObj) scopeObj = { name: 'Scope 2 - Indirect GHG Emissions', code: 'S2' } as any;
+      } else if (fName.includes('steam') || fName.includes('heat') || fName.includes('district') || fName.includes('cooling')) {
+        matchedCat = categories.find((c) => String(c.name).toLowerCase().includes('heat') || String(c.name).toLowerCase().includes('steam')) || matchedCat;
+        if (!scopeObj) scopeObj = { name: 'Scope 2 - Indirect GHG Emissions', code: 'S2' } as any;
+      } else if (fName.includes('travel') || fName.includes('flight') || fName.includes('commute')) {
+        matchedCat = categories.find((c) => String(c.name).toLowerCase().includes('travel')) || matchedCat;
+        if (!scopeObj) scopeObj = { name: 'Scope 3 - Value Chain Emissions', code: 'S3' } as any;
+      } else if (fName.includes('r-') || fName.includes('hfc') || fName.includes('pfc') || fName.includes('refrigerant')) {
+        matchedCat = categories.find((c) => String(c.name).toLowerCase().includes('fugitive')) || matchedCat;
+        if (!scopeObj) scopeObj = { name: 'Scope 1 - Direct GHG Emissions', code: 'S1' } as any;
+      } else if (fName.includes('diesel') || fName.includes('gasoline') || fName.includes('petrol') || fName.includes('natural gas') || fName.includes('coal') || fName.includes('fuel oil') || fName.includes('lpg')) {
+        matchedCat = categories.find((c) => String(c.name).toLowerCase().includes('stationary')) || matchedCat;
+        if (!scopeObj) scopeObj = { name: 'Scope 1 - Direct GHG Emissions', code: 'S1' } as any;
+      }
+
+      const categoryName = matchedCat?.name || (fName.includes('electricity') ? 'Purchased Electricity' : fName.includes('steam') ? 'Purchased Heating & Steam' : 'Stationary Combustion');
+      const scopeName = scopeObj?.name || matchedCat?.scope || (categoryName.toLowerCase().includes('purchased') ? 'Scope 2 - Indirect GHG Emissions' : 'Scope 1 - Direct GHG Emissions');
+
+      const unitMappings = fuel.unitMappings || [];
+      const unitSymbol = unitMappings.map((u) => u.masterUnit?.symbol || u.masterUnit?.name).filter(Boolean).join(', ') || 'kg / sm³ / kWh';
+
+      const versionMappings = fuel.versionMappings || [];
+
+      if (versionMappings.length > 0) {
+        versionMappings.forEach((vm, idx) => {
+          const versionObj = factorVersions.find((fv) => fv.id === vm.factorVersionId) || vm.masterFactorVersion;
+          const versionName = versionObj?.version || '2023 / AR6';
+          const dsId = versionObj?.datasourceId || (versionObj as any)?.datasource?.id;
+          const dsObj = dsId ? datasourceMap.get(dsId) : (versionObj as any)?.datasource;
+          const dsName = dsObj?.name || 'Intergovernmental Panel on Climate Change';
+
+          const rawFactor = (vm as any)?.emissionFactor || fuel.emissionFactor || (unitMappings[0] as any)?.emissionFactor;
+          const efRefText = rawFactor ? `${rawFactor} kg CO₂e / unit` : 'Reference DB Factor';
+
+          const dedupeKey = `${scopeName}::${categoryName}::${dsName}::${versionName}::${fuel.name}`;
+          if (!seenKeys.has(dedupeKey)) {
+            seenKeys.add(dedupeKey);
+            allRows.push({
+              id: `row-${fuel.id}-${versionObj?.id || vm.factorVersionId || idx}`,
+              scopeName,
+              scopeCode: scopeObj?.code,
+              categoryName,
+              datasourceName: dsName,
+              versionName,
+              fuelName: fuel.name,
+              fuelCode: fuel.code,
+              unitSymbol,
+              formulaName: 'Standard Emission Formula',
+              formulaExpression: '(Amount × EF) ÷ 1,000 = tCO₂e',
+              efReference: efRefText,
+              emissionFactor: rawFactor || null,
+              isActive: fuel.isActive ?? true,
+            });
+          }
+        });
+      } else {
+        const rawFactor = fuel.emissionFactor || (unitMappings[0] as any)?.emissionFactor;
+        const efRefText = rawFactor ? `${rawFactor} kg CO₂e / unit` : 'Dynamic Matching Factor';
+
+        const dedupeKey = `${scopeName}::${categoryName}::Global Baseline::Global Baseline::${fuel.name}`;
+        if (!seenKeys.has(dedupeKey)) {
+          seenKeys.add(dedupeKey);
+          allRows.push({
+            id: `row-${fuel.id}-default`,
+            scopeName,
+            scopeCode: scopeObj?.code,
+            categoryName,
+            datasourceName: 'Global Reference Datasource',
+            versionName: '2024 Baseline',
+            fuelName: fuel.name,
+            fuelCode: fuel.code,
+            unitSymbol,
+            formulaName: 'Standard Formula',
+            formulaExpression: '(Amount × EF) ÷ 1,000 = tCO₂e',
+            efReference: efRefText,
+            emissionFactor: rawFactor || null,
+            isActive: fuel.isActive ?? true,
+          });
+        }
+      }
+    });
+
+    // Filtering logic
+    const filtered = allRows.filter((r) => {
+      if (scopeFilter !== 'ALL' && r.scopeName !== scopeFilter) return false;
+      if (categoryFilter !== 'ALL' && r.categoryName !== categoryFilter) return false;
+      if (datasourceFilter !== 'ALL' && r.datasourceName !== datasourceFilter) return false;
+
+      if (searchInput) {
+        const query = searchInput;
+        const match =
+          r.fuelName.toLowerCase().includes(query) ||
+          r.categoryName.toLowerCase().includes(query) ||
+          r.datasourceName.toLowerCase().includes(query) ||
+          r.versionName.toLowerCase().includes(query) ||
+          r.scopeName.toLowerCase().includes(query) ||
+          r.unitSymbol.toLowerCase().includes(query);
+        if (!match) return false;
+      }
+      return true;
+    });
+
+    // Sorting logic
+    filtered.sort((a, b) => {
+      const valA = String(a[sortField] || '').toLowerCase();
+      const valB = String(b[sortField] || '').toLowerCase();
+      if (valA < valB) return sortOrder === 1 ? -1 : 1;
+      if (valA > valB) return sortOrder === 1 ? 1 : -1;
+      return 0;
+    });
+
+    // Server stats
+    const totalCount = filtered.length;
+    const scope1Count = filtered.filter((r) => r.scopeName.toLowerCase().includes('scope 1')).length;
+    const fuelsCount = new Set(filtered.map((r) => r.fuelName)).size;
+    const datasourcesCount = new Set(filtered.map((r) => r.datasourceName)).size;
+
+    // Pagination
+    const paginated = filtered.slice(offSet, offSet + limit);
+
+    return {
+      listData: paginated,
+      totalCount,
+      limit,
+      offSet,
+      stats: {
+        totalCount,
+        scope1Count,
+        fuelsCount,
+        datasourcesCount,
+      },
+    };
   }
 }

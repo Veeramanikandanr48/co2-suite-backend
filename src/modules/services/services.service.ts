@@ -31,6 +31,7 @@ import {
   SEED_SCOPE_CATEGORY_MAPPINGS,
   SEED_INVENTORY_ENTRIES,
 } from 'src/seeds/initial-data.seed';
+import { FactorResolutionService } from '../master/factor-resolution.service';
 import { CalculationEngine } from './engine/calculation-engine';
 
 @Injectable()
@@ -47,6 +48,7 @@ export class ServicesService implements OnApplicationBootstrap {
     private readonly inventoryRepo: Repository<InventoryEntry>,
     private readonly utilService: UtilService,
     private readonly calculationEngine: CalculationEngine,
+    private readonly factorResolutionService: FactorResolutionService,
   ) { }
 
   private assertSuperAdmin(user: IDecodeUserDetails): void {
@@ -703,7 +705,23 @@ export class ServicesService implements OnApplicationBootstrap {
     const orgId = this.resolveOrgId(user);
     const userId = user.id;
 
-    const efVal = dto.ef ?? 0;
+    let efVal = dto.ef ?? 0;
+    let efSourceVal = dto.efSource;
+
+    if ((dto.fuelId || dto.unitId || dto.factorVersionId) && (dto.ef == null || dto.ef === 0)) {
+      try {
+        const resolved = await this.factorResolutionService.resolveEmissionFactor({
+          fuelId: dto.fuelId,
+          unitId: dto.unitId,
+          factorVersionId: dto.factorVersionId,
+        });
+        efVal = resolved.emissionFactor;
+        efSourceVal = resolved.efSource;
+      } catch {
+        // Fallback to provided ef or 0
+      }
+    }
+
     const calculatedEmission = this.calculateEmissionValue(
       dto.amount,
       efVal,
@@ -716,6 +734,7 @@ export class ServicesService implements OnApplicationBootstrap {
       organizationId: orgId,
       createdBy: userId,
       ef: efVal,
+      efSource: efSourceVal,
       emission: calculatedEmission,
       status: dto.status || 'completed',
     });
@@ -759,6 +778,20 @@ export class ServicesService implements OnApplicationBootstrap {
     }
 
     Object.assign(existing, dto);
+
+    if (dto.fuelId || dto.unitId || dto.factorVersionId) {
+      try {
+        const resolved = await this.factorResolutionService.resolveEmissionFactor({
+          fuelId: dto.fuelId,
+          unitId: dto.unitId,
+          factorVersionId: dto.factorVersionId,
+        });
+        existing.ef = resolved.emissionFactor;
+        existing.efSource = resolved.efSource;
+      } catch {
+        // Retain existing ef & efSource if resolution fails
+      }
+    }
 
     const efVal = existing.ef ?? 0;
     existing.emission = this.calculateEmissionValue(

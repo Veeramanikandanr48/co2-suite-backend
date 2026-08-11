@@ -37,8 +37,12 @@ import {
   CreateVersionFuelMappingDto,
   CreateFuelUnitMappingDto,
   CreateUnitFormulaMappingDto,
+  MasterMatrixFilterDto,
 } from 'src/dto/master.dto';
 import { MasterEntityType } from './master.service';
+
+import { FactorResolutionService } from './factor-resolution.service';
+import { ResolveFactorDto } from 'src/dto/resolve-factor.dto';
 
 @ApiTags('Master')
 @Controller('master')
@@ -47,8 +51,57 @@ import { MasterEntityType } from './master.service';
 export class MasterController {
   constructor(
     private readonly masterService: MasterService,
+    private readonly factorResolutionService: FactorResolutionService,
     private readonly utilService: UtilService,
   ) {}
+
+  @Post('resolve-factor')
+  @ApiOperation({ summary: 'Explicit 5-tier factor resolution engine endpoint' })
+  @ApiResponse({ status: 200, description: 'Successfully resolved emission factor' })
+  @ApiResponse({ status: 400, description: 'Failed to resolve emission factor' })
+  async resolveEmissionFactor(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() dto: ResolveFactorDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: resolveEmissionFactor');
+    try {
+      const result = await this.factorResolutionService.resolveEmissionFactor(dto);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Successfully resolved emission factor', result);
+    } catch (error: any) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error.message || 'Failed to resolve emission factor.');
+    } finally {
+      logger.info('Method ended: resolveEmissionFactor');
+    }
+  }
+
+  // ─── GET: Master Overview Matrix ──────────────────────────────────────────
+
+  @Get('matrix')
+  @ApiOperation({ summary: 'Get overview emission factor matrix with server-side search, filtering, sorting, and pagination' })
+  @ApiResponse({ status: 200, description: 'Successfully fetched master matrix' })
+  @ApiResponse({ status: 400, description: 'Failed to fetch master matrix' })
+  async getOverviewMatrix(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query() query: MasterMatrixFilterDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: getOverviewMatrix');
+    try {
+      const result = await this.masterService.getOverviewMatrix(query);
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(res, 'Successfully fetched master matrix', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to fetch master matrix. Please try again later.');
+    } finally {
+      logger.info('Method ended: getOverviewMatrix');
+    }
+  }
 
   // ─── GET: Master Scope ────────────────────────────────────────────────────
 
