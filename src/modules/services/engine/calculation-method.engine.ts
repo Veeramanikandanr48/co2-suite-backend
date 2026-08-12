@@ -1,4 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  SCOPE2_METHODOLOGY,
+  Scope2MarketAllocation,
+  Scope2QualityCriteriaValidation,
+  Scope2Result,
+} from './scope2-methodology.constants';
 
 export type CalculationMethodKey =
   | 'FUEL_BASED'
@@ -90,6 +96,14 @@ export interface CalculationInput {
   gwpVersion?: string;
   gwpHorizon?: string;
   methodologyInputsSnapshot?: Record<string, any>;
+  // Scope 2 Dual Accounting extensions
+  marketAllocations?: Partial<Scope2MarketAllocation>[];
+  residualMixEF?: number;
+  locationEF?: number;
+  contractualInstrumentType?: string;
+  contractualInstrumentRef?: string;
+  supplierName?: string;
+  qualityCriteriaOverride?: Partial<Scope2QualityCriteriaValidation>;
 }
 
 export interface GasBreakdownResult {
@@ -122,6 +136,7 @@ export interface CalculationResult {
   formulaApplied: string;
   gasBreakdown: GasBreakdownResult;
   inputsSnapshot: Record<string, any>;
+  scope2Result?: Scope2Result;
 }
 
 @Injectable()
@@ -388,15 +403,29 @@ export class CalculationMethodEngine {
 
       case 'LOCATION_BASED': {
         derivedAmount = amountVal;
-        totalEmission = Number(((amountVal * factorVal) / 1000).toFixed(6));
-        formulaApplied = `(Electricity [${amountVal} kWh] × Location_Grid_EF [${factorVal}]) / 1000 = ${totalEmission} tCO2e`;
+        const scope2Res = this.calculateScope2DualOutput(
+          input,
+          amountVal,
+          factorVal,
+          'LOCATION_BASED',
+        );
+        totalEmission = scope2Res.locationBased.tonnesCO2e;
+        formulaApplied = scope2Res.locationBased.formula;
+        snapshot.scope2Result = scope2Res;
         break;
       }
 
       case 'MARKET_BASED': {
         derivedAmount = amountVal;
-        totalEmission = Number(((amountVal * factorVal) / 1000).toFixed(6));
-        formulaApplied = `(Electricity [${amountVal} kWh] × Market_Supplier_EF [${factorVal}]) / 1000 = ${totalEmission} tCO2e`;
+        const scope2Res = this.calculateScope2DualOutput(
+          input,
+          amountVal,
+          factorVal,
+          'MARKET_BASED',
+        );
+        totalEmission = scope2Res.marketBased.tonnesCO2e;
+        formulaApplied = scope2Res.marketBased.formula;
+        snapshot.scope2Result = scope2Res;
         break;
       }
 
@@ -565,26 +594,47 @@ export class CalculationMethodEngine {
       }
 
       case 'PURCHASED_STEAM': {
-        // S2 Purchased steam: quantity (GJ or MWh) × steam EF
+        // S2 Purchased steam: quantity (GJ, MWh, or steam mass tonnes) × steam EF
         derivedAmount = amountVal;
-        totalEmission = Number(((amountVal * factorVal) / 1000).toFixed(6));
-        formulaApplied = `(Steam Quantity [${amountVal}] × Steam_EF [${factorVal}]) / 1000 = ${totalEmission} tCO2e`;
+        const scope2Res = this.calculateScope2DualOutput(
+          input,
+          amountVal,
+          factorVal,
+          'PURCHASED_STEAM',
+        );
+        totalEmission = scope2Res.locationBased.tonnesCO2e;
+        formulaApplied = scope2Res.locationBased.formula;
+        snapshot.scope2Result = scope2Res;
         break;
       }
 
       case 'PURCHASED_HEATING': {
         // S2 Purchased heating: quantity (GJ or MWh) × heat EF
         derivedAmount = amountVal;
-        totalEmission = Number(((amountVal * factorVal) / 1000).toFixed(6));
-        formulaApplied = `(Heating Quantity [${amountVal}] × Heat_EF [${factorVal}]) / 1000 = ${totalEmission} tCO2e`;
+        const scope2Res = this.calculateScope2DualOutput(
+          input,
+          amountVal,
+          factorVal,
+          'PURCHASED_HEATING',
+        );
+        totalEmission = scope2Res.locationBased.tonnesCO2e;
+        formulaApplied = scope2Res.locationBased.formula;
+        snapshot.scope2Result = scope2Res;
         break;
       }
 
       case 'PURCHASED_COOLING': {
         // S2 Purchased cooling: quantity (GJ or MWh) × cool EF
         derivedAmount = amountVal;
-        totalEmission = Number(((amountVal * factorVal) / 1000).toFixed(6));
-        formulaApplied = `(Cooling Quantity [${amountVal}] × Cool_EF [${factorVal}]) / 1000 = ${totalEmission} tCO2e`;
+        const scope2Res = this.calculateScope2DualOutput(
+          input,
+          amountVal,
+          factorVal,
+          'PURCHASED_COOLING',
+        );
+        totalEmission = scope2Res.locationBased.tonnesCO2e;
+        formulaApplied = scope2Res.locationBased.formula;
+        snapshot.scope2Result = scope2Res;
         break;
       }
 
@@ -824,6 +874,142 @@ export class CalculationMethodEngine {
       formulaApplied,
       gasBreakdown,
       inputsSnapshot: snapshot,
+      scope2Result: snapshot.scope2Result,
+    };
+  }
+
+  private calculateScope2DualOutput(
+    input: CalculationInput,
+    amountVal: number,
+    factorVal: number,
+    methodKey: CalculationMethodKey,
+  ): Scope2Result {
+    const isSteam = methodKey === 'PURCHASED_STEAM';
+    const isHeating = methodKey === 'PURCHASED_HEATING';
+    const isCooling = methodKey === 'PURCHASED_COOLING';
+
+    let energyType: 'ELECTRICITY' | 'STEAM' | 'HEATING' | 'COOLING' =
+      'ELECTRICITY';
+    if (isSteam) energyType = 'STEAM';
+    else if (isHeating) energyType = 'HEATING';
+    else if (isCooling) energyType = 'COOLING';
+
+    const locationEF = input.locationEF ?? factorVal;
+    const locationTonnes = Number(((amountVal * locationEF) / 1000).toFixed(6));
+    const locationKg = Number((locationTonnes * 1000).toFixed(2));
+    const locationFormula = `(Energy/Steam Amount [${amountVal} ${input.unit || 'kWh'}] × Location_EF [${locationEF}]) / 1000 = ${locationTonnes} tCO2e`;
+
+    const rawAllocations = input.marketAllocations || [];
+    const totalAllocatedQty = rawAllocations.reduce(
+      (sum, alloc) => sum + Number(alloc.allocatedQuantity || 0),
+      0,
+    );
+
+    if (totalAllocatedQty > amountVal + 0.00001) {
+      throw new BadRequestException(
+        `Market-based allocation total (${totalAllocatedQty} ${input.unit || 'kWh'}) exceeds activity consumption quantity (${amountVal} ${input.unit || 'kWh'}). Allocation conservation invariant violated.`,
+      );
+    }
+
+    const residualEF = input.residualMixEF ?? locationEF;
+    const finalAllocations: Scope2MarketAllocation[] = [];
+    let marketTonnesSum = 0;
+    let allQualityPassed = true;
+
+    for (const alloc of rawAllocations) {
+      const qty = Number(alloc.allocatedQuantity || 0);
+      if (qty <= 0) continue;
+
+      const qc: Scope2QualityCriteriaValidation = {
+        conveysEmissionRate: alloc.qualityCriteria?.conveysEmissionRate ?? true,
+        uniqueClaims: alloc.qualityCriteria?.uniqueClaims ?? true,
+        retiredOrCancelled: alloc.qualityCriteria?.retiredOrCancelled ?? true,
+        temporalMatching: alloc.qualityCriteria?.temporalMatching ?? true,
+        geographicBoundary: alloc.qualityCriteria?.geographicBoundary ?? true,
+        supplierSourceValid: alloc.qualityCriteria?.supplierSourceValid ?? true,
+        factorAccuracy: alloc.qualityCriteria?.factorAccuracy ?? true,
+        evidenceAuditability:
+          alloc.qualityCriteria?.evidenceAuditability ??
+          Boolean(alloc.evidenceRef || alloc.instrumentRef),
+      };
+
+      const qcMet = Object.values(qc).every(Boolean);
+      if (!qcMet) allQualityPassed = false;
+
+      const effectiveFactor = qcMet ? Number(alloc.factor ?? 0) : residualEF;
+      const allocTonnes = Number(((qty * effectiveFactor) / 1000).toFixed(6));
+      marketTonnesSum += allocTonnes;
+
+      finalAllocations.push({
+        instrumentType:
+          alloc.instrumentType || (qcMet ? 'PPA' : 'RESIDUAL_MIX'),
+        instrumentRef: alloc.instrumentRef,
+        supplierName: alloc.supplierName,
+        allocatedQuantity: qty,
+        allocatedUnit: alloc.allocatedUnit || input.unit || 'kWh',
+        factor: effectiveFactor,
+        emissionTonnes: allocTonnes,
+        qualityCriteria: qc,
+        qualityCriteriaMet: qcMet,
+        evidenceRef: alloc.evidenceRef,
+      });
+    }
+
+    const unallocatedQty = Number(
+      Math.max(0, amountVal - totalAllocatedQty).toFixed(4),
+    );
+    if (unallocatedQty > 0 || finalAllocations.length === 0) {
+      const resTonnes = Number(
+        ((unallocatedQty * residualEF) / 1000).toFixed(6),
+      );
+      marketTonnesSum += resTonnes;
+      const defaultQC: Scope2QualityCriteriaValidation = {
+        conveysEmissionRate: true,
+        uniqueClaims: true,
+        retiredOrCancelled: true,
+        temporalMatching: true,
+        geographicBoundary: true,
+        supplierSourceValid: true,
+        factorAccuracy: true,
+        evidenceAuditability: true,
+      };
+      finalAllocations.push({
+        instrumentType:
+          unallocatedQty === amountVal
+            ? 'RESIDUAL_MIX'
+            : 'GRID_AVERAGE_FALLBACK',
+        allocatedQuantity: unallocatedQty,
+        allocatedUnit: input.unit || 'kWh',
+        factor: residualEF,
+        emissionTonnes: resTonnes,
+        qualityCriteria: defaultQC,
+        qualityCriteriaMet: true,
+      });
+    }
+
+    const marketTonnes = Number(marketTonnesSum.toFixed(6));
+    const marketKg = Number((marketTonnes * 1000).toFixed(2));
+    const marketFormula = `(Market Allocations [${finalAllocations.length} instruments] Total) = ${marketTonnes} tCO2e`;
+
+    return {
+      methodologyVersion: `${SCOPE2_METHODOLOGY.guidance}_v${SCOPE2_METHODOLOGY.implementation}`,
+      energyType,
+      locationBased: {
+        kgCO2e: locationKg,
+        tonnesCO2e: locationTonnes,
+        factor: locationEF,
+        efSource: input.gwpSource || 'Grid Location Factor',
+        formula: locationFormula,
+      },
+      marketBased: {
+        kgCO2e: marketKg,
+        tonnesCO2e: marketTonnes,
+        factorAllocations: finalAllocations,
+        qualityCriteriaPassed: allQualityPassed,
+        residualMixUsed: unallocatedQty > 0,
+        unallocatedQuantity: unallocatedQty,
+        formula: marketFormula,
+      },
     };
   }
 }

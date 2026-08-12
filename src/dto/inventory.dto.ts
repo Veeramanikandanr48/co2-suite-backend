@@ -247,6 +247,33 @@ export class CreateInventoryEntryDto {
   @IsOptional()
   gwpValuesSnapshot?: Record<string, any>;
 
+  @ApiProperty({ required: false, description: 'Scope 2 Market Allocations array' })
+  @IsOptional()
+  marketAllocations?: any[];
+
+  @ApiProperty({ required: false, description: 'Residual mix emission factor snapshot' })
+  @IsOptional()
+  residualMixEF?: number;
+
+  @ApiProperty({ required: false, description: 'Location grid emission factor override' })
+  @IsOptional()
+  locationEF?: number;
+
+  @ApiProperty({ required: false, description: 'Contractual instrument type (PPA, REC, GREEN_TARIFF, etc.)' })
+  @IsString()
+  @IsOptional()
+  contractualInstrumentType?: string;
+
+  @ApiProperty({ required: false, description: 'Contractual instrument reference code/ID' })
+  @IsString()
+  @IsOptional()
+  contractualInstrumentRef?: string;
+
+  @ApiProperty({ required: false, description: 'Energy supplier name' })
+  @IsString()
+  @IsOptional()
+  supplierName?: string;
+
   @ApiProperty({
     example: false,
     required: false,

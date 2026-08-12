@@ -46,3 +46,5 @@ async function bootstrap() {
   });
 }
 bootstrap();
+// Server ready
+

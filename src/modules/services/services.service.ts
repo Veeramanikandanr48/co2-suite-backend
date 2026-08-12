@@ -859,6 +859,12 @@ export class ServicesService implements OnApplicationBootstrap {
       employeeCount: dto.employeeCount,
       travelDays: dto.travelDays,
       dailyDistance: dto.dailyDistance,
+      marketAllocations: dto.marketAllocations,
+      residualMixEF: dto.residualMixEF,
+      locationEF: dto.locationEF,
+      contractualInstrumentType: dto.contractualInstrumentType,
+      contractualInstrumentRef: dto.contractualInstrumentRef,
+      supplierName: dto.supplierName,
       methodologyInputsSnapshot: dto.methodologyInputsSnapshot,
     });
 
@@ -1001,8 +1007,13 @@ export class ServicesService implements OnApplicationBootstrap {
       wastewaterVolume: dto.wastewaterVolume,
       treatmentMethod: dto.treatmentMethod,
       employeeCount: dto.employeeCount,
-      travelDays: dto.travelDays,
       dailyDistance: dto.dailyDistance,
+      marketAllocations: dto.marketAllocations,
+      residualMixEF: dto.residualMixEF,
+      locationEF: dto.locationEF,
+      contractualInstrumentType: dto.contractualInstrumentType,
+      contractualInstrumentRef: dto.contractualInstrumentRef,
+      supplierName: dto.supplierName,
     });
 
     return {
@@ -1030,6 +1041,7 @@ export class ServicesService implements OnApplicationBootstrap {
       biogenicEmission: calcResult.biogenicEmission,
       fossilEmission: calcResult.fossilEmission,
       emissionUnit: 'tCO2e',
+      scope2Result: calcResult.scope2Result,
     };
   }
 
