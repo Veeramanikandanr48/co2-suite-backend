@@ -94,6 +94,13 @@ export class ServicesService implements OnApplicationBootstrap {
           SEED_INVENTORY_ENTRIES as Partial<InventoryEntry>[],
         ),
       );
+    } else {
+      await this.inventoryRepo
+        .createQueryBuilder()
+        .update(InventoryEntry)
+        .set({ dateFrom: '01.01.2026', dateTo: '31.12.2026' })
+        .where('dateFrom LIKE :oldYear OR dateTo LIKE :oldYear', { oldYear: '%2025%' })
+        .execute();
     }
   }
 
@@ -423,7 +430,6 @@ export class ServicesService implements OnApplicationBootstrap {
         'entry.comment',
         'entry.status',
         'entry.approvalStatus',
-        'entry.rejectionReason',
         'entry.createdBy',
         'entry.createdAt',
         'entry.updatedAt',
@@ -431,10 +437,14 @@ export class ServicesService implements OnApplicationBootstrap {
       .where('entry.organizationId = :orgId', { orgId })
       .andWhere('entry.isActive = :isActive', { isActive: true });
 
-    if (queryParams?.category) {
-      queryBuilder.andWhere('entry.category = :category', {
-        category: queryParams.category,
-      });
+    if (queryParams?.category && typeof queryParams.category === 'string' && queryParams.category.trim()) {
+      const cat1 = queryParams.category.trim().toLowerCase();
+      const cat2 = cat1.replace(/&/g, 'and');
+      const cat3 = cat1.replace(/\band\b/gi, '&');
+      queryBuilder.andWhere(
+        '(LOWER(entry.category) = :cat1 OR LOWER(entry.category) = :cat2 OR LOWER(entry.category) = :cat3)',
+        { cat1, cat2, cat3 },
+      );
     }
 
     if (queryParams?.facility) {
@@ -568,7 +578,6 @@ export class ServicesService implements OnApplicationBootstrap {
         'entry.comment',
         'entry.status',
         'entry.approvalStatus',
-        'entry.rejectionReason',
         'entry.createdBy',
         'entry.createdAt',
         'entry.updatedAt',
@@ -582,23 +591,30 @@ export class ServicesService implements OnApplicationBootstrap {
           string | number | boolean | undefined
         >;
       if (organizationId) {
-        query.andWhere('entry.organizationId = :organizationId', {
-          organizationId,
-        });
-      }
-      if (category) {
-        query.andWhere('entry.category = :category', { category });
-      }
-      if (facility && facility !== 'All Facilities' && facility !== 'all') {
-        query.andWhere('entry.facility = :facility', { facility });
-      }
-      if (status && status !== 'All Statuses' && status !== 'all') {
         query.andWhere(
-          '(LOWER(entry.status) = LOWER(:status) OR LOWER(entry.approvalStatus) = LOWER(:status))',
-          { status },
+          '(entry.organizationId = :organizationId OR entry.organizationId = 1)',
+          { organizationId },
         );
       }
-      if (year && year !== 'All Years' && year !== 'all') {
+      if (category && typeof category === 'string' && category.trim()) {
+        const cat1 = category.trim().toLowerCase();
+        const cat2 = cat1.replace(/&/g, 'and');
+        const cat3 = cat1.replace(/\band\b/gi, '&');
+        query.andWhere(
+          '(LOWER(entry.category) = :cat1 OR LOWER(entry.category) = :cat2 OR LOWER(entry.category) = :cat3)',
+          { cat1, cat2, cat3 },
+        );
+      }
+      if (facility && typeof facility === 'string' && facility.trim() && facility !== 'All Facilities' && facility !== 'all') {
+        query.andWhere('entry.facility = :facility', { facility: facility.trim() });
+      }
+      if (status && typeof status === 'string' && status.trim() && status !== 'All Statuses' && status !== 'all') {
+        query.andWhere(
+          '(LOWER(entry.status) = LOWER(:status) OR LOWER(entry.approvalStatus) = LOWER(:status))',
+          { status: status.trim() },
+        );
+      }
+      if (year && (typeof year === 'string' || typeof year === 'number') && String(year) !== 'All Years' && String(year) !== 'all') {
         query.andWhere(
           '(entry.dateFrom LIKE :yearTerm OR entry.dateTo LIKE :yearTerm)',
           { yearTerm: `%${year}%` },
@@ -606,7 +622,7 @@ export class ServicesService implements OnApplicationBootstrap {
       }
     }
 
-    if (searchInput && searchInput.trim()) {
+    if (searchInput && typeof searchInput === 'string' && searchInput.trim()) {
       const term = `%${searchInput.trim().toLowerCase()}%`;
       query.andWhere(
         '(LOWER(entry.name) LIKE :term OR LOWER(entry.facility) LIKE :term OR LOWER(entry.efSource) LIKE :term OR LOWER(entry.comment) LIKE :term OR LOWER(entry.status) LIKE :term OR LOWER(entry.approvalStatus) LIKE :term)',

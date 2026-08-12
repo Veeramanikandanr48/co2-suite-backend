@@ -363,7 +363,7 @@ export class ServicesController {
         result,
       );
     } catch (error) {
-      logger.error('Error occurred', error);
+      logger.error('Error occurred in getInventoryEntries', error);
       return this.utilService.sendErrorResponse(
         res,
         'Failed to fetch inventory entries. Please try again later.',
@@ -403,7 +403,7 @@ export class ServicesController {
         result,
       );
     } catch (error) {
-      logger.error('Error occurred', error);
+      logger.error('Error occurred in getInventoryFilterList', error);
       return this.utilService.sendErrorResponse(
         res,
         'Failed to fetch inventory list. Please try again later.',
