@@ -122,6 +122,17 @@ export class MasterService implements OnApplicationBootstrap {
       await this.masterCategoryRepo.save(
         this.masterCategoryRepo.create(SEED_MASTER_CATEGORIES as Partial<MasterCategory>[]),
       );
+    } else {
+      // Sync formConfig for existing DB categories if missing
+      for (const seedCat of SEED_MASTER_CATEGORIES) {
+        if (seedCat.name && seedCat.formConfig) {
+          const existing = await this.masterCategoryRepo.findOne({ where: { name: seedCat.name } });
+          if (existing && !existing.formConfig) {
+            existing.formConfig = seedCat.formConfig;
+            await this.masterCategoryRepo.save(existing);
+          }
+        }
+      }
     }
 
     const dsCount = await this.masterDatasourceRepo.count();

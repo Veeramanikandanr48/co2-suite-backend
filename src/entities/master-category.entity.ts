@@ -20,4 +20,7 @@ export class MasterCategory extends BaseColumns {
 
   @Column({ type: 'text', nullable: true })
   description: string;
+
+  @Column({ type: 'json', nullable: true })
+  formConfig: any;
 }
