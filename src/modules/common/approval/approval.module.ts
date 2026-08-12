@@ -9,6 +9,7 @@ import {
 } from 'src/entities/approval.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UtilService } from 'src/utility/util/util.service';
+import { AuditModule } from 'src/modules/common/audit/audit.module';
 
 @Module({
   imports: [
@@ -18,8 +19,10 @@ import { UtilService } from 'src/utility/util/util.service';
       ApprovalMatrix,
       UserApprovalRemarksMapping,
     ]),
+    AuditModule,
   ],
   controllers: [ApprovalController],
   providers: [ApprovalService, UtilService],
+  exports: [ApprovalService],
 })
 export class ApprovalModule {}

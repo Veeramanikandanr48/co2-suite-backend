@@ -2,6 +2,7 @@ import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import type { FuelUnitMapping } from './fuel-unit-mapping.entity';
 import type { UnitFormulaMapping } from './unit-formula-mapping.entity';
+import type { EmissionFactor } from './emission-factor.entity';
 
 @Entity({ name: 'master_unit' })
 export class MasterUnit extends BaseColumns {
@@ -22,4 +23,7 @@ export class MasterUnit extends BaseColumns {
 
   @OneToMany('UnitFormulaMapping', 'masterUnit')
   formulaMappings: UnitFormulaMapping[];
+
+  @OneToMany('EmissionFactor', 'unitBasis')
+  emissionFactors: EmissionFactor[];
 }

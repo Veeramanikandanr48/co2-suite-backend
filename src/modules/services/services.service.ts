@@ -32,6 +32,10 @@ import {
   SEED_INVENTORY_ENTRIES,
 } from 'src/seeds/initial-data.seed';
 import { CalculationEngine } from './engine/calculation-engine';
+import { CalculationPipelineService } from 'src/modules/calculation/calculation-pipeline.service';
+import { AuditService } from 'src/modules/common/audit/audit.service';
+import { ApprovalService } from 'src/modules/common/approval/approval.service';
+import { AuditAction } from 'src/enums/ghg.enum';
 
 @Injectable()
 export class ServicesService implements OnApplicationBootstrap {
@@ -47,7 +51,175 @@ export class ServicesService implements OnApplicationBootstrap {
     private readonly inventoryRepo: Repository<InventoryEntry>,
     private readonly utilService: UtilService,
     private readonly calculationEngine: CalculationEngine,
-  ) { }
+    private readonly calculationPipeline: CalculationPipelineService,
+    private readonly auditService: AuditService,
+    private readonly approvalService: ApprovalService,
+  ) {}
+
+  /** Approval module id for inventory entries (seeded in approval_modules). */
+  private static readonly INVENTORY_APPROVAL_MODULE_ID = 2;
+
+  /** Extracts the reporting year (YYYY) from a dd.MM.yyyy date string. */
+  private extractReportingYear(dateFrom?: string): number | undefined {
+    if (!dateFrom) return undefined;
+    const parts = String(dateFrom).split('.');
+    if (parts.length === 3) {
+      const year = Number(parts[2]);
+      if (!Number.isNaN(year)) return year;
+    }
+    const matched = String(dateFrom).match(/(\d{4})/);
+    return matched ? Number(matched[1]) : undefined;
+  }
+
+  /**
+   * Enterprise entry creation: runs the full calculation pipeline
+   * (validation → normalization → factor resolution → GWP → gas math),
+   * records an audit trail, and raises an approval workflow when the
+   * approval matrix exists. If no master factor can be resolved the legacy
+   * path is preserved and the entry is created with a pending review marker.
+   */
+  async createInventoryEntry(
+    user: IDecodeUserDetails,
+    dto: CreateInventoryEntryDto,
+  ): Promise<InventoryEntry> {
+    const orgId = this.resolveOrgId(user);
+    const userId = user.id;
+
+    const outcome = await this.calculationPipeline.run({
+      organizationId: orgId,
+      category: dto.category,
+      name: dto.name,
+      amount: dto.amount,
+      unit: dto.unit,
+      fuelKey: dto.name,
+      reportingYear: this.extractReportingYear(dto.dateFrom),
+      basedOption: 'activity',
+      runType: 'SAVE',
+      reason: dto.comment,
+    });
+
+    let entity: InventoryEntry;
+    if (outcome.ok) {
+      entity = this.inventoryRepo.create({
+        ...dto,
+        organizationId: orgId,
+        createdBy: userId,
+        ef: outcome.factorValue,
+        efSource: outcome.fallbackUsed
+          ? `RESOLVED (fallback) — ${outcome.fallbackReason}`
+          : 'RESOLVED via factor resolution',
+        emission: outcome.totalEmission,
+        status: dto.status || 'completed',
+        scopeNumber: this.resolveScopeNumber(dto.category),
+        factorId: outcome.factorId,
+        factorVersionId: outcome.factorVersionId,
+        gwpSetId: outcome.gwpSetId,
+        calculationRunId: outcome.calculationRunId,
+        latestCalculationResultId: outcome.calculationResultId,
+        inclusionStatus:
+          dto.status === 'pending' ? 'PENDING_REVIEW' : 'INCLUDED',
+        dataQuality: outcome.fallbackUsed ? 'ESTIMATED' : 'AVERAGE_DATA',
+        methodology: 'ACTIVITY_BASED',
+      });
+    } else {
+      const blocked = outcome.errors.some(
+        (e) => e.code === 'FACTOR_NOT_FOUND' || e.code === 'UNIT_INCOMPATIBLE',
+      );
+      entity = this.inventoryRepo.create({
+        ...dto,
+        organizationId: orgId,
+        createdBy: userId,
+        ef: dto.ef ?? 0,
+        emission: blocked
+          ? 0
+          : this.calculateEmissionValue(
+              dto.amount,
+              dto.ef ?? 0,
+              dto.formula,
+              dto.unit,
+            ),
+        status: blocked ? 'pending' : dto.status || 'completed',
+        comment: blocked
+          ? `Awaiting master data: ${outcome.errors.map((e) => e.message).join(' ')}`
+          : dto.comment,
+        scopeNumber: this.resolveScopeNumber(dto.category),
+        inclusionStatus: 'PENDING_REVIEW',
+      });
+    }
+
+    const saved = await this.inventoryRepo.save(entity);
+
+    // ── Audit trail ──────────────────────────────────────────────────────────
+    await this.auditService.record({
+      organizationId: orgId,
+      entityType: 'inventory_entries',
+      entityId: saved.id,
+      entityLabel: `${dto.category} / ${dto.name}`,
+      action: AuditAction.CREATE,
+      afterJson: {
+        amount: saved.amount,
+        unit: saved.unit,
+        emission: saved.emission,
+        factorId: saved.factorId,
+        gwpSetId: saved.gwpSetId,
+        calculationRunId: saved.calculationRunId,
+      },
+      actorId: userId,
+      reason: dto.comment,
+    });
+
+    if (outcome.fallbackUsed) {
+      await this.auditService.record({
+        organizationId: orgId,
+        entityType: 'inventory_entries',
+        entityId: saved.id,
+        entityLabel: `${dto.category} / ${dto.name}`,
+        action: AuditAction.FALLBACK,
+        reason: outcome.fallbackReason,
+        afterJson: { resolution: outcome.trace },
+        actorId: userId,
+      });
+    }
+
+    // ── Approval workflow (only when matrix configured) ─────────────────────
+    await this.approvalService.insertDynamicApproval({
+      approvalModuleId: ServicesService.INVENTORY_APPROVAL_MODULE_ID,
+      primaryId: saved.id,
+      userId,
+      userRoleId: user.roleId,
+      branchId: (user as { branchId?: number }).branchId ?? 1,
+      notificationTitle: 'Inventory entry awaiting approval',
+      notificationBody: `${dto.category} / ${dto.name} — ${saved.emission.toFixed(4)} tCO2e`,
+      isNeedNotify: true,
+    });
+
+    return saved;
+  }
+
+  private resolveScopeNumber(category: string): number | undefined {
+    const map: Record<string, number> = {
+      'Stationary Combustion': 1,
+      'Mobile Combustion': 1,
+      'Fugitive Emissions': 1,
+      'Process Emissions': 1,
+      'Purchased Electricity': 2,
+      'Purchased Heating & Steam': 2,
+      'Purchased Goods and Services': 3,
+      'Capital Goods': 3,
+      'Energy and Fuel Related Activities': 3,
+      'Upstream Transportation': 3,
+      'Waste Generated in Operations': 3,
+      'Business Travel': 3,
+      'Employee Commuting': 3,
+      'Downstream Transportation': 3,
+      'Processing of Sold Products': 3,
+      'Use of Sold Products': 3,
+      'EOL Treatment of Sold Products': 3,
+      Franchise: 3,
+      Investments: 3,
+    };
+    return map[category] ?? 1;
+  }
 
   private assertSuperAdmin(user: IDecodeUserDetails): void {
     if (user?.roleId !== MasterRole.SUPER_ADMIN) {
@@ -313,7 +485,9 @@ export class ServicesService implements OnApplicationBootstrap {
       .createQueryBuilder('mapping')
       .select(['mapping.id', 'mapping.scopeId', 'mapping.categoryId'])
       .where('mapping.scopeId = :scopeId', { scopeId: dto.scopeId })
-      .andWhere('mapping.categoryId = :categoryId', { categoryId: dto.categoryId })
+      .andWhere('mapping.categoryId = :categoryId', {
+        categoryId: dto.categoryId,
+      })
       .andWhere('mapping.isActive = :isActive', { isActive: true })
       .getOne();
 
@@ -696,33 +870,10 @@ export class ServicesService implements OnApplicationBootstrap {
     return Number(((amountVal * factorVal) / 1000).toFixed(3));
   }
 
-  async createInventoryEntry(
-    user: IDecodeUserDetails,
-    dto: CreateInventoryEntryDto,
-  ): Promise<InventoryEntry> {
-    const orgId = this.resolveOrgId(user);
-    const userId = user.id;
-
-    const efVal = dto.ef ?? 0;
-    const calculatedEmission = this.calculateEmissionValue(
-      dto.amount,
-      efVal,
-      dto.formula,
-      dto.unit,
-    );
-
-    const entity = this.inventoryRepo.create({
-      ...dto,
-      organizationId: orgId,
-      createdBy: userId,
-      ef: efVal,
-      emission: calculatedEmission,
-      status: dto.status || 'completed',
-    });
-
-    return this.inventoryRepo.save(entity);
-  }
-
+  /**
+   * Update with revision control: approved entries become a new revision via
+   * the pipeline (runType UPDATE); the audit trail records before/after.
+   */
   async updateInventoryEntry(
     user: IDecodeUserDetails,
     id: number,
@@ -748,6 +899,7 @@ export class ServicesService implements OnApplicationBootstrap {
         'entry.status',
         'entry.comment',
         'entry.approvalStatus',
+        'entry.inclusionStatus',
         'entry.isActive',
       ])
       .where('entry.id = :id', { id })
@@ -758,17 +910,86 @@ export class ServicesService implements OnApplicationBootstrap {
       throw new BadRequestException(`Inventory entry with ID ${id} not found`);
     }
 
+    const before = { ...existing } as unknown as Record<string, unknown>;
     Object.assign(existing, dto);
 
-    const efVal = existing.ef ?? 0;
-    existing.emission = this.calculateEmissionValue(
-      existing.amount,
-      efVal,
-      dto.formula,
-      existing.unit,
-    );
+    const merged = {
+      ...existing,
+      ...dto,
+    } as InventoryEntry;
 
-    return this.inventoryRepo.save(existing);
+    // Full pipeline on update (revised inputs → revised emissions, versioned)
+    const outcome = await this.calculationPipeline.run({
+      organizationId: orgId,
+      inventoryEntryId: id,
+      category: merged.category,
+      name: merged.name,
+      amount: merged.amount,
+      unit: merged.unit,
+      fuelKey: merged.name,
+      reportingYear: this.extractReportingYear(merged.dateFrom),
+      basedOption: 'activity',
+      inclusionStatus: merged.inclusionStatus,
+      runType: 'UPDATE',
+      reason: dto.comment,
+    });
+
+    if (outcome.ok) {
+      existing.emission = outcome.totalEmission;
+      existing.ef = outcome.factorValue;
+      existing.efSource = outcome.fallbackUsed
+        ? `RESOLVED (fallback) — ${outcome.fallbackReason}`
+        : 'RESOLVED via factor resolution';
+      existing.factorId = outcome.factorId;
+      existing.factorVersionId = outcome.factorVersionId;
+      existing.gwpSetId = outcome.gwpSetId;
+      existing.calculationRunId = outcome.calculationRunId;
+      existing.latestCalculationResultId = outcome.calculationResultId;
+    } else {
+      const blocked = outcome.errors.some(
+        (e) => e.code === 'FACTOR_NOT_FOUND' || e.code === 'UNIT_INCOMPATIBLE',
+      );
+      if (blocked) {
+        existing.emission = 0;
+        existing.status = 'pending';
+        existing.comment = `Awaiting master data: ${outcome.errors.map((e) => e.message).join(' ')}`;
+      }
+    }
+
+    const saved = await this.inventoryRepo.save(existing);
+
+    await this.auditService.record({
+      organizationId: orgId,
+      entityType: 'inventory_entries',
+      entityId: id,
+      entityLabel: `${saved.category} / ${saved.name}`,
+      action: AuditAction.UPDATE,
+      beforeJson: before,
+      afterJson: {
+        amount: saved.amount,
+        unit: saved.unit,
+        emission: saved.emission,
+        factorId: saved.factorId,
+        calculationRunId: saved.calculationRunId,
+      },
+      actorId: user.id,
+      reason: dto.comment,
+    });
+
+    if (outcome.fallbackUsed) {
+      await this.auditService.record({
+        organizationId: orgId,
+        entityType: 'inventory_entries',
+        entityId: id,
+        entityLabel: `${saved.category} / ${saved.name}`,
+        action: AuditAction.FALLBACK,
+        reason: outcome.fallbackReason,
+        afterJson: { resolution: outcome.trace },
+        actorId: user.id,
+      });
+    }
+
+    return saved;
   }
 
   async deactivateInventoryEntry(
@@ -930,16 +1151,31 @@ export class ServicesService implements OnApplicationBootstrap {
       ? scopeItem.masterCategory.name
       : this.activityToCategoryMap[codeUpper] || codeUpper;
 
-    const sourcesSet = new Set<string>(['IPCC (Commercial & Institutional Use)', 'DEFRA 2024', 'IEA 2023']);
+    const sourcesSet = new Set<string>([
+      'IPCC (Commercial & Institutional Use)',
+      'DEFRA 2024',
+      'IEA 2023',
+    ]);
     const versionsSet = new Set<string>(['AR6', '2024', '2023']);
-    const unitsSet = new Set<string>(['sm3', 'L', 'kWh', 'kg', 'm3', 'ton', 'km', 'passenger.km']);
+    const unitsSet = new Set<string>([
+      'sm3',
+      'L',
+      'kWh',
+      'kg',
+      'm3',
+      'ton',
+      'km',
+      'passenger.km',
+    ]);
     const defaultFormula = '(amount * factor) / 1000';
 
     return {
       statusCode: 200,
       scope: String(
         scopeId ||
-        (scopeItem?.masterScope?.scope ? scopeItem.masterScope.scope.replace(/\D/g, '') : '1'),
+          (scopeItem?.masterScope?.scope
+            ? scopeItem.masterScope.scope.replace(/\D/g, '')
+            : '1'),
       ),
       activity: codeUpper,
       based_option: basedOption || 'activity',
@@ -963,7 +1199,9 @@ export class ServicesService implements OnApplicationBootstrap {
     return scopeItems.map((item) => ({
       code: item.masterCategory?.code || '',
       name: item.masterCategory?.name || '',
-      scope: item.masterScope?.scope ? item.masterScope.scope.replace(/\D/g, '') : '1',
+      scope: item.masterScope?.scope
+        ? item.masterScope.scope.replace(/\D/g, '')
+        : '1',
       scopeCode: item.masterScope?.code || '',
     }));
   }

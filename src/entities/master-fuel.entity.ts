@@ -10,6 +10,7 @@ import { BaseColumns } from './base-columns.entity';
 import type { MasterScope } from './master-scope.entity';
 import type { VersionFuelMapping } from './version-fuel-mapping.entity';
 import type { FuelUnitMapping } from './fuel-unit-mapping.entity';
+import type { EmissionFactor } from './emission-factor.entity';
 
 @Entity({ name: 'master_fuel' })
 export class MasterFuel extends BaseColumns {
@@ -37,4 +38,7 @@ export class MasterFuel extends BaseColumns {
 
   @OneToMany('FuelUnitMapping', 'masterFuel')
   unitMappings: FuelUnitMapping[];
+
+  @OneToMany('EmissionFactor', 'fuel')
+  emissionFactors: EmissionFactor[];
 }

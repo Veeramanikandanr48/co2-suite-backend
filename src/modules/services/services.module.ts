@@ -16,6 +16,9 @@ import { SummaryService } from './summary.service';
 import { ServicesController } from './services.controller';
 import { UtilService } from 'src/utility/util/util.service';
 import { CalculationEngine } from './engine/calculation-engine';
+import { CalculationModule } from 'src/modules/calculation/calculation.module';
+import { ApprovalModule } from 'src/modules/common/approval/approval.module';
+import { AuditModule } from 'src/modules/common/audit/audit.module';
 
 @Module({
   imports: [
@@ -28,6 +31,9 @@ import { CalculationEngine } from './engine/calculation-engine';
       Organization,
       UserDetails,
     ]),
+    CalculationModule,
+    ApprovalModule,
+    AuditModule,
     MulterModule.register({
       storage: diskStorage({
         destination: (req, file, cb) => {

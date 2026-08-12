@@ -18,6 +18,8 @@ import { ILoggerMethods } from 'src/utility/base-interface.interface';
 import { MasterApprovalStatus, MasterRoles } from 'src/entities/master.entity';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ApprovalStatusEnum } from 'src/enums/approval.enum';
+import { AuditService } from 'src/modules/common/audit/audit.service';
+import { AuditAction } from 'src/enums/ghg.enum';
 
 @Injectable()
 export class ApprovalService {
@@ -31,6 +33,7 @@ export class ApprovalService {
     private readonly approvalMatrixRepository: Repository<ApprovalMatrix>,
     @InjectRepository(UserApprovalRemarksMapping)
     private readonly userApprovalRemarksMappingRepository: Repository<UserApprovalRemarksMapping>,
+    private readonly auditService: AuditService,
   ) {}
 
   private validateSqlIdentifier(value: string, fieldName: string): string {
@@ -245,6 +248,12 @@ export class ApprovalService {
           logger.info('No next approvar found');
         }
       }
+      await this.syncPrimaryStatus(
+        data.approvalModuleUniqueId,
+        data.approvalModuleId,
+        data.reason,
+        data.userId,
+      );
       return true;
     } catch (error) {
       if (queryRunner.isTransactionActive) {
@@ -254,6 +263,89 @@ export class ApprovalService {
       throw error;
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  /**
+   * Propagates the approval outcome to the primary entity referenced by the
+   * approval module (e.g. inventory_entries): Approved / Rejected / Pending.
+   * On full approval the latest calculation result (inventory) is also
+   * promoted to APPROVED. Failure is logged, never thrown.
+   */
+  async syncPrimaryStatus(
+    approvalModuleUniqueId: number,
+    approvalModuleId: number,
+    reason?: string,
+    actorId?: number,
+  ): Promise<string> {
+    try {
+      const approvalModule =
+        await this.getApprovalModuleDetails(approvalModuleId);
+      if (!approvalModule) return 'UNKNOWN';
+
+      const table = this.validateSqlIdentifier(
+        approvalModule.mappingTable,
+        'mappingTable',
+      );
+      const column = this.validateSqlIdentifier(
+        approvalModule.mappingColumn,
+        'mappingColumn',
+      );
+
+      const rows = await this.userApprovalRepository
+        .createQueryBuilder()
+        .select('"approvalStatusId"')
+        .where('"approvalModuleUniqueId" = :uniqueId', {
+          uniqueId: approvalModuleUniqueId,
+        })
+        .andWhere('"approvalModuleId" = :approvalModuleId', {
+          approvalModuleId,
+        })
+        .andWhere('"isActive" = true')
+        .getRawMany<{ approvalStatusId: number }>();
+
+      const statusIds = rows.map((r) => Number(r.approvalStatusId));
+      const anyRejected = statusIds.includes(ApprovalStatusEnum.REJECT);
+      const allApproved =
+        statusIds.length > 0 &&
+        statusIds.every((id) => id === ApprovalStatusEnum.APPROVE);
+
+      const status = anyRejected
+        ? 'Rejected'
+        : allApproved
+          ? 'Approved'
+          : 'Pending';
+
+      await this.dataSource.query(
+        `UPDATE ${table} SET "approvalStatus" = $1, "updatedAt" = NOW() WHERE ${column} = $2`,
+        [status, approvalModuleUniqueId],
+      );
+
+      if (anyRejected && reason) {
+        await this.dataSource.query(
+          `UPDATE ${table} SET "rejectionReason" = $1 WHERE ${column} = $2`,
+          [reason, approvalModuleUniqueId],
+        );
+      }
+
+      if (allApproved && table === 'inventory_entries') {
+        await this.dataSource.query(
+          `UPDATE calculation_results SET "resultStatus" = 'APPROVED' WHERE "inventoryEntryId" = $1 AND "isLatest" = true`,
+          [approvalModuleUniqueId],
+        );
+        await this.auditService.record({
+          entityType: 'inventory_entries',
+          entityId: approvalModuleUniqueId,
+          action: AuditAction.APPROVE,
+          reason: reason || 'Approval workflow completed',
+          actorId,
+        });
+      }
+
+      return status;
+    } catch (error) {
+      // Non-fatal; approval itself has already been persisted.
+      return 'UNKNOWN';
     }
   }
 

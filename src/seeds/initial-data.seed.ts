@@ -213,8 +213,6 @@ export const SEED_SCOPE_CATEGORY_MAPPINGS: Partial<ScopeCategoryMapping>[] = [
   },
 ];
 
-
-
 export const SEED_INVENTORY_ENTRIES: Partial<InventoryEntry>[] = [
   // Scope 1: Stationary Combustion
   {

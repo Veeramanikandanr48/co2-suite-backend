@@ -40,6 +40,9 @@ export class ApprovalMatrix extends BaseColumns {
   @Column({ type: 'varchar' })
   conditionName: string;
 
+  @Column({ type: 'varchar', default: 'None' })
+  fieldName: string;
+
   @Column({ type: 'int' })
   toRoleId: number;
 

@@ -9,6 +9,7 @@ import {
 import { BaseColumns } from './base-columns.entity';
 import type { MasterDatasource } from './master-datasource.entity';
 import type { VersionFuelMapping } from './version-fuel-mapping.entity';
+import type { EmissionFactor } from './emission-factor.entity';
 
 @Entity({ name: 'master_factor_version' })
 export class MasterFactorVersion extends BaseColumns {
@@ -33,4 +34,7 @@ export class MasterFactorVersion extends BaseColumns {
 
   @OneToMany('VersionFuelMapping', 'masterFactorVersion')
   fuelMappings: VersionFuelMapping[];
+
+  @OneToMany('EmissionFactor', 'factorVersion')
+  emissionFactors: EmissionFactor[];
 }

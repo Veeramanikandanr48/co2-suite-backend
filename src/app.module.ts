@@ -15,6 +15,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { NotificationsModule } from './modules/common/notifications/notifications.module';
 import { RegistrationModule } from './modules/registration/registration.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { MethodologyModule } from './modules/methodology/methodology.module';
+import { CalculationModule } from './modules/calculation/calculation.module';
 import { MultiFactorAuthenticationService } from './utility/multi-factor-authentication/multi-factor-authentication.service';
 import { UserDetails } from './entities/user.entity';
 import { Organization } from './entities/organization.entity';
@@ -25,7 +27,11 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { FacilitiesModule } from './modules/facilities/facilities.module';
 import { ApprovalModule } from './modules/common/approval/approval.module';
+import { AuditModule } from './modules/common/audit/audit.module';
 import { MasterModule } from './modules/master/master.module';
+import { BoundaryModule } from './modules/boundary/boundary.module';
+import { ReportingModule } from './modules/reporting/reporting.module';
+import { SeedsModule } from './seeds/seeds.module';
 import { UtilService } from './utility/util/util.service';
 
 @Module({
@@ -104,7 +110,13 @@ import { UtilService } from './utility/util/util.service';
     ServicesModule,
     FacilitiesModule,
     ApprovalModule,
+    AuditModule,
     MasterModule,
+    MethodologyModule,
+    CalculationModule,
+    BoundaryModule,
+    ReportingModule,
+    SeedsModule,
   ],
   controllers: [AppController],
   providers: [
