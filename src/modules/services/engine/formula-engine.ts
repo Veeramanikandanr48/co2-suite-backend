@@ -6,6 +6,7 @@ import {
 import { ActivityMultiplierStrategy } from './strategies/activity-multiplier.strategy';
 import { DistanceWeightStrategy } from './strategies/distance-weight.strategy';
 import { SpendEeioStrategy } from './strategies/spend-eeio.strategy';
+import { EmployeeCommutingStrategy } from './strategies/employee-commuting.strategy';
 import { ActivityCode } from 'src/enums/activity-code.enum';
 
 export class FormulaEngine {
@@ -13,6 +14,7 @@ export class FormulaEngine {
     ['ACTIVITY_MULTIPLIER', new ActivityMultiplierStrategy()],
     ['DISTANCE_WEIGHT', new DistanceWeightStrategy()],
     ['SPEND_EEIO', new SpendEeioStrategy()],
+    ['EMPLOYEE_COMMUTING', new EmployeeCommutingStrategy()],
   ]);
 
   /**
@@ -31,6 +33,8 @@ export class FormulaEngine {
       case ActivityCode.UTD:
       case ActivityCode.DTD:
         return this.strategies.get('DISTANCE_WEIGHT')!;
+      case ActivityCode.EC:
+        return this.strategies.get('EMPLOYEE_COMMUTING')!;
       default:
         return this.strategies.get('ACTIVITY_MULTIPLIER')!;
     }

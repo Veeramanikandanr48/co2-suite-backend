@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { MasterRoles, MasterApprovalStatus } from 'src/entities/master.entity';
@@ -30,6 +30,14 @@ import {
   CreateFuelUnitMappingDto,
   CreateUnitFormulaMappingDto,
 } from 'src/dto/master.dto';
+import {
+  SEED_MASTER_SCOPES,
+  SEED_MASTER_CATEGORIES,
+  SEED_MASTER_DATASOURCES,
+  SEED_MASTER_FACTOR_VERSIONS,
+  SEED_MASTER_FUELS,
+  SEED_MASTER_UNITS,
+} from 'src/seeds/master-data.seed';
 
 export type MasterEntityType =
   | 'scope'
@@ -51,7 +59,7 @@ export interface IMasterListResult<T> {
 }
 
 @Injectable()
-export class MasterService {
+export class MasterService implements OnApplicationBootstrap {
   constructor(
     @InjectRepository(MasterRoles)
     private readonly masterRolesRepo: Repository<MasterRoles>,
@@ -97,6 +105,76 @@ export class MasterService {
 
     private readonly utilService: UtilService,
   ) { }
+
+  /**
+   * Seeds master database tables on application bootstrap if empty.
+   */
+  async onApplicationBootstrap(): Promise<void> {
+    const scopeCount = await this.masterScopeRepo.count();
+    if (scopeCount === 0) {
+      await this.masterScopeRepo.save(
+        this.masterScopeRepo.create(SEED_MASTER_SCOPES as Partial<MasterScope>[]),
+      );
+    }
+
+    const catCount = await this.masterCategoryRepo.count();
+    if (catCount === 0) {
+      await this.masterCategoryRepo.save(
+        this.masterCategoryRepo.create(SEED_MASTER_CATEGORIES as Partial<MasterCategory>[]),
+      );
+    }
+
+    const dsCount = await this.masterDatasourceRepo.count();
+    if (dsCount === 0) {
+      await this.masterDatasourceRepo.save(
+        this.masterDatasourceRepo.create(SEED_MASTER_DATASOURCES as Partial<MasterDatasource>[]),
+      );
+    }
+
+    const verCount = await this.masterFactorVersionRepo.count();
+    if (verCount === 0) {
+      await this.masterFactorVersionRepo.save(
+        this.masterFactorVersionRepo.create(SEED_MASTER_FACTOR_VERSIONS as Partial<MasterFactorVersion>[]),
+      );
+    }
+
+    const fuelCount = await this.masterFuelRepo.count();
+    if (fuelCount === 0) {
+      await this.masterFuelRepo.save(
+        this.masterFuelRepo.create(SEED_MASTER_FUELS as Partial<MasterFuel>[]),
+      );
+    }
+
+    const unitCount = await this.masterUnitRepo.count();
+    if (unitCount === 0) {
+      await this.masterUnitRepo.save(
+        this.masterUnitRepo.create(SEED_MASTER_UNITS as Partial<MasterUnit>[]),
+      );
+    }
+
+    // Seed default Category to Datasource mappings if empty
+    const catDsCount = await this.categoryDatasourceMappingRepo.count();
+    if (catDsCount === 0) {
+      const allCats = await this.masterCategoryRepo.find();
+      const allDs = await this.masterDatasourceRepo.find();
+      const mappings: Partial<CategoryDatasourceMapping>[] = [];
+
+      for (const cat of allCats) {
+        for (const ds of allDs) {
+          mappings.push({
+            categoryId: cat.id,
+            datasourceId: ds.id,
+            isActive: true,
+          });
+        }
+      }
+      if (mappings.length > 0) {
+        await this.categoryDatasourceMappingRepo.save(
+          this.categoryDatasourceMappingRepo.create(mappings as Partial<CategoryDatasourceMapping>[]),
+        );
+      }
+    }
+  }
 
   /**
    * Reusable paginated GET for any master table repository.

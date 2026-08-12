@@ -8,6 +8,7 @@ export interface FormulaContext {
   distance?: number;
   weight?: number;
   spend?: number;
+  days?: number;
   customFormula?: string;
 }
 

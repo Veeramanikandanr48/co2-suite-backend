@@ -14,48 +14,59 @@ export class FactorResolver {
   static resolveSupportedSources(activityCode: string): string[] {
     switch (activityCode.toUpperCase()) {
       case ActivityCode.SC:
-        return [
-          'IPCC (Commercial & Institutional Use)',
-          'IPCC (Manufacturing)',
-          'DEFRA 2024',
-          'EPA 2024',
-        ];
       case ActivityCode.MC:
-        return ['IPCC', 'DEFRA 2024', 'EPA 2024'];
       case ActivityCode.FE:
-        return ['IPCC-AR6 GWP', 'DEFRA 2024'];
+      case ActivityCode.DPE:
+        return ['DEFRA 2024', 'IPCC', 'Custom'];
       case ActivityCode.PE:
-        return [
-          'IEA Grid Factors 2023',
-          'DEFRA UK Grid 2024',
-          'IEA Europe 2023',
-        ];
       case ActivityCode.PHC:
-        return ['DEFRA 2024', 'IPCC District Energy'];
+        return [
+          'DEWA (Dubai)',
+          'India (CEA)',
+          'Local Authority',
+          'DEFRA 2024',
+          'IEA Grid Factors 2023',
+        ];
       case ActivityCode.PGS:
+        return ['DEFRA 2024', 'IAEG', 'Custom'];
       case ActivityCode.CG:
-        return ['Ecoinvent 3.9', 'EXIOBASE 3', 'DEFRA 2024'];
+        return ['IAEG', 'Custom', 'DEFRA 2024'];
+      case ActivityCode.FERA:
+        return ['DEFRA 2024', 'DEWA (Dubai)', 'India Grid', 'Local Provider'];
+      case ActivityCode.UTD:
+      case ActivityCode.DTD:
+      case ActivityCode.WGB:
+      case ActivityCode.BT:
+      case ActivityCode.EC:
+        return ['DEFRA 2024', 'Custom'];
       default:
-        return ['IPCC', 'DEFRA 2024', 'Ecoinvent 3.9'];
+        return ['DEFRA 2024', 'IPCC', 'IAEG', 'Custom'];
     }
   }
 
   static resolveAcceptedUnits(activityCode: string): string[] {
     switch (activityCode.toUpperCase()) {
       case ActivityCode.SC:
-        return ['sm3', 'L', 'kg', 'm3', 'kWh'];
+        return ['L', 'sm3', 'kg', 'm3', 'kWh'];
       case ActivityCode.MC:
-        return ['L', 'km', 'kg', 'gallon'];
+        return ['L', 'km'];
       case ActivityCode.FE:
-        return ['kg', 'g', '%'];
+      case ActivityCode.DPE:
+        return ['kg'];
       case ActivityCode.PE:
       case ActivityCode.PHC:
-        return ['kWh', 'MWh', 'GJ'];
+        return ['kWh', 'MWh'];
       case ActivityCode.UTD:
       case ActivityCode.DTD:
-        return ['t-km', 'km', 'kg', 'tonnes'];
+        return ['km', 'tonne.km'];
+      case ActivityCode.WGB:
+        return ['ton', 'kg'];
+      case ActivityCode.BT:
+        return ['pas.km', 'km'];
+      case ActivityCode.EC:
+        return ['km', 'pas.km'];
       default:
-        return ['kg', 'tonnes', 'sm3', 'L', 'kWh', 'USD', 'EUR'];
+        return ['kg', 'ton', 'L', 'kWh', 'USD'];
     }
   }
 
