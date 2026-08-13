@@ -77,7 +77,6 @@ export class ServicesService implements OnApplicationBootstrap {
         this.serviceRepo.create(SEED_SERVICES as Partial<Service>[]),
       );
     }
-
     const scopeMappingCount = await this.scopeCategoryMappingRepo.count();
     if (scopeMappingCount === 0) {
       await this.scopeCategoryMappingRepo.save(

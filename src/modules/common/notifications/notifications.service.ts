@@ -12,7 +12,6 @@ import {
 import { DeviceTypes } from 'src/enums/notification.enum';
 import { INotificationPayload } from 'src/interfaces/notification.interface';
 import { NotificationGateway } from './notification.gateway';
-import { getMessaging } from 'firebase-admin/messaging';
 
 @Injectable()
 export class NotificationsService {
@@ -172,27 +171,6 @@ export class NotificationsService {
       formattedNotification,
     );
 
-    const deviceTokens: string[] = [];
-    userNotificationData.forEach((item) => {
-      if (item.enablePushNotification && item.token) {
-        deviceTokens.push(item.token);
-      }
-    });
-
-    if (deviceTokens.length > 0) {
-      await getMessaging()
-        .sendEachForMulticast({
-          notification: {
-            title: data.title,
-            body: data.body,
-          },
-          tokens: deviceTokens,
-        })
-        .catch((error: unknown) => {
-          // Push delivery is best-effort; never fail the request on FCM errors.
-          return error;
-        });
-    }
     return notification;
   }
 

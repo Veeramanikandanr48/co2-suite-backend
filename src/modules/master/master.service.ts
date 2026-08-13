@@ -104,7 +104,7 @@ export class MasterService implements OnApplicationBootstrap {
     private readonly unitFormulaMappingRepo: Repository<UnitFormulaMapping>,
 
     private readonly utilService: UtilService,
-  ) { }
+  ) {}
 
   /**
    * Seeds master database tables on application bootstrap if empty.

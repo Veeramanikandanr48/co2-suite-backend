@@ -98,13 +98,13 @@ import { UtilService } from './utility/util/util.service';
         limit: 10, // 10 requests
       },
     ]),
+    MasterModule,
     NotificationsModule,
     RegistrationModule,
     OrganizationsModule,
     ServicesModule,
     FacilitiesModule,
     ApprovalModule,
-    MasterModule,
   ],
   controllers: [AppController],
   providers: [
