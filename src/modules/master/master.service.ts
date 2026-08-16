@@ -14,6 +14,8 @@ import { CategoryDatasourceMapping } from 'src/entities/category-datasource-mapp
 import { VersionFuelMapping } from 'src/entities/version-fuel-mapping.entity';
 import { FuelUnitMapping } from 'src/entities/fuel-unit-mapping.entity';
 import { UnitFormulaMapping } from 'src/entities/unit-formula-mapping.entity';
+import { MasterFormField, FormFieldType } from 'src/entities/master-form-field.entity';
+import { MasterOption } from 'src/entities/master-option.entity';
 import { UtilService } from 'src/utility/util/util.service';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import {
@@ -28,6 +30,8 @@ import {
   CreateCategoryDatasourceMappingDto,
   CreateVersionFuelMappingDto,
   CreateFuelUnitMappingDto,
+  CreateMasterFormFieldDto,
+  CreateMasterOptionDto,
   CreateUnitFormulaMappingDto,
 } from 'src/dto/master.dto';
 import {
@@ -37,6 +41,8 @@ import {
   SEED_MASTER_FACTOR_VERSIONS,
   SEED_MASTER_FUELS,
   SEED_MASTER_UNITS,
+  SEED_MASTER_FORM_FIELDS,
+  SEED_MASTER_OPTIONS,
 } from 'src/seeds/master-data.seed';
 
 export type MasterEntityType =
@@ -51,7 +57,9 @@ export type MasterEntityType =
   | 'category-datasource-mapping'
   | 'version-fuel-mapping'
   | 'fuel-unit-mapping'
-  | 'unit-formula-mapping';
+  | 'unit-formula-mapping'
+  | 'form-field'
+  | 'option';
 
 export interface IMasterListResult<T> {
   listData: T[];
@@ -103,6 +111,12 @@ export class MasterService implements OnApplicationBootstrap {
     @InjectRepository(UnitFormulaMapping)
     private readonly unitFormulaMappingRepo: Repository<UnitFormulaMapping>,
 
+    @InjectRepository(MasterFormField)
+    private readonly masterFormFieldRepo: Repository<MasterFormField>,
+
+    @InjectRepository(MasterOption)
+    private readonly masterOptionRepo: Repository<MasterOption>,
+
     private readonly utilService: UtilService,
   ) {}
 
@@ -122,17 +136,6 @@ export class MasterService implements OnApplicationBootstrap {
       await this.masterCategoryRepo.save(
         this.masterCategoryRepo.create(SEED_MASTER_CATEGORIES as Partial<MasterCategory>[]),
       );
-    } else {
-      // Sync formConfig for existing DB categories if missing
-      for (const seedCat of SEED_MASTER_CATEGORIES) {
-        if (seedCat.name && seedCat.formConfig) {
-          const existing = await this.masterCategoryRepo.findOne({ where: { name: seedCat.name } });
-          if (existing && !existing.formConfig) {
-            existing.formConfig = seedCat.formConfig;
-            await this.masterCategoryRepo.save(existing);
-          }
-        }
-      }
     }
 
     const dsCount = await this.masterDatasourceRepo.count();
@@ -162,6 +165,75 @@ export class MasterService implements OnApplicationBootstrap {
         this.masterUnitRepo.create(SEED_MASTER_UNITS as Partial<MasterUnit>[]),
       );
     }
+
+    // ── Seed form fields from normalized seed (only if table is empty) ──────
+    const fieldCount = await this.masterFormFieldRepo.count();
+    if (fieldCount === 0) {
+      const allCats = await this.masterCategoryRepo.find();
+      const catByCode = new Map(allCats.map((c) => [c.code, c]));
+      const catByName = new Map(allCats.map((c) => [c.name, c]));
+
+      const fieldEntities: Partial<MasterFormField>[] = [];
+      for (const seedField of SEED_MASTER_FORM_FIELDS) {
+        const cat = seedField.categoryCode
+          ? catByCode.get(seedField.categoryCode)
+          : catByName.get(seedField.categoryName ?? '');
+        if (!cat) continue;
+        fieldEntities.push({
+          categoryId: cat.id,
+          key: seedField.key,
+          label: seedField.label,
+          type: seedField.type as any,
+          placeholder: seedField.placeholder,
+          unit: seedField.unit,
+          optionsSource: seedField.optionsSource,
+          required: seedField.required ?? false,
+          sortOrder: seedField.sortOrder ?? 0,
+          isActive: true,
+        });
+      }
+      if (fieldEntities.length > 0) {
+        await this.masterFormFieldRepo.save(
+          this.masterFormFieldRepo.create(fieldEntities as Partial<MasterFormField>[]),
+        );
+      }
+    }
+
+    // ── Seed options from normalized seed (only if table is empty) ───────────
+    const optionCount = await this.masterOptionRepo.count();
+    if (optionCount === 0) {
+      const allFields = await this.masterFormFieldRepo.find({ relations: { masterCategory: true } });
+      // Index by categoryId + field key for fast lookup
+      const fieldIndex = new Map<string, MasterFormField>();
+      for (const f of allFields) {
+        fieldIndex.set(`${f.categoryId}::${f.key}`, f);
+      }
+      const allCats = await this.masterCategoryRepo.find();
+      const catByCode = new Map(allCats.map((c) => [c.code, c]));
+
+      const optionEntities: Partial<MasterOption>[] = [];
+      for (const seedOpt of SEED_MASTER_OPTIONS) {
+        const cat = catByCode.get(seedOpt.categoryCode);
+        if (!cat) continue;
+        const field = fieldIndex.get(`${cat.id}::${seedOpt.fieldKey}`);
+        if (!field) continue;
+        optionEntities.push({
+          formFieldId: field.id,
+          label: seedOpt.label,
+          value: seedOpt.value,
+          sortOrder: seedOpt.sortOrder ?? 0,
+          isActive: true,
+        });
+      }
+      if (optionEntities.length > 0) {
+        await this.masterOptionRepo.save(
+          this.masterOptionRepo.create(optionEntities as Partial<MasterOption>[]),
+        );
+      }
+    }
+
+    // ── Rebuild formConfig JSON for all categories from normalized tables ─────
+    await this.rebuildAllCategoryFormConfigs();
 
     // Seed default Category to Datasource mappings if empty
     const catDsCount = await this.categoryDatasourceMappingRepo.count();
@@ -496,8 +568,6 @@ export class MasterService implements OnApplicationBootstrap {
     );
   }
 
-  // ─── Master Category Create ───────────────────────────────────────────────
-
   async createMasterCategory(
     dto: CreateMasterCategoryDto,
     createdBy: number,
@@ -510,7 +580,184 @@ export class MasterService implements OnApplicationBootstrap {
     );
   }
 
-  // ─── Master Fuel Create ───────────────────────────────────────────────────
+  // ─── Form Schema: Get enriched schema for a category ─────────────────────
+
+  /**
+   * Returns a fully resolved form schema for a given category.
+   * Each field includes its options loaded from master_option, or a reference
+   * to the optionsSource master table (fuels | units) if set.
+   */
+  async getCategoryFormSchema(categoryId: number): Promise<{
+    categoryId: number;
+    fields: Array<{
+      id: number;
+      key: string;
+      label: string;
+      type: string;
+      placeholder: string | null;
+      unit: string | null;
+      optionsSource: string | null;
+      required: boolean;
+      sortOrder: number;
+      options: Array<{ id: number; label: string; value: string; sortOrder: number }>;
+    }>;
+  }> {
+    const category = await this.masterCategoryRepo.findOne({ where: { id: categoryId } });
+    if (!category) {
+      throw new NotFoundException(`Category with id ${categoryId} not found`);
+    }
+
+    const fields = await this.masterFormFieldRepo.find({
+      where: { categoryId, isActive: true },
+      order: { sortOrder: 'ASC', id: 'ASC' },
+    });
+
+    const result = await Promise.all(
+      fields.map(async (f) => {
+        const options = f.optionsSource
+          ? [] // options sourced from master table — resolved client-side from existing master APIs
+          : await this.masterOptionRepo.find({
+              where: { formFieldId: f.id, isActive: true },
+              order: { sortOrder: 'ASC', id: 'ASC' },
+            });
+
+        return {
+          id: f.id,
+          key: f.key,
+          label: f.label,
+          type: f.type,
+          placeholder: f.placeholder ?? null,
+          unit: f.unit ?? null,
+          optionsSource: f.optionsSource ?? null,
+          required: f.required,
+          sortOrder: f.sortOrder,
+          options: options.map((o) => ({
+            id: o.id,
+            label: o.label,
+            value: o.value,
+            sortOrder: o.sortOrder,
+          })),
+        };
+      }),
+    );
+
+    return { categoryId, fields: result };
+  }
+
+  /**
+   * Rebuilds the cached formConfig JSON on a category from its normalized
+   * master_form_field + master_option rows and saves it.
+   */
+  async rebuildCategoryFormConfig(categoryId: number): Promise<void> {
+    const schema = await this.getCategoryFormSchema(categoryId);
+    const formConfig = {
+      fields: schema.fields.map((f) => ({
+        key: f.key,
+        label: f.label,
+        type: f.type,
+        ...(f.placeholder && { placeholder: f.placeholder }),
+        ...(f.unit && { unit: f.unit }),
+        ...(f.optionsSource && { optionsSource: f.optionsSource }),
+        required: f.required,
+        ...(f.options.length > 0 && { options: f.options.map((o) => o.value) }),
+      })),
+    };
+    await this.masterCategoryRepo.update(categoryId, { formConfig });
+  }
+
+  /** Rebuilds formConfig for every category. Called on bootstrap. */
+  async rebuildAllCategoryFormConfigs(): Promise<void> {
+    const categories = await this.masterCategoryRepo.find();
+    await Promise.all(categories.map((c) => this.rebuildCategoryFormConfig(c.id)));
+  }
+
+  // ─── Form Field CRUD ──────────────────────────────────────────────────────
+
+  async getMasterFormFields(
+    payload: CommonListPayloadDto,
+    categoryId?: number,
+  ): Promise<IMasterListResult<MasterFormField>> {
+    const extraWhere = categoryId ? ({ categoryId } as FindOptionsWhere<MasterFormField>) : {};
+    return this.getMasterList(
+      this.masterFormFieldRepo,
+      'formField',
+      ['id', 'sortOrder', 'key', 'label'],
+      'sortOrder',
+      payload,
+      ['key', 'label'],
+      [],
+      extraWhere,
+    );
+  }
+
+  async upsertMasterFormField(
+    dto: CreateMasterFormFieldDto,
+    userId: number,
+  ): Promise<MasterFormField> {
+    let field: MasterFormField;
+    if (dto.id) {
+      const existing = await this.masterFormFieldRepo.findOne({ where: { id: dto.id } });
+      if (!existing) throw new NotFoundException(`Form field #${dto.id} not found`);
+      Object.assign(existing, dto, { updatedBy: userId });
+      field = await this.masterFormFieldRepo.save(existing);
+    } else {
+      field = await this.masterFormFieldRepo.save(
+        this.masterFormFieldRepo.create({
+          ...dto,
+          type: dto.type as FormFieldType,
+          isActive: true,
+          createdBy: userId,
+        }),
+      );
+    }
+    // Rebuild cached formConfig for the affected category
+    await this.rebuildCategoryFormConfig(field.categoryId);
+    return field;
+  }
+
+  // ─── Option CRUD ──────────────────────────────────────────────────────────
+
+  async getMasterOptions(
+    payload: CommonListPayloadDto,
+    formFieldId?: number,
+  ): Promise<IMasterListResult<MasterOption>> {
+    const extraWhere = formFieldId ? ({ formFieldId } as FindOptionsWhere<MasterOption>) : {};
+    return this.getMasterList(
+      this.masterOptionRepo,
+      'option',
+      ['id', 'sortOrder', 'label', 'value'],
+      'sortOrder',
+      payload,
+      ['label', 'value'],
+      [],
+      extraWhere,
+    );
+  }
+
+  async upsertMasterOption(
+    dto: CreateMasterOptionDto,
+    userId: number,
+  ): Promise<MasterOption> {
+    let option: MasterOption;
+    if (dto.id) {
+      const existing = await this.masterOptionRepo.findOne({ where: { id: dto.id } });
+      if (!existing) throw new NotFoundException(`Option #${dto.id} not found`);
+      Object.assign(existing, dto, { updatedBy: userId });
+      option = await this.masterOptionRepo.save(existing);
+    } else {
+      option = await this.masterOptionRepo.save(
+        this.masterOptionRepo.create({ ...dto, isActive: true, createdBy: userId }),
+      );
+    }
+    // Rebuild cached formConfig for the affected category
+    const field = await this.masterFormFieldRepo.findOne({ where: { id: option.formFieldId } });
+    if (field) {
+      await this.rebuildCategoryFormConfig(field.categoryId);
+    }
+    return option;
+  }
+
+
 
   // ─── Master Fuel Create ───────────────────────────────────────────────────
 
@@ -848,6 +1095,8 @@ export class MasterService implements OnApplicationBootstrap {
       'version-fuel-mapping': this.versionFuelMappingRepo as Repository<{ id: number }>,
       'fuel-unit-mapping': this.fuelUnitMappingRepo as Repository<{ id: number }>,
       'unit-formula-mapping': this.unitFormulaMappingRepo as Repository<{ id: number }>,
+      'form-field': this.masterFormFieldRepo as Repository<{ id: number }>,
+      option: this.masterOptionRepo as Repository<{ id: number }>,
     };
 
     const repo = repoMap[entityType];
@@ -920,6 +1169,8 @@ export class MasterService implements OnApplicationBootstrap {
       'version-fuel-mapping': () => this.createVersionFuelMapping(fields as unknown as CreateVersionFuelMappingDto, userId),
       'fuel-unit-mapping': () => this.createFuelUnitMapping(fields as unknown as CreateFuelUnitMappingDto, userId),
       'unit-formula-mapping': () => this.createUnitFormulaMapping(fields as unknown as CreateUnitFormulaMappingDto, userId),
+      'form-field': () => this.upsertMasterFormField(fields as unknown as CreateMasterFormFieldDto, userId),
+      'option': () => this.upsertMasterOption(fields as unknown as CreateMasterOptionDto, userId),
     };
 
     return createMap[entityType]();

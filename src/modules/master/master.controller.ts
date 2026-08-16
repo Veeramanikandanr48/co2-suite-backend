@@ -15,6 +15,8 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiOperation,
+  ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -37,6 +39,8 @@ import {
   CreateVersionFuelMappingDto,
   CreateFuelUnitMappingDto,
   CreateUnitFormulaMappingDto,
+  CreateMasterFormFieldDto,
+  CreateMasterOptionDto,
 } from 'src/dto/master.dto';
 import { MasterEntityType } from './master.service';
 
@@ -672,6 +676,130 @@ export class MasterController {
       return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save unit formula mapping.');
     } finally {
       logger.info('Method ended: upsertUnitFormulaMapping');
+    }
+  }
+
+  // ─── GET: Form Fields ─────────────────────────────────────────────────────
+
+  @Get('form-fields')
+  @ApiOperation({ summary: 'Get all active form fields, optionally filtered by categoryId' })
+  @ApiQuery({ name: 'categoryId', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Successfully fetched form fields' })
+  async getMasterFormFields(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query() query: CommonListPayloadDto & { categoryId?: number },
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: getMasterFormFields');
+    try {
+      const { categoryId, ...rest } = query;
+      const result = await this.masterService.getMasterFormFields(rest, categoryId ? Number(categoryId) : undefined);
+      return this.utilService.sendSuccessResponse(res, 'Successfully fetched form fields', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to fetch form fields.');
+    } finally {
+      logger.info('Method ended: getMasterFormFields');
+    }
+  }
+
+  // ─── POST: Form Field Upsert ──────────────────────────────────────────────
+
+  @Post('form-fields')
+  @ApiOperation({ summary: 'Create or update a form field. Omit id to create; include id to update.' })
+  @ApiBody({ type: CreateMasterFormFieldDto })
+  @ApiResponse({ status: 200, description: 'Form field saved successfully' })
+  async upsertMasterFormField(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Body() dto: CreateMasterFormFieldDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: upsertMasterFormField');
+    try {
+      const result = await this.masterService.upsertMasterFormField(dto, user?.id);
+      return this.utilService.sendSuccessResponse(res, 'Form field saved successfully', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save form field.');
+    } finally {
+      logger.info('Method ended: upsertMasterFormField');
+    }
+  }
+
+  // ─── GET: Options ─────────────────────────────────────────────────────────
+
+  @Get('options')
+  @ApiOperation({ summary: 'Get all active options, optionally filtered by formFieldId' })
+  @ApiQuery({ name: 'formFieldId', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Successfully fetched options' })
+  async getMasterOptions(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query() query: CommonListPayloadDto & { formFieldId?: number },
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: getMasterOptions');
+    try {
+      const { formFieldId, ...rest } = query;
+      const result = await this.masterService.getMasterOptions(rest, formFieldId ? Number(formFieldId) : undefined);
+      return this.utilService.sendSuccessResponse(res, 'Successfully fetched options', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to fetch options.');
+    } finally {
+      logger.info('Method ended: getMasterOptions');
+    }
+  }
+
+  // ─── POST: Option Upsert ──────────────────────────────────────────────────
+
+  @Post('options')
+  @ApiOperation({ summary: 'Create or update a form field option. Omit id to create; include id to update.' })
+  @ApiBody({ type: CreateMasterOptionDto })
+  @ApiResponse({ status: 200, description: 'Option saved successfully' })
+  async upsertMasterOption(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Body() dto: CreateMasterOptionDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: upsertMasterOption');
+    try {
+      const result = await this.masterService.upsertMasterOption(dto, user?.id);
+      return this.utilService.sendSuccessResponse(res, 'Option saved successfully', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save option.');
+    } finally {
+      logger.info('Method ended: upsertMasterOption');
+    }
+  }
+
+  // ─── GET: Category Form Schema ─────────────────────────────────────────────
+
+  @Get('categories/:id/form-schema')
+  @ApiOperation({ summary: 'Get the fully resolved form schema for a category (fields + options)' })
+  @ApiParam({ name: 'id', type: Number, description: 'Category ID' })
+  @ApiResponse({ status: 200, description: 'Successfully fetched category form schema' })
+  async getCategoryFormSchema(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: getCategoryFormSchema');
+    try {
+      const result = await this.masterService.getCategoryFormSchema(id);
+      return this.utilService.sendSuccessResponse(res, 'Successfully fetched category form schema', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to fetch form schema.');
+    } finally {
+      logger.info('Method ended: getCategoryFormSchema');
     }
   }
 }

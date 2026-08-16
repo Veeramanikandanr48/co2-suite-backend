@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
+import type { MasterFormField } from './master-form-field.entity';
 
 @Entity({ name: 'master_category' })
 export class MasterCategory extends BaseColumns {
@@ -21,6 +22,13 @@ export class MasterCategory extends BaseColumns {
   @Column({ type: 'text', nullable: true })
   description: string;
 
+  /**
+   * Cached computed form schema — auto-rebuilt from master_form_field + master_option rows.
+   * Do NOT edit this directly; use the Form Builder API instead.
+   */
   @Column({ type: 'json', nullable: true })
   formConfig: any;
+
+  @OneToMany('MasterFormField', 'masterCategory', { cascade: false, eager: false })
+  formFields: MasterFormField[];
 }
