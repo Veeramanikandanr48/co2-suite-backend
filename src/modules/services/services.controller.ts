@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -569,6 +570,45 @@ export class ServicesController {
       );
     } finally {
       logger.info('Method ended: deactivateInventoryEntry');
+    }
+  }
+
+  @Delete('inventory-entries/:id')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete inventory entry from DB' })
+  @ApiParam({ name: 'id', type: Number, description: 'Inventory entry ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Inventory entry deleted successfully',
+  })
+  async deleteInventoryEntry(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const logger = this.utilService.createLogger(ServicesController.name, req);
+    logger.info('Method started: deleteInventoryEntry');
+    try {
+      const result = await this.servicesService.deactivateInventoryEntry(
+        user,
+        id,
+      );
+      logger.info('Operation successful');
+      return this.utilService.sendSuccessResponse(
+        res,
+        'Inventory entry deleted successfully',
+        result,
+      );
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(
+        res,
+        'Failed to delete inventory entry. Please try again later.',
+      );
+    } finally {
+      logger.info('Method ended: deleteInventoryEntry');
     }
   }
 

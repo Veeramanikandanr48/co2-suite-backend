@@ -42,10 +42,23 @@ export class OrganizationsService {
     }
   }
 
+  private assertCanAccessOrg(user: IDecodeUserDetails, orgId: number): void {
+    const isSuperAdmin = user?.roleId === MasterRole.SUPER_ADMIN;
+    const isSameOrg =
+      user?.organizationId !== undefined &&
+      user?.organizationId !== null &&
+      Number(user?.organizationId) === Number(orgId);
+    if (!isSuperAdmin && !isSameOrg) {
+      throw new ForbiddenException('Access denied to this organization');
+    }
+  }
+
   private assertCanManageOrg(user: IDecodeUserDetails, orgId: number): void {
     const isSuperAdmin = user?.roleId === MasterRole.SUPER_ADMIN;
     const isOrgAdmin =
       user?.roleId === MasterRole.ADMIN &&
+      user?.organizationId !== undefined &&
+      user?.organizationId !== null &&
       Number(user?.organizationId) === Number(orgId);
     if (!isSuperAdmin && !isOrgAdmin) {
       throw new ForbiddenException('Access denied to this organization');
@@ -243,7 +256,7 @@ export class OrganizationsService {
   }
 
   async getOrganizationById(id: number, user: IDecodeUserDetails) {
-    this.assertCanManageOrg(user, id);
+    this.assertCanAccessOrg(user, id);
     return this.organizationRepo
       .createQueryBuilder('org')
       .select([
@@ -382,7 +395,7 @@ export class OrganizationsService {
     payload: CommonListPayloadDto,
     user: IDecodeUserDetails,
   ) {
-    this.assertCanManageOrg(user, orgId);
+    this.assertCanAccessOrg(user, orgId);
     const tableName = 'user';
     const tableSortCheck = [
       'id',
@@ -433,7 +446,10 @@ export class OrganizationsService {
         'user.createdAt',
         'user.updatedAt',
       ])
-      .where('user.organizationId = :orgId', { orgId });
+      .where('user.organizationId = :orgId', { orgId })
+      .andWhere('user.roleId != :superAdminRole', {
+        superAdminRole: MasterRole.SUPER_ADMIN,
+      });
 
     if (searchInput && searchInput.trim()) {
       const term = `%${searchInput.trim().toLowerCase()}%`;
@@ -465,6 +481,10 @@ export class OrganizationsService {
     const org = await this.getOrganizationById(orgId, user);
     if (!org) {
       throw new BadRequestException('Organization not found');
+    }
+
+    if (dto.roleId === MasterRole.SUPER_ADMIN) {
+      throw new BadRequestException('Cannot assign Super Admin role to an organization member');
     }
 
     const existingUser = await this.userRepo
@@ -514,6 +534,10 @@ export class OrganizationsService {
     user: IDecodeUserDetails,
   ) {
     this.assertCanManageOrg(user, orgId);
+    if (dto.roleId === MasterRole.SUPER_ADMIN) {
+      throw new BadRequestException('Cannot assign Super Admin role to an organization member');
+    }
+
     const userRecord = await this.userRepo
       .createQueryBuilder('user')
       .select([

@@ -13,6 +13,7 @@ import { CategoryDatasourceMapping } from 'src/entities/category-datasource-mapp
 import { VersionFuelMapping } from 'src/entities/version-fuel-mapping.entity';
 import { FuelUnitMapping } from 'src/entities/fuel-unit-mapping.entity';
 import { UnitFormulaMapping } from 'src/entities/unit-formula-mapping.entity';
+import { MasterOption } from 'src/entities/master-option.entity';
 import { MasterController } from './master.controller';
 import { UtilService } from 'src/utility/util/util.service';
 import { MasterService } from './master.service';
@@ -20,6 +21,7 @@ import { MasterService } from './master.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
+      MasterOption,
       MasterRoles,
       MasterApprovalStatus,
       MasterScope,

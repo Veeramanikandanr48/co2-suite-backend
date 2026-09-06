@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
+import { MasterOption, MasterOptionType } from 'src/entities/master-option.entity';
 import { MasterRoles, MasterApprovalStatus } from 'src/entities/master.entity';
 import { MasterScope } from 'src/entities/master-scope.entity';
 import { MasterCategory } from 'src/entities/master-category.entity';
@@ -61,6 +62,9 @@ export interface IMasterListResult<T> {
 @Injectable()
 export class MasterService implements OnApplicationBootstrap {
   constructor(
+    @InjectRepository(MasterOption)
+    private readonly masterOptionRepo: Repository<MasterOption>,
+
     @InjectRepository(MasterRoles)
     private readonly masterRolesRepo: Repository<MasterRoles>,
 
@@ -468,17 +472,41 @@ export class MasterService implements OnApplicationBootstrap {
    */
   async createMaster<T extends object>(
     repo: Repository<T>,
-    dto: Partial<T>,
+    dto: Partial<T> & { id?: number; isActive?: boolean },
     uniqueCheck: FindOptionsWhere<T>,
     createdBy: number,
   ): Promise<T> {
-    const existing = await repo.findOne({ where: uniqueCheck });
-    if (existing) {
+    const targetId = dto.id;
+
+    if (targetId) {
+      const existing = await repo.findOne({ where: { id: targetId } as any });
+      if (!existing) {
+        throw new NotFoundException(`Master record with ID ${targetId} not found.`);
+      }
+
+      const duplicate = await repo.findOne({ where: uniqueCheck });
+      if (duplicate && (duplicate as any).id !== targetId) {
+        throw new BadRequestException(
+          'Another record with the same identifier already exists.',
+        );
+      }
+
+      Object.assign(existing, dto, { updatedBy: createdBy });
+      return repo.save(existing);
+    }
+
+    const duplicate = await repo.findOne({ where: uniqueCheck });
+    if (duplicate) {
       throw new BadRequestException(
         'A record with the same identifier already exists.',
       );
     }
-    const entity = repo.create({ ...dto, isActive: true, createdBy } as T);
+
+    const entity = repo.create({
+      ...dto,
+      isActive: dto.isActive !== undefined ? dto.isActive : true,
+      createdBy,
+    } as T);
     return repo.save(entity);
   }
 
@@ -923,5 +951,66 @@ export class MasterService implements OnApplicationBootstrap {
     };
 
     return createMap[entityType]();
+  }
+
+  // ─── Unified Master Options CRUD ─────────────────────────────────────────────
+
+  /**
+   * Return all active MasterOption rows, optionally filtered by type.
+   * Used by the frontend to power dynamic dropdown lists.
+   *
+   * @param type  - Optional MasterOptionType discriminator (e.g. 'FUEL', 'UNIT')
+   * @param limit - Max rows to return (default 500)
+   */
+  async getMasterOptions(type?: MasterOptionType, limit = 500): Promise<MasterOption[]> {
+    const where: FindOptionsWhere<MasterOption> = { isActive: true };
+    if (type) where.type = type;
+    return this.masterOptionRepo.find({
+      where,
+      order: { name: 'ASC' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Create or update a MasterOption row.
+   * - If dto.id is present → update the existing record.
+   * - If dto.id is absent  → create a new record.
+   *
+   * @param dto    - Fields to persist
+   * @param userId - Auditing: calling user's id
+   */
+  async upsertMasterOption(
+    dto: Partial<MasterOption> & { type: MasterOptionType; name: string },
+    userId: number,
+  ): Promise<MasterOption> {
+    if (dto.id) {
+      const existing = await this.masterOptionRepo.findOne({ where: { id: dto.id } });
+      if (!existing) throw new NotFoundException(`MasterOption id=${dto.id} not found`);
+      const merged = this.masterOptionRepo.merge(existing, { ...dto, updatedBy: userId });
+      return this.masterOptionRepo.save(merged);
+    }
+
+    const created = this.masterOptionRepo.create({
+      ...dto,
+      isActive: dto.isActive ?? true,
+      createdBy: userId,
+    });
+    return this.masterOptionRepo.save(created);
+  }
+
+  /**
+   * Soft-delete a MasterOption by setting isActive = false.
+   * The row is retained for audit purposes.
+   *
+   * @param id     - MasterOption primary key
+   * @param userId - Auditing: calling user's id
+   */
+  async deactivateMasterOption(id: number, userId: number): Promise<MasterOption> {
+    const option = await this.masterOptionRepo.findOne({ where: { id } });
+    if (!option) throw new NotFoundException(`MasterOption id=${id} not found`);
+    option.isActive = false;
+    option.updatedBy = userId;
+    return this.masterOptionRepo.save(option);
   }
 }

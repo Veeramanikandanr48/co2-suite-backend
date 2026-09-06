@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -49,6 +50,68 @@ export class MasterController {
     private readonly masterService: MasterService,
     private readonly utilService: UtilService,
   ) {}
+
+  // ─── Unified Dynamic Master Options ──────────────────────────────────────
+
+  @Get('options')
+  @ApiOperation({ summary: 'Get dynamic master options filtered by type' })
+  async getMasterOptions(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('type') type?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: getMasterOptions');
+    try {
+      const result = await this.masterService.getMasterOptions(
+        type as any,
+        limit ? parseInt(limit, 10) : 500,
+      );
+      return this.utilService.sendSuccessResponse(res, 'Successfully fetched master options', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to fetch master options.');
+    }
+  }
+
+  @Post('options')
+  @ApiOperation({ summary: 'Create or update dynamic master option' })
+  async upsertMasterOption(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Body() body: any,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: upsertMasterOption');
+    try {
+      const result = await this.masterService.upsertMasterOption(body, user.id);
+      return this.utilService.sendSuccessResponse(res, 'Master option saved successfully', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to save master option.');
+    }
+  }
+
+  @Delete('options/:id')
+  @ApiOperation({ summary: 'Deactivate dynamic master option' })
+  async deactivateMasterOption(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: deactivateMasterOption');
+    try {
+      const result = await this.masterService.deactivateMasterOption(id, user.id);
+      return this.utilService.sendSuccessResponse(res, 'Master option deactivated successfully', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, 'Failed to deactivate master option.');
+    }
+  }
 
   // ─── GET: Master Scope ────────────────────────────────────────────────────
 
