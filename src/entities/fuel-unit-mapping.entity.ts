@@ -1,9 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import type { MasterFuel } from './master-fuel.entity';
 import type { MasterUnit } from './master-unit.entity';
 
 @Entity({ name: 'fuel_unit_mapping' })
+@Index(['fuelId', 'unitId'], { unique: true })
 export class FuelUnitMapping extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;

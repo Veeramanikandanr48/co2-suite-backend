@@ -1,9 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import { MasterCategory } from './master-category.entity';
 import { MasterDatasource } from './master-datasource.entity';
 
 @Entity({ name: 'category_datasource_mapping' })
+@Index(['categoryId', 'datasourceId'], { unique: true })
 export class CategoryDatasourceMapping extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;

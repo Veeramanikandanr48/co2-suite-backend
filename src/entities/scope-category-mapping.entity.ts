@@ -1,9 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import { MasterScope } from './master-scope.entity';
 import { MasterCategory } from './master-category.entity';
 
 @Entity({ name: 'scope_category_mapping' })
+@Index(['scopeId', 'categoryId'], { unique: true })
 export class ScopeCategoryMapping extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;

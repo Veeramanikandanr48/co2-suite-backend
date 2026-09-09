@@ -85,9 +85,11 @@ export const SEED_MASTER_CATEGORIES: Partial<MasterCategory>[] = [
     isActive: true,
     formConfig: {
       fields: [
-        { key: 'fuelOrGasType', label: 'Supplier / Energy Subtype', type: 'select', options: ['Grid Electricity', 'Renewable Solar PPA', 'Green Tariff Grid'], required: true },
+        { key: 'fuelOrGasType', label: 'Supplier / Energy Subtype', type: 'select', options: ['UK National Grid', 'DEWA Grid', 'India Central Grid', 'Renewable Solar PPA', 'Certified Green PPA', 'Residual Grid Mix'], required: true },
         { key: 'energyAmount', label: 'Energy Amount', type: 'number', placeholder: 'e.g. 12500', required: true },
         { key: 'unit', label: 'Energy Unit', type: 'select', options: ['kWh', 'MWh'], required: true },
+        { key: 'scope2Method', label: 'Scope 2 Accounting Method', type: 'select', options: ['Dual Reporting (Location & Market)', 'Location-Based Only', 'Market-Based Only'] },
+        { key: 'contractReference', label: 'Contract / PPA / EAC Certificate Ref', type: 'text', placeholder: 'e.g. EAC-REC-2024-0091' },
       ],
     },
   },
@@ -221,6 +223,21 @@ export const SEED_MASTER_CATEGORIES: Partial<MasterCategory>[] = [
   {
     scopeId: 3,
     scope: 'Scope 3',
+    name: 'Upstream Leased Assets',
+    code: 'ULA',
+    description: 'Operation of assets leased by reporting company (upstream)',
+    isActive: true,
+    formConfig: {
+      fields: [
+        { key: 'inventoryName', label: 'Leased Asset Name / Description', type: 'text', placeholder: 'e.g. Regional Office Suite #400', required: true },
+        { key: 'energyAmount', label: 'Electricity / Energy Consumed (kWh)', type: 'number', placeholder: 'Please enter annual energy consumption', unit: 'kWh', required: true },
+        { key: 'area', label: 'Floor Area (m²)', type: 'number', placeholder: 'e.g. 1250 m²' },
+      ],
+    },
+  },
+  {
+    scopeId: 3,
+    scope: 'Scope 3',
     name: 'Downstream Transportation and Distribution',
     code: 'DTD',
     description: 'Distribution of sold products to end customers',
@@ -274,6 +291,21 @@ export const SEED_MASTER_CATEGORIES: Partial<MasterCategory>[] = [
         { key: 'wasteType', label: 'Product Material Type', type: 'select', options: ['Plastics', 'Metals', 'Paper & Board', 'Electronics'], required: true },
         { key: 'wasteHandling', label: 'Disposal Method', type: 'select', options: ['Recycling', 'Incineration', 'Landfill'], required: true },
         { key: 'amount', label: 'Quantity Sold at End of Life (ton)', type: 'number', placeholder: 'Please enter mass in tonnes', required: true },
+      ],
+    },
+  },
+  {
+    scopeId: 3,
+    scope: 'Scope 3',
+    name: 'Downstream Leased Assets',
+    code: 'DLA',
+    description: 'Operation of assets owned by reporting company and leased to other entities',
+    isActive: true,
+    formConfig: {
+      fields: [
+        { key: 'inventoryName', label: 'Downstream Leased Asset Name', type: 'text', placeholder: 'e.g. Commercial Warehouse Facility B', required: true },
+        { key: 'energyAmount', label: 'Total Tenant Energy Consumption (kWh)', type: 'number', placeholder: 'Please enter energy use in kWh', unit: 'kWh', required: true },
+        { key: 'area', label: 'Leased Floor Area (m²)', type: 'number', placeholder: 'e.g. 3500 m²' },
       ],
     },
   },

@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 
 @Entity({ name: 'facilities' })
@@ -6,6 +6,7 @@ export class Facility extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index()
   @Column({ default: 1 })
   organizationId: number;
 

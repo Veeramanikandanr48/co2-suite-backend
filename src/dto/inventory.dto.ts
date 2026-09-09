@@ -1,8 +1,14 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { MrvStatusEnum } from 'src/enums/mrv-status.enum';
 
 export class CreateInventoryEntryDto {
+  @ApiProperty({ enum: MrvStatusEnum, example: MrvStatusEnum.DRAFT, required: false })
+  @IsEnum(MrvStatusEnum)
+  @IsOptional()
+  mrvStatus?: MrvStatusEnum;
+
   @ApiProperty({ example: 'CARBON', required: false })
   @IsString()
   @Transform(({ value }) => (value ? value.trim() : value))
@@ -93,6 +99,52 @@ export class CreateInventoryEntryDto {
   @Transform(({ value }) => (value ? value.trim() : value))
   @IsOptional()
   formula?: string;
+
+  @ApiProperty({ example: 'DISTANCE_BASED', required: false })
+  @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  @IsOptional()
+  calculationMethod?: string;
+
+  @ApiProperty({ example: 'Short-haul Economy', required: false })
+  @IsString()
+  @Transform(({ value }) => (value ? value.trim() : value))
+  @IsOptional()
+  activitySubType?: string;
+
+  @ApiProperty({ example: 1, required: false })
+  @IsNumber()
+  @IsOptional()
+  emissionFactorId?: number;
+
+  @ApiProperty({ example: 1, required: false })
+  @IsNumber()
+  @IsOptional()
+  formulaId?: number;
+
+  @ApiProperty({ example: 0.15, required: false })
+  @IsNumber()
+  @IsOptional()
+  locationBasedTco2e?: number;
+
+  @ApiProperty({ example: 0.12, required: false })
+  @IsNumber()
+  @IsOptional()
+  marketBasedTco2e?: number;
+
+  @ApiProperty({ example: 500, required: false })
+  @IsNumber()
+  @IsOptional()
+  distance?: number;
+
+  @ApiProperty({ example: 2, required: false })
+  @IsNumber()
+  @IsOptional()
+  passengers?: number;
+
+  @ApiProperty({ example: { distance: 500, passengers: 2 }, required: false })
+  @IsOptional()
+  variables?: Record<string, any>;
 }
 
 export class UpdateInventoryEntryDto extends PartialType(

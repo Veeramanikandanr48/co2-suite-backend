@@ -21,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { MasterService } from './master.service';
+import { EmissionFactorService } from './emission-factor.service';
 import { UtilService } from 'src/utility/util/util.service';
 import { CommonListPayloadDto } from 'src/dto/common-list.dto';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
@@ -40,6 +41,7 @@ import {
   CreateUnitFormulaMappingDto,
 } from 'src/dto/master.dto';
 import { MasterEntityType } from './master.service';
+import { UpsertEmissionFactorDto, ResolveEmissionFactorQueryDto } from 'src/dto/emission-factor.dto';
 
 @ApiTags('Master')
 @Controller('master')
@@ -48,6 +50,7 @@ import { MasterEntityType } from './master.service';
 export class MasterController {
   constructor(
     private readonly masterService: MasterService,
+    private readonly emissionFactorService: EmissionFactorService,
     private readonly utilService: UtilService,
   ) {}
 
@@ -735,6 +738,107 @@ export class MasterController {
       return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save unit formula mapping.');
     } finally {
       logger.info('Method ended: upsertUnitFormulaMapping');
+    }
+  }
+
+  // ─── Emission Factors ─────────────────────────────────────────────────────
+
+  @Get('emission-factors')
+  @ApiOperation({ summary: 'List emission factors with optional filters' })
+  async listEmissionFactors(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('calculationMethod') calculationMethod?: string,
+    @Query('factorVersionId') factorVersionId?: string,
+    @Query('fuelId') fuelId?: string,
+    @Query('geography') geography?: string,
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: listEmissionFactors');
+    try {
+      const result = await this.emissionFactorService.listEmissionFactors({
+        calculationMethod,
+        factorVersionId: factorVersionId ? parseInt(factorVersionId, 10) : undefined,
+        fuelId: fuelId ? parseInt(fuelId, 10) : undefined,
+        geography,
+        skip: skip ? parseInt(skip, 10) : 0,
+        take: take ? parseInt(take, 10) : 200,
+      });
+      return this.utilService.sendSuccessResponse(res, 'Emission factors fetched', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to fetch emission factors.');
+    } finally {
+      logger.info('Method ended: listEmissionFactors');
+    }
+  }
+
+  @Get('emission-factors/resolve')
+  @ApiOperation({ summary: 'Resolve best-matching emission factor for a given query' })
+  async resolveEmissionFactor(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query() query: ResolveEmissionFactorQueryDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: resolveEmissionFactor');
+    try {
+      const result = await this.emissionFactorService.resolveFromQuery(query);
+      return this.utilService.sendSuccessResponse(res, 'Emission factor resolved', result);
+    } catch (error) {
+      logger.error('EF resolve failed', error);
+      // Propagate 422 EF_NOT_FOUND directly
+      if (error?.status === 422) {
+        return res.status(422).json(error.response);
+      }
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to resolve emission factor.');
+    } finally {
+      logger.info('Method ended: resolveEmissionFactor');
+    }
+  }
+
+  @Post('emission-factors')
+  @ApiOperation({ summary: 'Create or update an emission factor' })
+  @ApiBody({ type: UpsertEmissionFactorDto })
+  async upsertEmissionFactor(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Body() dto: UpsertEmissionFactorDto,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: upsertEmissionFactor');
+    try {
+      const result = await this.emissionFactorService.upsertEmissionFactor(dto, user?.id);
+      return this.utilService.sendSuccessResponse(res, 'Emission factor saved', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to save emission factor.');
+    } finally {
+      logger.info('Method ended: upsertEmissionFactor');
+    }
+  }
+
+  @Delete('emission-factors/:id')
+  @ApiOperation({ summary: 'Soft-delete (deactivate) an emission factor' })
+  async deactivateEmissionFactor(
+    @Req() req: Request,
+    @Res() res: Response,
+    @CurrentUser() user: IDecodeUserDetails,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const logger = this.utilService.createLogger(MasterController.name, req);
+    logger.info('Method started: deactivateEmissionFactor');
+    try {
+      const result = await this.emissionFactorService.deactivateEmissionFactor(id, user?.id);
+      return this.utilService.sendSuccessResponse(res, 'Emission factor deactivated', result);
+    } catch (error) {
+      logger.error('Error occurred', error);
+      return this.utilService.sendErrorResponse(res, error?.message ?? 'Failed to deactivate emission factor.');
+    } finally {
+      logger.info('Method ended: deactivateEmissionFactor');
     }
   }
 }

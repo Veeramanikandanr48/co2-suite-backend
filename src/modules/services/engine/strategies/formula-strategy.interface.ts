@@ -10,6 +10,8 @@ export interface FormulaContext {
   spend?: number;
   days?: number;
   customFormula?: string;
+  customGasRatios?: Partial<GasBreakdownDto> | null;
+  variables?: Record<string, number>;
 }
 
 export interface FormulaStrategyResult {

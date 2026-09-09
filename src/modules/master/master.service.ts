@@ -10,6 +10,7 @@ import { MasterUnit } from 'src/entities/master-unit.entity';
 import { MasterDatasource } from 'src/entities/master-datasource.entity';
 import { MasterFactorVersion } from 'src/entities/master-factor-version.entity';
 import { MasterFormula } from 'src/entities/master-formula.entity';
+import { MasterEmissionFactor } from 'src/entities/master-emission-factor.entity';
 import { ScopeCategoryMapping } from 'src/entities/scope-category-mapping.entity';
 import { CategoryDatasourceMapping } from 'src/entities/category-datasource-mapping.entity';
 import { VersionFuelMapping } from 'src/entities/version-fuel-mapping.entity';
@@ -39,6 +40,10 @@ import {
   SEED_MASTER_FUELS,
   SEED_MASTER_UNITS,
 } from 'src/seeds/master-data.seed';
+import {
+  SEED_MASTER_FORMULAS,
+  SEED_MASTER_EMISSION_FACTORS,
+} from 'src/seeds/emission-factor.seed';
 
 export type MasterEntityType =
   | 'scope'
@@ -91,6 +96,9 @@ export class MasterService implements OnApplicationBootstrap {
 
     @InjectRepository(MasterFormula)
     private readonly masterFormulaRepo: Repository<MasterFormula>,
+
+    @InjectRepository(MasterEmissionFactor)
+    private readonly masterEmissionFactorRepo: Repository<MasterEmissionFactor>,
 
     @InjectRepository(ScopeCategoryMapping)
     private readonly scopeCategoryMappingRepo: Repository<ScopeCategoryMapping>,
@@ -188,6 +196,33 @@ export class MasterService implements OnApplicationBootstrap {
           this.categoryDatasourceMappingRepo.create(mappings as Partial<CategoryDatasourceMapping>[]),
         );
       }
+    }
+
+    // Seed default Formulas
+    const formulaCount = await this.masterFormulaRepo.count();
+    if (formulaCount === 0) {
+      await this.masterFormulaRepo.save(
+        this.masterFormulaRepo.create(SEED_MASTER_FORMULAS as Partial<MasterFormula>[]),
+      );
+    }
+
+    // Seed default Emission Factors (POC vertical slice: Air Travel + Combustion)
+    const efCount = await this.masterEmissionFactorRepo.count();
+    if (efCount === 0) {
+      const firstVersion = await this.masterFactorVersionRepo.findOne({ where: { isActive: true } });
+      const firstUnit = await this.masterUnitRepo.findOne({ where: { isActive: true } });
+      const versionId = firstVersion?.id || 1;
+      const unitId = firstUnit?.id || 1;
+
+      const efsToSeed = SEED_MASTER_EMISSION_FACTORS.map((ef) => ({
+        ...ef,
+        factorVersionId: versionId,
+        unitId: unitId,
+      }));
+
+      await this.masterEmissionFactorRepo.save(
+        this.masterEmissionFactorRepo.create(efsToSeed as Partial<MasterEmissionFactor>[]),
+      );
     }
   }
 
@@ -765,6 +800,26 @@ export class MasterService implements OnApplicationBootstrap {
       { name: dto.name } as FindOptionsWhere<MasterFormula>,
       createdBy,
     );
+  }
+
+  /**
+   * Resolves a MasterFormula by methodCode (e.g. DISTANCE_BASED) or by formula ID.
+   * Ensures the formula originates directly from MDM configuration.
+   */
+  async resolveFormula(methodCodeOrId: string | number): Promise<MasterFormula | null> {
+    if (!methodCodeOrId) return null;
+    if (
+      typeof methodCodeOrId === 'number' ||
+      (!isNaN(Number(methodCodeOrId)) && !isNaN(parseFloat(String(methodCodeOrId))))
+    ) {
+      const byId = await this.masterFormulaRepo.findOne({
+        where: { id: Number(methodCodeOrId), isActive: true },
+      });
+      if (byId) return byId;
+    }
+    return this.masterFormulaRepo.findOne({
+      where: { methodCode: String(methodCodeOrId).trim(), isActive: true },
+    });
   }
 
   // ─── Scope Category Mapping Create ────────────────────────────────────────

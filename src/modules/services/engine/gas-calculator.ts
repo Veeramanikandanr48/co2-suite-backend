@@ -9,11 +9,15 @@ export class GasCalculator {
     totalEmission: number,
     unitEf: number,
     activityCode: string = 'SC',
+    customGasRatios?: Partial<GasBreakdownDto> | null,
   ): { emissions: GasBreakdownDto; unitFactor: GasBreakdownDto } {
     const total = Number(totalEmission || 0);
     const ef = Number(unitEf || 1.0);
 
-    const ratios = FactorResolver.resolveGasRatios(activityCode);
+    const ratios = FactorResolver.resolveGasRatios(
+      activityCode,
+      customGasRatios as any,
+    );
 
     const emissions: GasBreakdownDto = {
       SF6: Number((total * ratios.SF6).toFixed(6)),

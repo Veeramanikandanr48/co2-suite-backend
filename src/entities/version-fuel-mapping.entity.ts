@@ -1,9 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { BaseColumns } from './base-columns.entity';
 import type { MasterFactorVersion } from './master-factor-version.entity';
 import type { MasterFuel } from './master-fuel.entity';
 
 @Entity({ name: 'version_fuel_mapping' })
+@Index(['factorVersionId', 'fuelId'], { unique: true })
 export class VersionFuelMapping extends BaseColumns {
   @PrimaryGeneratedColumn()
   id: number;

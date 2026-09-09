@@ -11,6 +11,9 @@ export interface GasSpeciesRatio {
 }
 
 export class FactorResolver {
+  /**
+   * @deprecated Hardcoded sources are now managed dynamically via MDM master entities.
+   */
   static resolveSupportedSources(activityCode: string): string[] {
     switch (activityCode.toUpperCase()) {
       case ActivityCode.SC:
@@ -44,6 +47,9 @@ export class FactorResolver {
     }
   }
 
+  /**
+   * @deprecated Accepted units are now driven dynamically by MasterUnit and UnitFormulaMapping.
+   */
   static resolveAcceptedUnits(activityCode: string): string[] {
     switch (activityCode.toUpperCase()) {
       case ActivityCode.SC:
@@ -94,9 +100,25 @@ export class FactorResolver {
   }
 
   /**
-   * Resolves gas species emission ratios matching CageSuite & IPCC standard factors
+   * Resolves gas species emission ratios matching CageSuite & IPCC standard factors.
+   * If customGasRatios (from MasterFormula.gasRatios) is supplied, it overrides defaults.
    */
-  static resolveGasRatios(activityCode: string): GasSpeciesRatio {
+  static resolveGasRatios(
+    activityCode: string,
+    customGasRatios?: Partial<GasSpeciesRatio> | null,
+  ): GasSpeciesRatio {
+    if (customGasRatios && typeof customGasRatios === 'object') {
+      return {
+        CO2: Number(customGasRatios.CO2 ?? 0),
+        CH4: Number(customGasRatios.CH4 ?? 0),
+        N2O: Number(customGasRatios.N2O ?? 0),
+        HFC: Number(customGasRatios.HFC ?? 0),
+        PFC: Number(customGasRatios.PFC ?? 0),
+        SF6: Number(customGasRatios.SF6 ?? 0),
+        NF3: Number(customGasRatios.NF3 ?? 0),
+      };
+    }
+
     switch (activityCode.toUpperCase()) {
       case ActivityCode.MC:
         // Exact CageSuite Mobile Combustion ratio breakdown: CO2: 98.44%, N2O: 1.41%, CH4: 0.15%

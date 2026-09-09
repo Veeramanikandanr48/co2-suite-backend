@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   OnApplicationBootstrap,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -26,12 +27,17 @@ import { ICommonSortFieldObject } from 'src/utility/base-interface.interface';
 import { UtilService } from 'src/utility/util/util.service';
 import { IDecodeUserDetails } from 'src/utility/base-interface.interface';
 import { MasterRole } from 'src/enums/casl.enum';
+import { MrvStatusEnum } from 'src/enums/mrv-status.enum';
 import {
   SEED_SERVICES,
   SEED_SCOPE_CATEGORY_MAPPINGS,
   SEED_INVENTORY_ENTRIES,
 } from 'src/seeds/initial-data.seed';
 import { CalculationEngine } from './engine/calculation-engine';
+import { FormulaEngine } from './engine/formula-engine';
+import { EmissionFactorService } from '../master/emission-factor.service';
+import { MasterService } from '../master/master.service';
+import { MasterEmissionFactor } from 'src/entities/master-emission-factor.entity';
 
 @Injectable()
 export class ServicesService implements OnApplicationBootstrap {
@@ -47,6 +53,10 @@ export class ServicesService implements OnApplicationBootstrap {
     private readonly inventoryRepo: Repository<InventoryEntry>,
     private readonly utilService: UtilService,
     private readonly calculationEngine: CalculationEngine,
+    @Optional()
+    private readonly emissionFactorService?: EmissionFactorService,
+    @Optional()
+    private readonly masterService?: MasterService,
   ) { }
 
   private assertSuperAdmin(user: IDecodeUserDetails): void {
@@ -642,75 +652,9 @@ export class ServicesService implements OnApplicationBootstrap {
     };
   }
 
-  /**
-   * Evaluates a mathematical formula expression safely with amount and factor variables.
-   * e.g. "(amount * factor) / 1000", "amount * factor", "amount * factor * 0.001"
-   */
-  private evaluateFormulaExpression(
-    formula: string,
-    amount: number,
-    factor: number,
-  ): number | null {
-    if (!formula || !formula.trim()) return null;
-
-    try {
-      let expr = formula.toLowerCase().trim();
-
-      // Replace variable names with actual numeric values
-      expr = expr.replace(/\bamount\b/g, String(amount));
-      expr = expr.replace(/\bfactor\b/g, String(factor));
-      expr = expr.replace(/\bef\b/g, String(factor));
-
-      // Sanitize: only allow numbers, whitespace, +, -, *, /, (, ), .
-      if (!/^[0-9\s\+\-\*\/\(\)\.]+$/.test(expr)) {
-        return null;
-      }
-
-      const result = new Function(`"use strict"; return (${expr})`)();
-      if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
-        return Number(result.toFixed(3));
-      }
-    } catch {
-      // Return null on parsing or evaluation error to fallback to standard formula rules
-    }
-    return null;
-  }
-
-  /**
-   * Calculates emission (in metric tonnes CO2-e) using formula string or GHG standard rules
-   */
-  private calculateEmissionValue(
-    amount: number,
-    efVal: number,
-    formula?: string,
-    unit?: string,
-  ): number {
-    const amountVal = Number(amount) || 0;
-    const factorVal = Number(efVal) || 0;
-
-    if (amountVal === 0 || factorVal === 0) return 0;
-
-    // 1. Evaluate explicit formula expression if configured
-    if (formula && formula.trim()) {
-      const evaluated = this.evaluateFormulaExpression(
-        formula,
-        amountVal,
-        factorVal,
-      );
-      if (evaluated !== null) {
-        return evaluated;
-      }
-    }
-
-    // 2. Fallback standard: if unit is 'tonne' or 'ton' and factor is in tCO2e/tonne (factor <= 10)
-    const unitLower = (unit || '').toLowerCase();
-    if ((unitLower === 'tonne' || unitLower === 'ton') && factorVal <= 10.0) {
-      return Number((amountVal * factorVal).toFixed(3));
-    }
-
-    // Standard default: (amount * factor) / 1000 (kg CO2e -> metric tonnes CO2e)
-    return Number(((amountVal * factorVal) / 1000).toFixed(3));
-  }
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Dynamic Inventory Entry Creation & Calculation
+  // ─────────────────────────────────────────────────────────────────────────────
 
   async createInventoryEntry(
     user: IDecodeUserDetails,
@@ -719,20 +663,159 @@ export class ServicesService implements OnApplicationBootstrap {
     const orgId = this.resolveOrgId(user);
     const userId = user.id;
 
-    const efVal = dto.ef ?? 0;
-    const calculatedEmission = this.calculateEmissionValue(
-      dto.amount,
-      efVal,
-      dto.formula,
-      dto.unit,
+    let efVal = dto.ef !== undefined && dto.ef !== null ? Number(dto.ef) : undefined;
+    let emissionFactorId = dto.emissionFactorId;
+    let calculationMethod = dto.calculationMethod;
+    let activitySubType = dto.activitySubType;
+    let formulaId = dto.formulaId;
+    let formulaExpr = dto.formula;
+    let customGasRatios: any = null;
+    let resolvedEfRecord: MasterEmissionFactor | null = null;
+
+    // 1. Resolve Emission Factor via EmissionFactorService
+    if (this.emissionFactorService) {
+      if (emissionFactorId) {
+        try {
+          const directEf = await this.emissionFactorService.findById(emissionFactorId);
+          if (directEf) {
+            resolvedEfRecord = directEf;
+            if (efVal === undefined || efVal === 0) {
+              efVal = Number(directEf.factor);
+            }
+            calculationMethod = calculationMethod || directEf.calculationMethod;
+            activitySubType = activitySubType || directEf.activitySubType;
+          }
+        } catch {
+          // Fall through to query resolution
+        }
+      }
+
+      if (efVal === undefined || efVal === 0 || !emissionFactorId) {
+        try {
+          const resolved = await this.emissionFactorService.resolveEmissionFactor({
+            categoryName: dto.category,
+            fuelName: (dto as any).fuelOrGasType || (dto.activitySubType ? undefined : dto.name),
+            calculationMethod: dto.calculationMethod,
+            activitySubType: dto.activitySubType,
+            datasourceName: dto.efSource,
+          });
+          if (resolved) {
+            resolvedEfRecord = resolved;
+            if (efVal === undefined || efVal === 0) {
+              efVal = Number(resolved.factor);
+            }
+            emissionFactorId = resolved.id;
+            calculationMethod = calculationMethod || resolved.calculationMethod;
+            activitySubType = activitySubType || resolved.activitySubType;
+          }
+        } catch (err) {
+          if (efVal === undefined || efVal === 0) {
+            throw err;
+          }
+        }
+      }
+    }
+
+    // 2. Resolve Formula & Gas Ratios via MasterService
+    if (this.masterService) {
+      try {
+        const formulaTarget = formulaId || calculationMethod;
+        if (formulaTarget) {
+          const resolvedFormula = await this.masterService.resolveFormula(formulaTarget);
+          if (resolvedFormula) {
+            formulaExpr = formulaExpr || resolvedFormula.formula;
+            formulaId = formulaId || resolvedFormula.id;
+            calculationMethod = calculationMethod || resolvedFormula.methodCode;
+            customGasRatios = resolvedFormula.gasRatios;
+          }
+        }
+      } catch {
+        // Fallback to default formula handling
+      }
+    }
+
+    const anyDto = dto as any;
+    const finalEf = efVal ?? 0;
+    const refrigerantCharge = Number(dto.amount ?? anyDto.refrigerantCharge ?? 0);
+    const leakageRate = Number(anyDto.leakagePercent ?? anyDto.leakageRate ?? anyDto.leakage ?? 0);
+    const formulaVariables: Record<string, number> = {
+      amount: Number(dto.amount || 0),
+      factor: finalEf,
+      ef: finalEf,
+      gwp: finalEf,
+      GWP: finalEf,
+      refrigerantCharge,
+      refrigerantcharge: refrigerantCharge,
+      leakageRate,
+      leakagerate: leakageRate,
+      leakage: leakageRate,
+      energyAmount: Number(anyDto.energyAmount ?? dto.amount ?? 0),
+      energyamount: Number(anyDto.energyAmount ?? dto.amount ?? 0),
+      distance: Number(dto.distance ?? anyDto.dailyDistance ?? dto.amount ?? 0),
+      passengers: Number(dto.passengers ?? 1),
+      weight: Number(anyDto.weight ?? dto.amount ?? 0),
+      spend: Number(anyDto.spend ?? dto.amount ?? 0),
+      ...((dto.variables as Record<string, number>) || {}),
+    };
+
+    const calculated = FormulaEngine.execute(
+      dto.category || 'SC',
+      {
+        amount: dto.amount,
+        unitEf: finalEf,
+        unit: dto.unit,
+        customFormula: formulaExpr,
+        customGasRatios,
+        variables: formulaVariables,
+      },
+      'activity',
+      formulaExpr,
+      customGasRatios,
     );
+
+    const calculatedEmission = calculated.totalEmission;
+    let co2Tco2e = calculated.emissions.CO2;
+    let ch4Tco2e = calculated.emissions.CH4;
+    let n2oTco2e = calculated.emissions.N2O;
+    let hfcTco2e = calculated.emissions.HFC;
+
+    // Direct assignment from authoritative component factors when published
+    if (resolvedEfRecord) {
+      if (resolvedEfRecord.gasFamily === 'HCFC') {
+        hfcTco2e = 0; // Ozone-depleting substances are not HFCs
+      }
+      const hasAuthoritativeComponents =
+        Number(resolvedEfRecord.co2Factor) > 0 ||
+        Number(resolvedEfRecord.ch4Factor) > 0 ||
+        Number(resolvedEfRecord.n2oFactor) > 0 ||
+        Number(resolvedEfRecord.hfcFactor) > 0;
+
+      if (hasAuthoritativeComponents) {
+        const mult = Number(dto.amount || 0) / 1000;
+        co2Tco2e = Number((mult * Number(resolvedEfRecord.co2Factor || 0)).toFixed(6));
+        ch4Tco2e = Number((mult * Number(resolvedEfRecord.ch4Factor || 0)).toFixed(6));
+        n2oTco2e = Number((mult * Number(resolvedEfRecord.n2oFactor || 0)).toFixed(6));
+        hfcTco2e = resolvedEfRecord.gasFamily === 'HCFC' ? 0 : Number((mult * Number(resolvedEfRecord.hfcFactor || 0)).toFixed(6));
+      }
+    }
 
     const entity = this.inventoryRepo.create({
       ...dto,
       organizationId: orgId,
       createdBy: userId,
-      ef: efVal,
+      ef: finalEf,
       emission: calculatedEmission,
+      emissionFactorId,
+      formulaId,
+      calculationMethod,
+      activitySubType,
+      co2Tco2e,
+      ch4Tco2e,
+      n2oTco2e,
+      hfcTco2e,
+      locationBasedTco2e: dto.locationBasedTco2e ?? null,
+      marketBasedTco2e: dto.marketBasedTco2e ?? null,
+      mrvStatus: dto.mrvStatus || MrvStatusEnum.DRAFT,
       status: dto.status || 'completed',
     });
 
@@ -765,6 +848,16 @@ export class ServicesService implements OnApplicationBootstrap {
         'entry.comment',
         'entry.approvalStatus',
         'entry.isActive',
+        'entry.emissionFactorId',
+        'entry.calculationMethod',
+        'entry.activitySubType',
+        'entry.formulaId',
+        'entry.locationBasedTco2e',
+        'entry.marketBasedTco2e',
+        'entry.co2Tco2e',
+        'entry.ch4Tco2e',
+        'entry.n2oTco2e',
+        'entry.mrvStatus',
       ])
       .where('entry.id = :id', { id })
       .andWhere('entry.organizationId = :orgId', { orgId })
@@ -774,15 +867,148 @@ export class ServicesService implements OnApplicationBootstrap {
       throw new BadRequestException(`Inventory entry with ID ${id} not found`);
     }
 
+    if (existing.mrvStatus === MrvStatusEnum.LOCKED) {
+      throw new ForbiddenException(
+        'INVENTORY_RECORD_LOCKED: Locked inventory entries cannot be modified',
+      );
+    }
+
     Object.assign(existing, dto);
 
-    const efVal = existing.ef ?? 0;
-    existing.emission = this.calculateEmissionValue(
-      existing.amount,
-      efVal,
-      dto.formula,
-      existing.unit,
+    let efVal = existing.ef !== undefined && existing.ef !== null ? Number(existing.ef) : undefined;
+    let emissionFactorId = existing.emissionFactorId;
+    let calculationMethod = existing.calculationMethod;
+    let activitySubType = existing.activitySubType;
+    let formulaId = existing.formulaId;
+    let formulaExpr = dto.formula;
+    let customGasRatios: any = null;
+    let resolvedEfRecord: MasterEmissionFactor | null = null;
+
+    if (this.emissionFactorService) {
+      if (emissionFactorId) {
+        try {
+          const directEf = await this.emissionFactorService.findById(emissionFactorId);
+          if (directEf) {
+            resolvedEfRecord = directEf;
+          }
+        } catch {
+          // preserve existing
+        }
+      }
+      if (efVal === undefined || efVal === 0 || !emissionFactorId) {
+        try {
+          const resolved = await this.emissionFactorService.resolveEmissionFactor({
+            categoryName: existing.category,
+            fuelName: (dto as any).fuelOrGasType || (existing.activitySubType ? undefined : existing.name),
+            calculationMethod: existing.calculationMethod,
+            activitySubType: existing.activitySubType,
+            datasourceName: existing.efSource,
+          });
+          if (resolved) {
+            resolvedEfRecord = resolved;
+            if (efVal === undefined || efVal === 0) {
+              efVal = Number(resolved.factor);
+            }
+            emissionFactorId = resolved.id;
+            calculationMethod = calculationMethod || resolved.calculationMethod;
+            activitySubType = activitySubType || resolved.activitySubType;
+          }
+        } catch {
+          // preserve existing if resolution fails on update
+        }
+      }
+    }
+
+    if (this.masterService) {
+      try {
+        const formulaTarget = formulaId || calculationMethod;
+        if (formulaTarget) {
+          const resolvedFormula = await this.masterService.resolveFormula(formulaTarget);
+          if (resolvedFormula) {
+            formulaExpr = formulaExpr || resolvedFormula.formula;
+            formulaId = formulaId || resolvedFormula.id;
+            calculationMethod = calculationMethod || resolvedFormula.methodCode;
+            customGasRatios = resolvedFormula.gasRatios;
+          }
+        }
+      } catch {
+        // preserve existing
+      }
+    }
+
+    const anyDto = dto as any;
+    const finalEf = efVal ?? 0;
+    const refrigerantCharge = Number(existing.amount ?? anyDto.refrigerantCharge ?? 0);
+    const leakageRate = Number(anyDto.leakagePercent ?? anyDto.leakageRate ?? anyDto.leakage ?? 0);
+    const formulaVariables: Record<string, number> = {
+      amount: Number(existing.amount || 0),
+      factor: finalEf,
+      ef: finalEf,
+      gwp: finalEf,
+      GWP: finalEf,
+      refrigerantCharge,
+      refrigerantcharge: refrigerantCharge,
+      leakageRate,
+      leakagerate: leakageRate,
+      leakage: leakageRate,
+      energyAmount: Number(anyDto.energyAmount ?? existing.amount ?? 0),
+      energyamount: Number(anyDto.energyAmount ?? existing.amount ?? 0),
+      distance: Number(dto.distance ?? anyDto.dailyDistance ?? existing.amount ?? 0),
+      passengers: Number(dto.passengers ?? 1),
+      weight: Number(anyDto.weight ?? existing.amount ?? 0),
+      spend: Number(anyDto.spend ?? existing.amount ?? 0),
+      ...((dto.variables as Record<string, number>) || {}),
+    };
+
+    const calculated = FormulaEngine.execute(
+      existing.category || 'SC',
+      {
+        amount: existing.amount,
+        unitEf: finalEf,
+        unit: existing.unit,
+        customFormula: formulaExpr,
+        customGasRatios,
+        variables: formulaVariables,
+      },
+      'activity',
+      formulaExpr,
+      customGasRatios,
     );
+
+    let co2Tco2e = calculated.emissions.CO2;
+    let ch4Tco2e = calculated.emissions.CH4;
+    let n2oTco2e = calculated.emissions.N2O;
+    let hfcTco2e = calculated.emissions.HFC;
+
+    if (resolvedEfRecord) {
+      if (resolvedEfRecord.gasFamily === 'HCFC') {
+        hfcTco2e = 0;
+      }
+      const hasAuthoritativeComponents =
+        Number(resolvedEfRecord.co2Factor) > 0 ||
+        Number(resolvedEfRecord.ch4Factor) > 0 ||
+        Number(resolvedEfRecord.n2oFactor) > 0 ||
+        Number(resolvedEfRecord.hfcFactor) > 0;
+
+      if (hasAuthoritativeComponents) {
+        const mult = Number(existing.amount || 0) / 1000;
+        co2Tco2e = Number((mult * Number(resolvedEfRecord.co2Factor || 0)).toFixed(6));
+        ch4Tco2e = Number((mult * Number(resolvedEfRecord.ch4Factor || 0)).toFixed(6));
+        n2oTco2e = Number((mult * Number(resolvedEfRecord.n2oFactor || 0)).toFixed(6));
+        hfcTco2e = resolvedEfRecord.gasFamily === 'HCFC' ? 0 : Number((mult * Number(resolvedEfRecord.hfcFactor || 0)).toFixed(6));
+      }
+    }
+
+    existing.ef = finalEf;
+    existing.emission = calculated.totalEmission;
+    existing.emissionFactorId = emissionFactorId;
+    existing.formulaId = formulaId;
+    existing.calculationMethod = calculationMethod;
+    existing.activitySubType = activitySubType;
+    existing.co2Tco2e = co2Tco2e;
+    existing.ch4Tco2e = ch4Tco2e;
+    existing.n2oTco2e = n2oTco2e;
+    existing.hfcTco2e = hfcTco2e;
 
     return this.inventoryRepo.save(existing);
   }
@@ -794,13 +1020,18 @@ export class ServicesService implements OnApplicationBootstrap {
     const orgId = this.resolveOrgId(user);
     const existing = await this.inventoryRepo
       .createQueryBuilder('entry')
-      .select(['entry.id', 'entry.organizationId', 'entry.isActive'])
+      .select(['entry.id', 'entry.organizationId', 'entry.isActive', 'entry.mrvStatus'])
       .where('entry.id = :id', { id })
       .andWhere('entry.organizationId = :orgId', { orgId })
       .andWhere('entry.isActive = :isActive', { isActive: true })
       .getOne();
     if (!existing) {
       throw new BadRequestException('Inventory entry not found');
+    }
+    if (existing.mrvStatus === MrvStatusEnum.LOCKED) {
+      throw new ForbiddenException(
+        'INVENTORY_RECORD_LOCKED: Locked inventory entries cannot be deactivated or deleted',
+      );
     }
     existing.isActive = false;
     await this.inventoryRepo.save(existing);

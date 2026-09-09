@@ -8,22 +8,28 @@ import { Service } from 'src/entities/service.entity';
 import { OrganizationService } from 'src/entities/organization-service.entity';
 import { ScopeCategoryMapping } from 'src/entities/scope-category-mapping.entity';
 import { InventoryEntry } from 'src/entities/inventory-entry.entity';
+import { InventoryAuditEvent } from 'src/entities/inventory-audit-event.entity';
 import { Facility } from 'src/entities/facility.entity';
 import { Organization } from 'src/entities/organization.entity';
 import { UserDetails } from 'src/entities/user.entity';
 import { ServicesService } from './services.service';
 import { SummaryService } from './summary.service';
+import { MrvService } from './mrv/mrv.service';
 import { ServicesController } from './services.controller';
+import { MrvController } from './mrv/mrv.controller';
 import { UtilService } from 'src/utility/util/util.service';
+import { MasterModule } from '../master/master.module';
 import { CalculationEngine } from './engine/calculation-engine';
 
 @Module({
   imports: [
+    MasterModule,
     TypeOrmModule.forFeature([
       Service,
       OrganizationService,
       ScopeCategoryMapping,
       InventoryEntry,
+      InventoryAuditEvent,
       Facility,
       Organization,
       UserDetails,
@@ -49,8 +55,8 @@ import { CalculationEngine } from './engine/calculation-engine';
       },
     }),
   ],
-  controllers: [ServicesController],
-  providers: [ServicesService, SummaryService, UtilService, CalculationEngine],
-  exports: [ServicesService, SummaryService, CalculationEngine],
+  controllers: [ServicesController, MrvController],
+  providers: [ServicesService, SummaryService, MrvService, UtilService, CalculationEngine],
+  exports: [ServicesService, SummaryService, MrvService, CalculationEngine],
 })
 export class ServicesModule {}
